@@ -1,0 +1,228 @@
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Runtime files
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# Build artifacts
+*.o
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+.temp/
+
+# Configuration backups
+*.toml.backup
+*.toml.tmp
+config/*.backup
+config/*.tmp
+
+# TLS certificates and keys (for security)
+*.pem
+*.key
+*.crt
+*.cert
+*.p12
+*.pfx
+certs/
+ssl/
+
+# Test artifacts
+test_data/
+*.test
+test_results/
+benchmark_results/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Documentation build
+docs/_build/
+docs/site/
+
+# Python (for test scripts and tools)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Node.js (if using any JS tools)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Package files
+*.tar.gz
+*.tgz
+*.zip
+*.7z
+*.rar
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# System files
+.fuse_hidden*
+.nfs*
+
+# Monitoring and metrics data
+prometheus/
+grafana/
+metrics/
+
+# SecBeat specific ignores
+# Ignore compiled binaries
+mitigation-node/target/
+orchestrator-node/target/
+
+# Ignore runtime state
+state/
+data/
+logs/
+
+# Ignore local configuration overrides
+config/local.toml
+config/production.toml
+config/development.toml
+
+# Ignore test certificates (these should be generated)
+mitigation-node/certs/
+orchestrator-node/certs/
+
+# Ignore benchmark and performance test results
+benchmarks/
+performance/
+
+# Ignore security scan results
+security/
+vulnerability_reports/
+
+# Ignore deployment artifacts
+deploy/
+ansible/host_vars/
+ansible/group_vars/production/
+terraform.tfstate*
+.terraform/
+
+# Ignore local scripts and tools
+local_tools/
+scripts/local/
+
+# Ignore documentation build artifacts
+docs/build/
+*.pdf
+*.epub
+
+# Ignore container build context
+.dockerignore
+docker-compose.override.yml
+
+# Ignore local development databases
+*.local.db
+
+# Ignore profiling output
+*.prof
+perf.data*
+callgrind.out.*
+
+# Ignore core dumps
+core
+core.*
+
+# Ignore flamegraphs and profiling output
+*.svg
+flamegraph*
+
+# Ignore clang/gcc specific files
+compile_commands.json
+.clangd/
+
+# Ignore rustfmt backup files
+*.rs.bk
+
+# Ignore clippy cache
+.clippy.toml
+
+# Ignore local Cargo configuration
+.cargo/config.toml
+
+# Ignore RLS/rust-analyzer files
+.rls/
+
+# Ignore custom build scripts output
+build/
+out/
+
+# SecBeat deployment specific
+# Ignore production configuration
+config/prod/
+secrets/
+ansible/inventories/production/
+
+# Ignore monitoring setup
+monitoring/prometheus/data/
+monitoring/grafana/data/
+
+# Ignore load test results
+load_tests/results/
+jmeter/
+
+# Ignore local virtual environments
+.venv/
+.virtualenv/
+
+# Ignore temporary network captures
+*.pcap
+*.pcapng
+
+# Ignore webhook test servers
+webhook_test_server.py
+webhook_server/
