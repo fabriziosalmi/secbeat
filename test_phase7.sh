@@ -78,16 +78,16 @@ fi
 
 echo ""
 echo -e "${CYAN}🧠 Starting Orchestrator with ML Prediction & Self-Healing...${NC}"
-cd orchestrator-node
+cd /Users/fab/GitHub/secbeat/orchestrator-node
 cargo run > ../logs/orchestrator.log 2>&1 &
 ORCHESTRATOR_PID=$!
-cd ..
+cd /Users/fab/GitHub/secbeat
 sleep 3
 echo -e "${GREEN}✅ Orchestrator running (PID: $ORCHESTRATOR_PID)${NC}"
 
 echo ""
 echo -e "${CYAN}🎯 Starting Test Origin Server...${NC}"
-cd mitigation-node
+cd /Users/fab/GitHub/secbeat/mitigation-node
 cargo run --bin test-origin > ../logs/origin.log 2>&1 &
 ORIGIN_PID=$!
 cd ..

@@ -177,7 +177,7 @@ fi
 # Test 7: Basic connectivity test
 print_test "Testing basic TCP proxy connectivity..."
 
-if curl -s --max-time $TIMEOUT "http://$TEST_HOST:$PROXY_PORT/" > /dev/null; then
+if curl -k -s --max-time $TIMEOUT "https://$TEST_HOST:$PROXY_PORT/" > /dev/null; then
     print_success "TCP proxy is working"
 else
     print_error "TCP proxy connectivity test failed"
@@ -188,7 +188,7 @@ fi
 print_test "Testing content forwarding..."
 
 ORIGIN_RESPONSE=$(curl -s --max-time $TIMEOUT "http://$TEST_HOST:$BACKEND_PORT/")
-PROXY_RESPONSE=$(curl -s --max-time $TIMEOUT "http://$TEST_HOST:$PROXY_PORT/")
+PROXY_RESPONSE=$(curl -k -s --max-time $TIMEOUT "https://$TEST_HOST:$PROXY_PORT/")
 
 if [ "$ORIGIN_RESPONSE" = "$PROXY_RESPONSE" ]; then
     print_success "Content forwarding is correct"

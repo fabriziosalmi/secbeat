@@ -83,10 +83,10 @@ fi
 # Start Orchestrator with Resource Manager
 echo ""
 echo -e "${PURPLE}🎭 Starting Orchestrator with Resource Manager & Threat Intelligence...${NC}"
-cd orchestrator-node
+cd /Users/fab/GitHub/secbeat/orchestrator-node
 cargo run > ../logs/orchestrator.log 2>&1 &
 ORCHESTRATOR_PID=$!
-cd ..
+cd /Users/fab/GitHub/secbeat
 sleep 3
 
 if ps -p $ORCHESTRATOR_PID > /dev/null; then
