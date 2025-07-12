@@ -58,7 +58,9 @@ impl DdosProtection {
         // Parse whitelist CIDR ranges
         let whitelist: Vec<IpNet> = config
             .blacklist
-            .whitelist
+            .static_whitelist
+            .as_ref()
+            .unwrap_or(&Vec::new())
             .iter()
             .filter_map(|cidr| {
                 match cidr.parse::<IpNet>() {
@@ -74,7 +76,9 @@ impl DdosProtection {
         // Parse manual blacklist CIDR ranges
         let manual_blacklist: Vec<IpNet> = config
             .blacklist
-            .manual_blacklist
+            .static_blacklist
+            .as_ref()
+            .unwrap_or(&Vec::new())
             .iter()
             .filter_map(|cidr| {
                 match cidr.parse::<IpNet>() {
@@ -283,7 +287,7 @@ impl DdosProtection {
 
     /// Add IP to dynamic blacklist
     fn add_to_blacklist(&self, ip: IpAddr) {
-        let expiry = Instant::now() + Duration::from_secs(self.config.blacklist.blacklist_duration);
+        let expiry = Instant::now() + Duration::from_secs(self.config.blacklist.blacklist_duration_seconds.unwrap_or(300));
         self.blacklist.insert(ip, expiry);
         
         // Reset violation counter
@@ -291,7 +295,7 @@ impl DdosProtection {
 
         warn!(
             ip = %ip,
-            duration_seconds = self.config.blacklist.blacklist_duration,
+            duration_seconds = self.config.blacklist.blacklist_duration_seconds.unwrap_or(300),
             "IP added to blacklist"
         );
 

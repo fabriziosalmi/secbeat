@@ -1,0 +1,215 @@
+# SecBeat Development Configuration
+# Lightweight configuration for local development and testing
+
+[platform]
+environment = "development"
+deployment_id = "secbeat-dev-local"
+region = "local"
+
+# Minimal feature set for development
+features = [
+    "ddos_protection",
+    "waf_protection", 
+    "tls_termination",
+    "metrics",
+    "management_api"
+]
+
+[network]
+public_interface = "127.0.0.1"
+public_port = 8443
+backend_interface = "127.0.0.1"
+backend_port = 8080
+max_connections = 1000
+connection_timeout_seconds = 30
+keep_alive_timeout_seconds = 60
+buffer_size = 8192
+
+backend_servers = [
+    { address = "127.0.0.1:8080", weight = 100, health_check = true }
+]
+
+[network.tls]
+enabled = true
+cert_path = "mitigation-node/certs/cert.pem"
+key_path = "mitigation-node/certs/key.pem"
+min_version = "1.2"
+max_version = "1.3"
+alpn_protocols = ["h2", "http/1.1"]
+client_cert_required = false
+ocsp_stapling = false
+
+[ddos]
+enabled = true
+detection_threshold_multiplier = 2.0
+mitigation_duration_seconds = 60
+learning_period_seconds = 300
+
+[ddos.rate_limiting]
+requests_per_second = 100
+burst_size = 200
+window_seconds = 60
+penalty_duration_seconds = 60
+global_requests_per_second = 5000
+global_burst_size = 10000
+
+[ddos.connection_limits]
+max_connections_per_ip = 10
+max_total_connections = 1000
+max_new_connections_per_second = 100
+max_concurrent_handshakes = 1000
+
+[ddos.syn_proxy]
+enabled = true
+cookie_secret = "dev-cookie-secret-not-for-production-use-only"
+listen_port = 8443
+handshake_timeout_ms = 5000
+max_pending_handshakes = 5000
+syn_flood_threshold = 100
+
+[ddos.blacklist]
+enabled = true
+auto_blacklist_enabled = true
+violation_threshold = 5
+blacklist_duration_seconds = 300
+escalation_multiplier = 1.5
+max_blacklist_duration_seconds = 3600
+
+static_whitelist = [
+    "127.0.0.0/8",
+    "10.0.0.0/8",
+    "172.16.0.0/12",
+    "192.168.0.0/16"
+]
+
+geo_blocking_enabled = false
+blocked_countries = []
+allowed_countries = []
+
+[waf]
+enabled = true
+mode = "monitor"  # Less aggressive for development
+max_request_size_bytes = 1048576  # 1MB
+max_header_size_bytes = 8192
+max_url_length = 2048
+max_query_params = 50
+
+[waf.http_inspection]
+inspect_headers = true
+inspect_body = true
+inspect_url = true
+inspect_cookies = true
+inspect_user_agent = true
+max_body_size_bytes = 524288  # 512KB
+body_inspection_timeout_ms = 500
+
+allowed_content_types = [
+    "application/json",
+    "application/x-www-form-urlencoded",
+    "multipart/form-data",
+    "text/plain"
+]
+
+[waf.attack_patterns]
+sql_injection = true
+xss_detection = true
+path_traversal = true
+command_injection = true
+ldap_injection = false
+xml_injection = false
+xxe_protection = false
+csrf_protection = false
+session_fixation_protection = false
+clickjacking_protection = false
+
+custom_rules_enabled = false
+anomaly_scoring_enabled = false
+
+[waf.ai_detection]
+enabled = false  # Disabled for development
+
+# Orchestrator disabled for development
+[orchestrator]
+enabled = false
+
+# NATS disabled for development
+[nats]
+enabled = false
+
+[metrics]
+enabled = true
+listen_addr = "127.0.0.1:9090"
+collection_interval_seconds = 10
+aggregation_interval_seconds = 60
+retention_hours = 2
+
+prometheus_enabled = true
+prometheus_path = "/metrics"
+prometheus_namespace = "secbeat_dev"
+custom_metrics_enabled = true
+high_cardinality_metrics = true
+
+[metrics.exporters]
+prometheus = { enabled = true, endpoint = "/metrics" }
+
+[logging]
+level = "debug"
+format = "text"  # More readable for development
+outputs = ["stdout"]
+
+include_timestamp = true
+include_level = true
+include_target = true
+include_thread_id = false
+include_line_number = true
+
+sampling_enabled = false
+
+[logging.audit]
+enabled = false
+
+[management]
+enabled = true
+listen_addr = "127.0.0.1:9999"
+tls_enabled = false
+auth_method = "none"  # No auth for development
+
+enable_status = true
+enable_metrics = true
+enable_config = true
+enable_health = true
+enable_debug = true
+
+cors_enabled = true
+cors_origins = ["*"]
+rate_limiting_enabled = false
+
+shutdown_grace_period_seconds = 10
+force_shutdown_timeout_seconds = 5
+
+[health]
+enabled = true
+listen_addr = "127.0.0.1:8081"
+path = "/health"
+check_interval_seconds = 30
+timeout_seconds = 5
+
+check_backend = true
+check_nats = false
+check_orchestrator = false
+
+readiness_path = "/ready"
+liveness_path = "/live"
+
+[debug]
+enabled = true
+pprof_enabled = true
+pprof_addr = "127.0.0.1:6060"
+
+cpu_profiling = false
+memory_profiling = false
+request_tracing_enabled = true
+trace_sampling_rate = 1.0  # Trace all requests in development
+
+debug_endpoints_enabled = true
+debug_auth_required = false

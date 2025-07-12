@@ -1,0 +1,40 @@
+# Phase 1: Basic TCP Proxy config
+[network]
+listen_addr = "0.0.0.0:8443"
+backend_addr = "127.0.0.1:8080"ase 1: Basic TCP Proxy config
+[network]
+listen_addr = "0.0.0.0:8080"
+backend_addr = "127.0.0.1:8081"
+connection_timeout = 30
+buffer_size = 8192
+
+[network.tls]
+enabled = false
+cert_path = "certs/cert.pem"
+key_path = "certs/key.pem"
+tls_port = 8443
+
+[ddos]
+enabled = false
+
+[waf]
+enabled = false
+
+[syn_proxy]
+enabled = false
+
+[metrics]
+enabled = false
+
+[logging]
+level = "info"
+json_format = false
+
+[orchestrator]
+enabled = false
+
+[nats]
+enabled = false
+
+[management]
+enabled = false

@@ -105,7 +105,7 @@ impl OrchestratorClient {
     /// Create a new orchestrator client
     pub fn new(config: OrchestratorConfig) -> Self {
         let http_client = Client::builder()
-            .timeout(Duration::from_secs(config.heartbeat.timeout))
+            .timeout(Duration::from_secs(config.heartbeat.as_ref().map(|h| h.timeout_seconds).unwrap_or(30)))
             .build()
             .expect("Failed to create HTTP client");
 
@@ -129,7 +129,9 @@ impl OrchestratorClient {
     pub async fn register(&self, _node_config: NodeConfig) -> Result<RegisterResponse> {
         let mut attempts = self.registration_attempts.write().await;
         
-        if *attempts >= self.config.registration.max_retries {
+        if *attempts >= self.config.registration.as_ref()
+            .and_then(|r| r.max_retries)
+            .unwrap_or(3) {
             return Err(anyhow::anyhow!("Max registration attempts exceeded"));
         }
 
@@ -152,19 +154,24 @@ impl OrchestratorClient {
             },
         };
 
-        let url = format!("{}/api/v1/nodes/register", self.config.server_url);
+        let url = format!("{}/api/v1/nodes/register", 
+            self.config.server_url.as_deref().unwrap_or("http://localhost:8080"));
         
         info!(
             url = %url,
             attempt = *attempts,
-            max_retries = self.config.registration.max_retries,
+            max_retries = self.config.registration.as_ref()
+                .and_then(|r| r.max_retries)
+                .unwrap_or(3),
             "Attempting node registration"
         );
 
         let response = self.http_client
             .post(&url)
             .json(&request)
-            .timeout(Duration::from_secs(self.config.registration.timeout))
+            .timeout(Duration::from_secs(self.config.registration.as_ref()
+                .and_then(|r| r.timeout_seconds)
+                .unwrap_or(30)))
             .send()
             .await
             .context("Failed to send registration request")?;
@@ -208,14 +215,15 @@ impl OrchestratorClient {
             status,
         };
 
-        let url = format!("{}/api/v1/nodes/heartbeat", self.config.server_url);
+        let url = format!("{}/api/v1/nodes/heartbeat", 
+            self.config.server_url.as_deref().unwrap_or("http://localhost:8080"));
 
         debug!(node_id = %node_id, "Sending heartbeat to orchestrator");
 
         let response = self.http_client
             .post(&url)
             .json(&request)
-            .timeout(Duration::from_secs(self.config.heartbeat.timeout))
+            .timeout(Duration::from_secs(self.config.heartbeat.as_ref().map(|h| h.timeout_seconds).unwrap_or(30)))
             .send()
             .await
             .context("Failed to send heartbeat")?;
@@ -274,11 +282,11 @@ impl OrchestratorClient {
 
         let client = Arc::clone(&self);
         let metrics_provider = Arc::new(metrics_provider);
-        let interval = Duration::from_secs(self.config.heartbeat.interval);
+        let interval = Duration::from_secs(self.config.heartbeat.as_ref().map(|h| h.interval_seconds).unwrap_or(60));
 
         tokio::spawn(async move {
             let mut missed_heartbeats = 0;
-            let max_missed = client.config.heartbeat.max_missed;
+            let max_missed = client.config.heartbeat.as_ref().map(|h| h.max_missed).unwrap_or(3);
 
             loop {
                 tokio::time::sleep(interval).await;
@@ -340,7 +348,9 @@ impl OrchestratorClient {
 
     /// Get registration retry interval
     pub fn get_retry_interval(&self) -> Duration {
-        Duration::from_secs(self.config.registration.retry_interval)
+        Duration::from_secs(self.config.registration.as_ref()
+            .and_then(|r| r.retry_interval_seconds)
+            .unwrap_or(60))
     }
 }
 

@@ -182,11 +182,13 @@ impl WafEngine {
             }
         }
 
-        // Custom patterns
-        for pattern in &self.config.attack_patterns.custom_patterns {
-            match Regex::new(pattern) {
-                Ok(regex) => self.custom_patterns.push(regex),
-                Err(e) => warn!(pattern = pattern, error = %e, "Failed to compile custom pattern"),
+        // Custom patterns - TODO: implement proper custom pattern loading from file
+        // For now, skip custom patterns since the config structure doesn't include them
+        // Future enhancement: load patterns from config.attack_patterns.custom_rules_path
+        if self.config.attack_patterns.custom_rules_enabled.unwrap_or(false) {
+            if let Some(ref custom_rules_path) = self.config.attack_patterns.custom_rules_path {
+                warn!("Custom rules configured at {} but not yet implemented", custom_rules_path);
+                // TODO: Load custom patterns from file
             }
         }
 
@@ -207,10 +209,10 @@ impl WafEngine {
 
         // Check request size
         if let Some(body) = &request.body {
-            if body.len() > self.config.http_inspection.max_body_size {
+            if body.len() > self.config.http_inspection.max_body_size_bytes.unwrap_or(1024 * 1024) {
                 debug!(
                     body_size = body.len(),
-                    max_size = self.config.http_inspection.max_body_size,
+                    max_size = self.config.http_inspection.max_body_size_bytes.unwrap_or(1024 * 1024),
                     "Request body too large"
                 );
                 counter!("waf_blocked_oversized", 1);

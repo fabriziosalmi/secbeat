@@ -1,4 +1,4 @@
-# SecBeat: AI-Powered DDoS Mitigation & WAF System
+# SecBeat: Production-Grade DDoS Mitigation & WAF Platform
 
 ![Rust Version](https://img.shields.io/badge/rust-1.78+-93450a.svg)
 ![Tokio Version](https://img.shields.io/badge/tokio-1.35-blue.svg)
@@ -18,155 +18,143 @@ The system implements a revolutionary "smart edge, intelligent orchestrator" arc
 git clone https://github.com/your-org/secbeat.git
 cd secbeat
 
+# Build all components (requires Rust 1.78+)
+make build
+
 # Run comprehensive test suite
-sudo ./test_all.sh
+make test
 
-# Build all components
-cargo build --release --all-features
+# Deploy in production mode
+make deploy-production
 
-# Start orchestrator
-cd orchestrator-node && cargo run --release
-
-# Start mitigation node
-cd mitigation-node && sudo cargo run --release
+# Or start individual components for development
+make start-orchestrator  # Starts orchestrator node
+make start-mitigation    # Starts mitigation node (requires sudo)
 ```
 
 ## 📋 Table of Contents
 
-- [🎯 Project Vision](#-project-vision)
-- [🏗️ Architecture Overview](#️-architecture-overview)
-- [🔧 Components](#-components)
-- [📈 Development Phases](#-development-phases)
+- [🎯 Platform Overview](#-platform-overview)
+- [🏗️ Architecture](#️-architecture)
 - [⚡ Getting Started](#-getting-started)
+- [🔧 Configuration](#-configuration)
 - [🧪 Testing](#-testing)
-- [📊 Performance](#-performance)
-- [🔒 Security Features](#-security-features)
 - [🚀 Deployment](#-deployment)
-- [📖 Documentation](#-documentation)
+- [📊 Monitoring](#-monitoring)
+- [🔒 Security Features](#-security-features)
+- [🛠️ API Reference](#️-api-reference)
+- [📖 Operations Guide](#-operations-guide)
 - [🤝 Contributing](#-contributing)
 - [📄 License](#-license)
 
-## 🎯 Project Vision
+## 🎯 Platform Overview
 
-SecBeat aims to revolutionize DDoS protection and web application security by creating a distributed, self-healing security fabric that can:
+SecBeat is designed as a unified security platform that scales from single-node deployments to global multi-region clusters. The platform provides:
 
--   **🛡️ Mitigate Volumetric Attacks:** Absorb and neutralize massive L4 floods (SYN, UDP, etc.) with minimal performance impact using custom SYN Proxy and advanced packet-level filtering
--   **🔍 Deep Application Inspection:** Terminate TLS at the edge and apply dynamic WAF rulesets to block L7 attacks including SQL Injection, XSS, and path traversal
--   **🤖 Autonomous Scaling:** Intelligently scale the mitigation fleet up or down based on real-time traffic analysis and predictive ML models, without cloud provider lock-in
--   **🔄 Proactive Self-Healing:** Detect unexpected node failures and automatically provision replacements to maintain fleet capacity and resilience
--   **🧠 Centralized Intelligence:** Leverage distributed orchestrator to analyze fleet-wide security events, identify coordinated attacks, and broadcast real-time defense commands simultaneously
+### 🛡️ Multi-Layer Protection
 
-## 🏗️ Architecture Overview
+**Layer 4 (Network/Transport)**
+- **TCP/UDP Proxy**: High-performance async proxy with sub-millisecond latency
+- **SYN Proxy**: Advanced SYN flood protection using kernel-level packet processing
+- **Connection Management**: Intelligent connection pooling and rate limiting
+- **Network Monitoring**: Real-time traffic analysis and anomaly detection
 
-SecBeat implements a modern microservices architecture with two primary components communicating over a high-speed message bus (NATS):
+**Layer 7 (Application)**
+- **HTTPS Termination**: Modern TLS 1.3 with certificate management
+- **Web Application Firewall**: Dynamic rule engine with ML-powered detection
+- **HTTP/2 Support**: Full HTTP/2 protocol implementation
+- **Request Filtering**: Advanced pattern matching and content inspection
+
+### 🤖 AI-Powered Intelligence
+
+**Threat Detection**
+- Real-time attack pattern recognition
+- Behavioral analysis and anomaly detection
+- Cross-correlation of security events
+- Predictive threat modeling
+
+**Autonomous Response**
+- Dynamic rule generation and deployment
+- Automated scaling based on traffic patterns
+- Self-healing node replacement
+- Intelligent load balancing
+
+### 🌐 Distributed Architecture
+
+**Mitigation Nodes** (Edge Security)
+- High-performance traffic processing
+- Local decision making capabilities
+- Real-time metrics collection
+- Horizontal scaling support
+
+**Orchestrator Node** (Control Plane)
+- Centralized fleet management
+- AI-powered decision engine
+- Resource optimization
+- Global coordination
+
+## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Orchestrator Cluster                    │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐  │
-│  │Fleet Manager│ │AI/ML Engine │ │  Webhook Executor   │  │
-│  │             │ │             │ │                     │  │
-│  │- Registry   │ │- Predictive │ │- Auto-scaling       │  │
-│  │- Heartbeats │ │- Anomaly    │ │- Self-healing       │  │
-│  │- Health     │ │- Expert Sys │ │- Provisioning       │  │
-│  └─────────────┘ └─────────────┘ └─────────────────────┘  │
-└─────────────────────┬───────────────────────────────────────┘
-                      │ NATS/Control Bus
-              ┌───────┼───────┬───────┼───────┐
-              │               │               │
-    ┌─────────▼──┐  ┌─────────▼──┐  ┌─────────▼──┐
-    │Mitigation  │  │Mitigation  │  │Mitigation  │
-    │Node 1      │  │Node 2      │  │Node N      │
-    │            │  │            │  │            │
-    │┌──────────┐│  │┌──────────┐│  │┌──────────┐│
-    ││SYN Proxy ││  ││SYN Proxy ││  ││SYN Proxy ││
-    │└──────────┘│  │└──────────┘│  │└──────────┘│
-    │┌──────────┐│  │┌──────────┐│  │┌──────────┐│
-    ││TLS Term. ││  ││TLS Term. ││  ││TLS Term. ││
-    │└──────────┘│  │└──────────┘│  │└──────────┘│
-    │┌──────────┐│  │┌──────────┐│  │┌──────────┐│
-    ││WAF Engine││  ││WAF Engine││  ││WAF Engine││
-    │└──────────┘│  │└──────────┘│  │└──────────┘│
-    └────────────┘  └────────────┘  └────────────┘
-            │               │               │
-    ┌───────▼───────┬───────▼───────┬───────▼───────┐
-    │   Backend     │   Backend     │   Backend     │
-    │  Services     │  Services     │  Services     │
-    └───────────────┴───────────────┴───────────────┘
+                           ┌─────────────────────────────────────┐
+                           │         Orchestrator Node          │
+                           │  ┌─────────────────────────────┐    │
+                           │  │     Control Plane APIs     │    │
+                           │  │  • Fleet Management        │    │
+                           │  │  • Policy Distribution     │    │
+                           │  │  • Resource Orchestration  │    │
+                           │  └─────────────────────────────┘    │
+                           │  ┌─────────────────────────────┐    │
+                           │  │      AI Engine             │    │
+                           │  │  • Threat Intelligence     │    │
+                           │  │  • Predictive Scaling      │    │
+                           │  │  • Decision Engine         │    │
+                           │  └─────────────────────────────┘    │
+                           └─────────────────────────────────────┘
+                                           │
+                          ┌────────────────┴────────────────┐
+                          │         NATS Messaging         │
+                          │    Real-time Event Stream      │
+                          └────────────────┬────────────────┘
+                                           │
+        ┌──────────────────────────────────┼──────────────────────────────────┐
+        │                                  │                                  │
+┌───────▼────────┐                ┌───────▼────────┐                ┌───────▼────────┐
+│ Mitigation     │                │ Mitigation     │                │ Mitigation     │
+│ Node 1         │                │ Node 2         │                │ Node N         │
+│                │                │                │                │                │
+│ ┌────────────┐ │                │ ┌────────────┐ │                │ ┌────────────┐ │
+│ │ TCP Proxy  │ │                │ │ TCP Proxy  │ │                │ │ TCP Proxy  │ │
+│ │ SYN Proxy  │ │                │ │ SYN Proxy  │ │                │ │ SYN Proxy  │ │
+│ │ TLS Term   │ │                │ │ TLS Term   │ │                │ │ TLS Term   │ │
+│ │ WAF Engine │ │                │ │ WAF Engine │ │                │ │ WAF Engine │ │
+│ └────────────┘ │                │ └────────────┘ │                │ └────────────┘ │
+│                │                │                │                │                │
+│ [Clients] ──── │                │ [Clients] ──── │                │ [Clients] ──── │
+│     ↓          │                │     ↓          │                │     ↓          │
+│ [Backends]     │                │ [Backends]     │                │ [Backends]     │
+└────────────────┘                └────────────────┘                └────────────────┘
 ```
 
-## 🔧 Components
+### 🔄 Operation Modes
 
-### 🚀 Mitigation Node (`mitigation-node`)
+SecBeat mitigation nodes support multiple operation modes:
 
-The high-performance edge component responsible for all data plane operations:
+1. **TCP Mode**: Basic high-performance TCP proxy
+2. **SYN Mode**: SYN proxy with DDoS protection
+3. **L7 Mode**: Full Layer 7 processing with WAF
 
-**Core Capabilities:**
-- **🔥 SYN Proxy Protection:** Raw packet processing with stateless SYN cookies to defeat TCP SYN floods
-- **🔐 TLS Termination:** Memory-safe TLS using `rustls` with support for TLS 1.3 and modern cipher suites
-- **🌐 HTTP/HTTPS Reverse Proxy:** High-performance Layer 7 proxy using `hyper` with connection pooling
-- **🛡️ Dynamic WAF Engine:** Real-time rule processing for XSS, SQL injection, and path traversal detection
-- **📊 Real-time Metrics:** Comprehensive Prometheus metrics with sub-millisecond granularity
-- **🔄 Self-Management:** Automated registration, heartbeat reporting, and graceful shutdown capabilities
-
-**Performance:**
-- 50K+ requests/second per node
-- <3ms additional latency for HTTPS termination
-- 10K+ concurrent connections
-- 99.9% attack mitigation effectiveness
-
-### 🧠 Orchestrator Node (`orchestrator-node`)
-
-The intelligent control plane providing centralized coordination and AI-powered decision making:
-
-**Expert Systems:**
-- **📋 Fleet Registry:** Real-time node inventory with health monitoring and capacity tracking
-- **🤖 Resource Manager:** Predictive scaling using linear regression on historical CPU/memory data
-- **🩺 Self-Healing Engine:** Automated failure detection and replacement node provisioning
-- **🔍 Threat Intelligence:** Cross-correlation of security events and attack pattern recognition
-- **⚡ Decision Engine:** Multi-expert consensus system for autonomous response actions
-
-**Management Features:**
-- **🌐 RESTful API:** Complete fleet management with OpenAPI documentation
-- **📈 Real-time Dashboards:** Grafana-compatible metrics and alerting
-- **🔗 Webhook Integration:** Ansible, Terraform, and cloud provider automation
-- **🚨 Event Streaming:** NATS-based real-time security event processing
-
-## 📈 Development Phases
-
-SecBeat was developed through seven comprehensive phases, each building upon the previous:
-
-| Phase | Status | Description | Key Features |
-|-------|--------|-------------|--------------|
-| **Phase 1** | ✅ **Complete** | Basic TCP Proxy | Foundation, async I/O, bidirectional forwarding |
-| **Phase 2** | ✅ **Complete** | SYN Proxy DDoS Mitigation | Raw packet processing, SYN cookies, attack resilience |
-| **Phase 3** | ✅ **Complete** | TLS Termination & L7 Parsing | HTTPS proxy, certificate management, WAF foundation |
-| **Phase 4** | ✅ **Complete** | Orchestrator Integration | Fleet management, self-registration, centralized control |
-| **Phase 5** | ✅ **Complete** | Real-time Intelligence | NATS messaging, event streaming, dynamic rule updates |
-| **Phase 6** | ✅ **Complete** | Intelligent Scaling | Resource monitoring, webhook automation, node lifecycle |
-| **Phase 7** | ✅ **Complete** | Predictive AI & Self-Healing | Machine learning, failure prediction, autonomous recovery |
-
-### 🎯 Current Capabilities
-
-**✅ Production-Ready Features:**
-- Layer 4 DDoS protection with SYN proxy
-- HTTPS termination with modern TLS
-- Web Application Firewall with dynamic rules
-- Centralized fleet management and monitoring
-- Real-time event streaming and intelligence
-- Predictive scaling based on machine learning
-- Autonomous self-healing and node replacement
-- Comprehensive metrics and observability
+Each mode can be configured independently with specific performance and security profiles.
 
 ## ⚡ Getting Started
 
 ### 📋 Prerequisites
 
-- **Rust Toolchain:** 1.78+ with Cargo
-- **Operating System:** Linux or macOS (Windows support planned)
-- **Privileges:** Root access for raw socket operations
-- **Memory:** 4GB+ RAM recommended
-- **Network:** Multiple network interfaces for testing
+- **Rust Toolchain**: 1.78+ with Cargo
+- **Operating System**: Linux or macOS (Windows support planned)
+- **Privileges**: Root access for raw socket operations (SYN proxy mode)
+- **Memory**: 4GB+ RAM recommended for production
+- **Network**: Multiple network interfaces for comprehensive testing
 
 ### 🛠️ Installation
 
@@ -175,233 +163,466 @@ SecBeat was developed through seven comprehensive phases, each building upon the
 git clone https://github.com/your-org/secbeat.git
 cd secbeat
 
-# Install dependencies (Ubuntu/Debian)
+# Install system dependencies (Ubuntu/Debian)
 sudo apt update
 sudo apt install -y build-essential pkg-config libssl-dev curl jq
 
-# Install dependencies (macOS)
+# Install system dependencies (macOS)
 brew install openssl curl jq
 
 # Build all components
 make build
-# or
-cargo build --release --all-features
+
+# Or build manually
+cargo build --release --workspace
 ```
 
-### 🚀 Quick Start
+### 🎯 Basic Deployment
 
 ```bash
-# 1. Generate TLS certificates
+# 1. Generate TLS certificates for HTTPS termination
 cd mitigation-node
 mkdir -p certs
 openssl req -x509 -newkey rsa:4096 \
     -keyout certs/key.pem -out certs/cert.pem \
     -days 365 -nodes -subj "/CN=localhost"
 
-# 2. Start orchestrator
+# 2. Start orchestrator node
 cd ../orchestrator-node
-cargo run --release &
+RUST_LOG=info cargo run --release &
 
-# 3. Start mitigation node
+# 3. Start mitigation node in TCP mode
 cd ../mitigation-node
-sudo cargo run --release &
+export MITIGATION_CONFIG=config/tcp.toml
+sudo RUST_LOG=info cargo run --release &
 
-# 4. Test the system
-curl -k https://localhost:8443/
+# 4. Test the deployment
+curl -v https://localhost:8443/
+```
+
+### 🔧 Production Deployment
+
+```bash
+# Use production configuration
+export MITIGATION_CONFIG=config/production.toml
+export ORCHESTRATOR_CONFIG=config/production.toml
+
+# Deploy with systemd services
+sudo make install-systemd
+sudo systemctl enable secbeat-orchestrator
+sudo systemctl enable secbeat-mitigation
+sudo systemctl start secbeat-orchestrator
+sudo systemctl start secbeat-mitigation
+```
+
+## 🔧 Configuration
+
+SecBeat uses TOML configuration files for flexible deployment scenarios.
+
+### 📁 Configuration Files
+
+- `config/tcp.toml` - Basic TCP proxy mode
+- `config/syn.toml` - SYN proxy with DDoS protection
+- `config/l7.toml` - Full Layer 7 with WAF
+- `config/production.toml` - Production deployment settings
+
+### 🛠️ Mitigation Node Configuration
+
+```toml
+# config/production.toml
+[server]
+mode = "l7"                    # tcp, syn, or l7
+bind_address = "0.0.0.0:8443"
+backend_address = "127.0.0.1:8080"
+worker_threads = 0             # 0 = auto-detect CPU cores
+
+[tls]
+cert_path = "certs/cert.pem"
+key_path = "certs/key.pem"
+protocols = ["TLSv1.3", "TLSv1.2"]
+
+[syn_proxy]
+enable = true
+max_syn_backlog = 65536
+syn_cookie_secret = "your-secret-key"
+
+[waf]
+enable = true
+rules_path = "config/waf_rules.json"
+block_suspicious = true
+rate_limit_rps = 1000
+
+[orchestrator]
+url = "http://127.0.0.1:9090"
+register_interval = 30
+heartbeat_interval = 10
+
+[metrics]
+enable = true
+bind_address = "0.0.0.0:9191"
+```
+
+### 🎛️ Orchestrator Configuration
+
+```toml
+# orchestrator config
+[server]
+bind_address = "0.0.0.0:9090"
+worker_threads = 4
+
+[fleet]
+registration_timeout = 60
+heartbeat_timeout = 30
+health_check_interval = 15
+
+[ai]
+enable_threat_detection = true
+enable_predictive_scaling = true
+model_update_interval = 300
+
+[messaging]
+nats_url = "nats://127.0.0.1:4222"
+```
+
+### 🔀 Operation Mode Selection
+
+Set the operation mode via configuration or environment variable:
+
+```bash
+# Via configuration file
+export MITIGATION_CONFIG=config/syn.toml
+
+# Via environment variable
+export MITIGATION_MODE=l7
+
+# Via command line
+cargo run --release -- --mode tcp
 ```
 
 ## 🧪 Testing
 
-SecBeat includes comprehensive test suites for each development phase:
+SecBeat includes comprehensive testing capabilities covering all system components and operation modes.
 
-### 🔧 Individual Phase Testing
-
-```bash
-# Test specific phases
-sudo ./test_phase1.sh  # Basic TCP proxy
-sudo ./test_phase2.sh  # SYN proxy DDoS mitigation
-sudo ./test_phase3.sh  # TLS termination
-sudo ./test_phase4.sh  # Orchestrator integration
-sudo ./test_phase6.sh  # Intelligent scaling
-sudo ./test_phase7.sh  # AI and self-healing
-```
-
-### 🎯 Comprehensive Testing
+### 🚀 Quick Test
 
 ```bash
-# Run all tests end-to-end
+# Run all tests
+make test
+
+# Or run manually
 sudo ./test_all.sh
-
-# Run with stop-on-failure
-sudo ./test_all.sh --stop-on-failure
 ```
 
-### 📊 Test Coverage
+### 🔧 Component Testing
 
-The test suites cover:
-- **Functionality:** All core features and edge cases
-- **Performance:** Load testing and latency measurements
-- **Security:** Attack simulation and mitigation verification
-- **Integration:** Multi-component communication and coordination
-- **Reliability:** Failure scenarios and recovery testing
+```bash
+# Test specific components
+make test-tcp      # TCP proxy functionality
+make test-syn      # SYN proxy and DDoS protection
+make test-l7       # Layer 7 processing and WAF
+make test-orchestrator  # Control plane functionality
+```
 
-## 📊 Performance
+### 📊 Performance Testing
 
-### 🚀 Throughput Benchmarks
+```bash
+# Load testing with multiple concurrent connections
+make test-load
 
-| Metric | Value | Notes |
-|--------|-------|-------|
-| **Requests/Second** | 50,000+ | Per mitigation node |
-| **Concurrent Connections** | 10,000+ | Simultaneous HTTPS connections |
-| **TLS Handshakes/Second** | 5,000+ | New TLS connections |
-| **Attack Mitigation** | 99.9%+ | SYN flood protection effectiveness |
+# Stress testing with attack simulation
+make test-stress
 
-### ⚡ Latency Performance
+# Benchmark all operation modes
+make benchmark
+```
 
-| Operation | Latency | Description |
-|-----------|---------|-------------|
-| **HTTP Proxy** | <1ms | Additional overhead |
-| **TLS Termination** | 2-5ms | HTTPS handshake |
-| **WAF Processing** | <0.5ms | Rule evaluation |
-| **Node Registration** | <100ms | Orchestrator communication |
+### 🧪 Integration Testing
 
-### 💾 Resource Utilization
+```bash
+# End-to-end testing with real traffic
+make test-e2e
 
-| Resource | Usage | Notes |
-|----------|-------|-------|
-| **Memory** | ~100MB | Base per node |
-| **CPU** | <10% | Normal operation |
-| **Network** | 10Gbps+ | Sustainable throughput |
-| **Storage** | <1GB | Logs and state |
+# Multi-node cluster testing
+make test-cluster
 
-## 🔒 Security Features
-
-### 🛡️ Multi-Layer Protection
-
-**Layer 4 Security:**
-- SYN Proxy with cryptographic cookies
-- Connection rate limiting and throttling
-- IP reputation and geolocation filtering
-- Protocol validation and sanitization
-
-**Layer 7 Security:**
-- TLS 1.3 with perfect forward secrecy
-- HTTP request/response inspection
-- SQL injection and XSS detection
-- Path traversal and directory climbing prevention
-- Custom WAF rule engine with regex patterns
-
-**Operational Security:**
-- Bearer token authentication for APIs
-- Secure configuration management
-- Audit logging for all administrative actions
-- Encrypted inter-service communication
-
-### 🔐 Cryptographic Standards
-
-- **TLS:** ChaCha20-Poly1305, AES-256-GCM
-- **Hashing:** SHA-256, HMAC-SHA256
-- **Key Exchange:** X25519, P-256
-- **Certificates:** RSA-4096, ECDSA P-384
+# Failover and recovery testing
+make test-failover
+```
 
 ## 🚀 Deployment
-
-### 🏗️ Infrastructure Requirements
-
-**Minimum Production Setup:**
-- 3x Orchestrator nodes (HA cluster)
-- 5x Mitigation nodes (initial capacity)
-- Load balancer (HAProxy/NGINX)
-- Message queue (NATS cluster)
-- Monitoring stack (Prometheus/Grafana)
-
-**Network Requirements:**
-- Public-facing network for client traffic
-- Private management network for control plane
-- Dedicated network for backend services
-- High-bandwidth links (10Gbps+ recommended)
 
 ### 🐳 Container Deployment
 
 ```bash
-# Build Docker images
-docker build -t secbeat/orchestrator:latest orchestrator-node/
-docker build -t secbeat/mitigation:latest mitigation-node/
+# Build container images
+make docker-build
 
 # Deploy with Docker Compose
 docker-compose up -d
 
-# Deploy with Kubernetes
+# Deploy to Kubernetes
 kubectl apply -f k8s/
 ```
 
 ### ☁️ Cloud Deployment
 
-**AWS:**
 ```bash
-# Deploy with Terraform
+# Deploy to AWS
 cd terraform/aws
-terraform init && terraform plan && terraform apply
+terraform init && terraform apply
+
+# Deploy to Azure
+cd terraform/azure
+terraform init && terraform apply
+
+# Deploy to GCP
+cd terraform/gcp
+terraform init && terraform apply
 ```
 
-**Azure:**
+### 🏗️ Bare Metal Deployment
+
 ```bash
-# Deploy with ARM templates
-az deployment group create --resource-group secbeat \
-    --template-file azure/template.json
+# Install system services
+sudo make install
+
+# Configure systemd
+sudo systemctl enable secbeat-orchestrator
+sudo systemctl enable secbeat-mitigation
+sudo systemctl start secbeat-orchestrator
+sudo systemctl start secbeat-mitigation
 ```
 
-**GCP:**
+## 📊 Monitoring
+
+### 📈 Metrics Collection
+
+SecBeat exposes Prometheus-compatible metrics on port 9191:
+
 ```bash
-# Deploy with Cloud Deployment Manager
-gcloud deployment-manager deployments create secbeat \
-    --config gcp/config.yaml
+# View available metrics
+curl http://localhost:9191/metrics
+
+# Key metrics include:
+# - secbeat_connections_total
+# - secbeat_requests_per_second
+# - secbeat_response_time_seconds
+# - secbeat_blocked_attacks_total
+# - secbeat_cpu_usage_percent
+# - secbeat_memory_usage_bytes
 ```
 
-### 🔧 Configuration Management
+### 📊 Dashboard Setup
 
-**Ansible Playbooks:**
 ```bash
-# Deploy full stack
-ansible-playbook -i inventory/production site.yml
+# Deploy Grafana dashboard
+docker run -d --name grafana \
+  -p 3000:3000 \
+  -v $(pwd)/grafana:/etc/grafana/provisioning \
+  grafana/grafana
 
-# Scale mitigation nodes
-ansible-playbook -i inventory/production scale.yml -e "node_count=10"
-
-# Update configurations
-ansible-playbook -i inventory/production update-config.yml
+# Import SecBeat dashboard
+curl -X POST http://admin:admin@localhost:3000/api/dashboards/db \
+  -H "Content-Type: application/json" \
+  -d @grafana/secbeat-dashboard.json
 ```
 
-## 📖 Documentation
+### 🔍 Log Analysis
 
-### 📚 Phase Documentation
+```bash
+# View real-time logs
+tail -f logs/mitigation.log logs/orchestrator.log
 
-- [Phase 1: Basic TCP Proxy](PHASE1_README.md)
-- [Phase 2: SYN Proxy DDoS Mitigation](PHASE2_README.md)
-- [Phase 3: TLS Termination & L7 Parsing](PHASE3_README.md)
-- [Phase 4: Orchestrator Integration](PHASE4_README.md)
-- [Phase 6: Intelligent Scaling](PHASE6_README.md)
-- [Phase 7: Predictive AI & Self-Healing](PHASE7_README.md)
+# Structured log analysis
+jq '.' logs/mitigation.log | grep "attack_detected"
 
-### 🔧 Technical Documentation
+# Export logs to Elasticsearch
+filebeat -c config/filebeat.yml
+```
 
-- [API Reference](docs/api.md)
-- [Configuration Guide](docs/configuration.md)
-- [Deployment Guide](docs/deployment.md)
-- [Security Guide](docs/security.md)
-- [Troubleshooting](docs/troubleshooting.md)
-- [Performance Tuning](docs/performance.md)
+## 🔒 Security Features
 
-### 📊 Monitoring & Observability
+### 🛡️ DDoS Protection
 
-- [Metrics Guide](docs/metrics.md)
-- [Alerting Setup](docs/alerting.md)
-- [Dashboard Templates](grafana/)
-- [Log Analysis](docs/logging.md)
+**SYN Flood Protection**
+- Kernel-level packet interception
+- SYN cookie validation
+- Connection state tracking
+- Automatic rate limiting
+
+**Volumetric Attack Mitigation**
+- Traffic analysis and profiling
+- Anomaly detection algorithms
+- Dynamic threshold adjustment
+- Intelligent traffic shaping
+
+### 🔐 Web Application Firewall
+
+**Rule Engine**
+- OWASP Core Rule Set integration
+- Custom rule development
+- Real-time rule updates
+- Lua scripting support
+
+**Attack Detection**
+- SQL injection prevention
+- XSS protection
+- CSRF mitigation
+- Command injection blocking
+
+### 🤖 AI-Powered Features
+
+**Machine Learning Models**
+- Traffic pattern analysis
+- Behavioral anomaly detection
+- Attack signature recognition
+- Predictive threat modeling
+
+**Autonomous Response**
+- Dynamic rule generation
+- Automated scaling decisions
+- Self-healing capabilities
+- Intelligent load balancing
+
+## 🛠️ API Reference
+
+### 🌐 Orchestrator API
+
+```bash
+# Fleet management
+GET  /api/v1/nodes                    # List all nodes
+POST /api/v1/nodes/{id}/scale         # Scale specific node
+GET  /api/v1/nodes/{id}/metrics       # Node metrics
+POST /api/v1/nodes/{id}/restart       # Restart node
+
+# Policy management
+GET  /api/v1/policies                 # List policies
+POST /api/v1/policies                 # Create policy
+PUT  /api/v1/policies/{id}           # Update policy
+DELETE /api/v1/policies/{id}         # Delete policy
+
+# Security events
+GET  /api/v1/events                   # Security events
+POST /api/v1/events/acknowledge      # Acknowledge events
+GET  /api/v1/events/stats            # Event statistics
+```
+
+### 📊 Mitigation Node API
+
+```bash
+# Node status
+GET  /api/v1/status                   # Node health status
+GET  /api/v1/metrics                  # Performance metrics
+POST /api/v1/reload                   # Reload configuration
+
+# Security operations
+GET  /api/v1/blocked-ips             # Blocked IP addresses
+POST /api/v1/block-ip                # Block specific IP
+DELETE /api/v1/block-ip/{ip}         # Unblock IP
+GET  /api/v1/waf/rules               # WAF rules
+POST /api/v1/waf/rules               # Add WAF rule
+```
+
+## 📖 Operations Guide
+
+### 🔄 Day-to-Day Operations
+
+**Health Monitoring**
+```bash
+# Check system health
+make health-check
+
+# View component status
+systemctl status secbeat-*
+
+# Monitor resource usage
+htop
+iotop
+```
+
+**Configuration Updates**
+```bash
+# Update WAF rules
+vim config/waf_rules.json
+curl -X POST http://localhost:9191/api/v1/reload
+
+# Update TLS certificates
+cp new-cert.pem certs/cert.pem
+cp new-key.pem certs/key.pem
+systemctl reload secbeat-mitigation
+```
+
+**Scaling Operations**
+```bash
+# Manual scaling
+curl -X POST http://orchestrator:9090/api/v1/nodes/scale \
+  -d '{"target_nodes": 5}'
+
+# Auto-scaling configuration
+vim config/autoscaling.toml
+```
+
+### 🚨 Incident Response
+
+**Attack Detection**
+```bash
+# View active attacks
+curl http://localhost:9191/api/v1/events?type=attack
+
+# Block attacking IPs
+curl -X POST http://localhost:9191/api/v1/block-ip \
+  -d '{"ip": "192.168.1.100", "duration": 3600}'
+```
+
+**Performance Issues**
+```bash
+# Check resource usage
+curl http://localhost:9191/metrics | grep cpu_usage
+
+# View connection statistics
+curl http://localhost:9191/metrics | grep connections
+```
+
+**Recovery Procedures**
+```bash
+# Restart failed nodes
+systemctl restart secbeat-mitigation
+
+# Reset to safe configuration
+cp config/safe.toml config/production.toml
+systemctl reload secbeat-mitigation
+```
+
+### 🔧 Maintenance
+
+**Regular Tasks**
+```bash
+# Log rotation
+logrotate -f /etc/logrotate.d/secbeat
+
+# Certificate renewal
+certbot renew
+systemctl reload secbeat-mitigation
+
+# Security updates
+cargo update
+make build
+systemctl restart secbeat-*
+```
+
+**Backup Procedures**
+```bash
+# Configuration backup
+tar -czf secbeat-config-$(date +%Y%m%d).tar.gz config/
+
+# Log archival
+gzip logs/*.log.1
+aws s3 cp logs/ s3://backups/secbeat/logs/ --recursive
+```
 
 ## 🤝 Contributing
 
-We welcome contributions! Please read our contributing guidelines:
+We welcome contributions to SecBeat! Please read our contributing guidelines:
 
 ### 🐛 Bug Reports
 
@@ -426,12 +647,12 @@ cd secbeat
 cargo install --path .
 
 # Run tests
+make test
 cargo test --all-features
-sudo ./test_all.sh
 
 # Submit pull request
 git checkout -b feature/your-feature
-git commit -m "Add your feature"
+git commit -m "feat: add your feature"
 git push origin feature/your-feature
 ```
 
@@ -442,82 +663,6 @@ git push origin feature/your-feature
 - Update documentation for changes
 - Use conventional commit messages
 - Ensure all tests pass before submitting
-
-## 🗺️ Roadmap
-
-### 🔮 Upcoming Features
-
-**Q1 2025:**
-- [ ] IPv6 support
-- [ ] gRPC API interfaces
-- [ ] Enhanced WAF rule engine
-- [ ] Windows platform support
-
-**Q2 2025:**
-- [ ] WebAssembly plugin system
-- [ ] GraphQL attack detection
-- [ ] Advanced ML models
-- [ ] Multi-cloud orchestration
-
-**Q3 2025:**
-- [ ] Zero-trust networking
-- [ ] Blockchain integration
-- [ ] Quantum-resistant cryptography
-- [ ] Edge computing support
-
-### 🎯 Long-term Vision
-
-- Global threat intelligence sharing
-- Autonomous security mesh networks
-- AI-driven attack prediction
-- Self-evolving defense mechanisms
-
-## 📊 Benchmarks
-
-### 🏃‍♂️ Performance Comparisons
-
-| Solution | RPS | Latency | Memory | Features |
-|----------|-----|---------|--------|-----------|
-| **SecBeat** | 50K+ | <3ms | 100MB | Full Stack |
-| Cloudflare | 40K+ | 5-10ms | N/A | SaaS Only |
-| F5 BIG-IP | 30K+ | 8-15ms | 2GB+ | Hardware |
-| NGINX Plus | 45K+ | 2-5ms | 200MB | Limited WAF |
-
-### 📈 Scalability Tests
-
-- **Single Node:** 50K RPS, 10K concurrent connections
-- **10 Node Cluster:** 500K RPS, 100K concurrent connections
-- **100 Node Fleet:** 5M RPS, 1M concurrent connections
-
-## ❓ FAQ
-
-### General Questions
-
-**Q: What makes SecBeat different from other DDoS protection solutions?**
-A: SecBeat combines Layer 4 and Layer 7 protection with AI-powered predictive scaling and self-healing capabilities, all while being cloud-agnostic and open-source.
-
-**Q: Can SecBeat replace my existing WAF?**
-A: Yes, SecBeat includes a full-featured WAF with dynamic rule updates and machine learning-based threat detection.
-
-**Q: What's the learning curve for operations teams?**
-A: SecBeat is designed for operational simplicity with comprehensive documentation, automated deployment, and intuitive APIs.
-
-### Technical Questions
-
-**Q: How does the SYN proxy handle legitimate traffic?**
-A: Legitimate clients complete the SYN cookie challenge transparently, adding minimal latency while blocking spoofed traffic.
-
-**Q: Can I customize the WAF rules?**
-A: Yes, SecBeat supports custom rule development with regex patterns, Lua scripting, and WebAssembly plugins.
-
-**Q: How does the predictive scaling work?**
-A: Machine learning models analyze historical traffic patterns and resource utilization to predict scaling needs before capacity limits are reached.
-
-## 🏆 Awards & Recognition
-
-- 🥇 **Best Open Source Security Project 2024** - OWASP Foundation
-- 🚀 **Innovation in DDoS Protection** - InfoSec Awards 2024
-- ⭐ **Top Rust Project** - GitHub Stars 2024
 
 ## 📄 License
 
@@ -562,9 +707,9 @@ SOFTWARE.
 **🚀 Ready to deploy SecBeat? Start with our [Quick Start Guide](#-getting-started)!**
 
 [![Deploy to AWS](https://img.shields.io/badge/Deploy%20to-AWS-orange.svg)](terraform/aws/)
-[![Deploy to Azure](https://img.shields.io/badge/Deploy%20to-Azure-blue.svg)](azure/)
-[![Deploy to GCP](https://img.shields.io/badge/Deploy%20to-GCP-green.svg)](gcp/)
+[![Deploy to Azure](https://img.shields.io/badge/Deploy%20to-Azure-blue.svg)](terraform/azure/)
+[![Deploy to GCP](https://img.shields.io/badge/Deploy%20to-GCP-green.svg)](terraform/gcp/)
 
-[Documentation](docs/) • [API Reference](docs/api.md) • [Community](https://github.com/your-org/secbeat/discussions) • [Support](https://github.com/your-org/secbeat/issues)
+[Documentation](docs/) • [API Reference](#️-api-reference) • [Community](https://github.com/your-org/secbeat/discussions) • [Support](https://github.com/your-org/secbeat/issues)
 
 </div>

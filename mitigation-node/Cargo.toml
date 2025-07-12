@@ -14,78 +14,42 @@ name = "test-origin"
 path = "src/test_origin.rs"
 
 [dependencies]
-# Async runtime with multi-threaded scheduler
-tokio = { version = "1.0", features = ["full"] }
-
-# Logging and tracing
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
-
-# Error handling
-anyhow = "1.0"
-
-# Networking utilities
-socket2 = "0.5"
-
-# Metrics and monitoring
-metrics = "0.21"
-metrics-exporter-prometheus = "0.12"
-
-# Time utilities
-chrono = { version = "0.4", features = ["serde"] }
-
-# Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-
-# Web framework for management API
-axum = "0.7"
-
-# HTTP parsing and WAF capabilities
-httparse = "1.8"
-regex = "1.10"
-
-# Rate limiting and DDoS protection
-governor = "0.6"
-dashmap = "5.5"
-
-# IP address handling
-ipnet = "2.9"
-
-# Configuration management
-config = "0.14"
-toml = "0.8"
-
-# Additional async utilities
-futures = "0.3"
-tokio-util = { version = "0.7", features = ["codec"] }
-
-# Phase 2: Raw packet handling for SYN Proxy
-pnet = "0.34"
-
-# SYN Cookie cryptographic operations
-rand = "0.8"
-sha2 = "0.10"
-
-# Connection tracking for established connections
-lru = "0.12"
-
-# Phase 3: L7 TLS/HTTP Proxy
-rustls = "0.21"
-tokio-rustls = "0.24"
-rustls-pemfile = "1.0"
-hyper = { version = "0.14", features = ["full"] }
-hyper-rustls = "0.24"
-tower = { version = "0.4", features = ["make"] }
-tower-service = "0.3"
-
-# Phase 4: Orchestrator integration
-reqwest = { version = "0.11", features = ["json"] }
-uuid = { version = "1.0", features = ["v4", "serde"] }
-
-# Phase 5: NATS messaging for real-time control
-async-nats = "0.33"
-tokio-stream = "0.1"
+# Use workspace dependencies
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+socket2 = { workspace = true }
+metrics = { workspace = true }
+metrics-exporter-prometheus = { workspace = true }
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+axum = { workspace = true }
+httparse = { workspace = true }
+regex = { workspace = true }
+governor = { workspace = true }
+dashmap = { workspace = true }
+ipnet = { workspace = true }
+config = { workspace = true }
+toml = { workspace = true }
+futures = { workspace = true }
+tokio-util = { workspace = true }
+pnet = { workspace = true }
+rand = { workspace = true }
+sha2 = { workspace = true }
+lru = { workspace = true }
+rustls = { workspace = true }
+tokio-rustls = { workspace = true }
+rustls-pemfile = { workspace = true }
+hyper = { workspace = true }
+hyper-rustls = { workspace = true }
+tower = { workspace = true }
+tower-service = { workspace = true }
+reqwest = { workspace = true }
+uuid = { workspace = true }
+async-nats = { workspace = true }
+tokio-stream = { workspace = true }
 
 [features]
 default = ["syn_proxy", "tls", "orchestrator", "events"]

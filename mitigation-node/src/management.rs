@@ -110,7 +110,7 @@ async fn auth_middleware(
     match auth_header {
         Some(auth) if auth.starts_with("Bearer ") => {
             let token = &auth[7..]; // Remove "Bearer " prefix
-            if token == state.config.auth_token {
+            if token == state.config.auth_token.as_deref().unwrap_or("") {
                 Ok(next.run(request).await)
             } else {
                 warn!("Invalid management API token provided");
@@ -139,7 +139,7 @@ async fn handle_terminate(
     // Use the configured grace period, or the requested one if smaller
     let grace_period = std::cmp::min(
         command.grace_period_seconds,
-        state.config.shutdown_grace_period,
+        state.config.shutdown_grace_period_seconds.unwrap_or(30),
     );
 
     // Signal shutdown initiation
