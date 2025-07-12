@@ -2,9 +2,8 @@ use anyhow::{Context, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json;
-use std::fs;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
@@ -128,7 +127,7 @@ impl OrchestratorClient {
     }
 
     /// Register node with orchestrator
-    pub async fn register(&self, node_config: NodeConfig) -> Result<RegisterResponse> {
+    pub async fn register(&self, _node_config: NodeConfig) -> Result<RegisterResponse> {
         let mut attempts = self.registration_attempts.write().await;
         
         if *attempts >= self.config.registration.max_retries {
@@ -532,8 +531,7 @@ async fn process_config_update(config_update: NodeConfig) -> Result<()> {
     
     info!(
         max_connections = config_update.max_connections,
-        backend_host = %config_update.backend.host,
-        backend_port = config_update.backend.port,
+        backend_addr = %config_update.backend_addr,
         "Updated node configuration from orchestrator"
     );
     

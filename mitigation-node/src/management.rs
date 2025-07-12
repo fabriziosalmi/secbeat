@@ -7,7 +7,6 @@ use axum::{
     routing::post,
     Router,
 };
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -163,9 +162,9 @@ async fn handle_terminate(
 }
 
 /// Perform graceful shutdown process
-#[instrument(skip(shutdown_signal))]
+#[instrument(skip(_shutdown_signal))]
 async fn perform_graceful_shutdown(
-    shutdown_signal: ShutdownSignal,
+    _shutdown_signal: ShutdownSignal,
     reason: String,
     grace_period_seconds: u64,
 ) {

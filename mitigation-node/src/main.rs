@@ -459,7 +459,7 @@ async fn handle_http_request(
 
     let method = req.method().clone();
     let uri = req.uri().clone();
-    let uri_path = uri.path();
+    let _uri_path = uri.path();
     
     // Extract headers before moving req
     let user_agent = req.headers()
