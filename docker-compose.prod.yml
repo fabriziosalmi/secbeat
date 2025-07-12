@@ -1,0 +1,171 @@
+version: '3.8'
+
+services:
+  # NATS message broker cluster
+  nats-1:
+    image: nats:2.9-alpine
+    container_name: secbeat-nats-1
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    command: [
+      "-js",
+      "-m", "8222",
+      "--cluster_name", "secbeat-cluster",
+      "--cluster", "nats://0.0.0.0:6222",
+      "--routes", "nats://nats-2:6222,nats://nats-3:6222"
+    ]
+    networks:
+      - secbeat-network
+    restart: unless-stopped
+
+  nats-2:
+    image: nats:2.9-alpine
+    container_name: secbeat-nats-2
+    command: [
+      "-js",
+      "--cluster_name", "secbeat-cluster", 
+      "--cluster", "nats://0.0.0.0:6222",
+      "--routes", "nats://nats-1:6222,nats://nats-3:6222"
+    ]
+    networks:
+      - secbeat-network
+    restart: unless-stopped
+
+  nats-3:
+    image: nats:2.9-alpine
+    container_name: secbeat-nats-3
+    command: [
+      "-js",
+      "--cluster_name", "secbeat-cluster",
+      "--cluster", "nats://0.0.0.0:6222", 
+      "--routes", "nats://nats-1:6222,nats://nats-2:6222"
+    ]
+    networks:
+      - secbeat-network
+    restart: unless-stopped
+
+  # Orchestrator Node (control plane)
+  orchestrator:
+    image: secbeat/orchestrator-node:latest
+    container_name: secbeat-orchestrator
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+    ports:
+      - "9090:9090"
+    environment:
+      - RUST_LOG=${ORCHESTRATOR_LOG_LEVEL:-info}
+      - NATS_URLS=nats://nats-1:4222,nats://nats-2:4222,nats://nats-3:4222
+    networks:
+      - secbeat-network
+    depends_on:
+      - nats-1
+      - nats-2
+      - nats-3
+    restart: unless-stopped
+
+  # Mitigation Node - Instance 1
+  mitigation-node-1:
+    image: secbeat/mitigation-node:latest
+    container_name: secbeat-mitigation-1
+    depends_on:
+      - orchestrator
+    ports:
+      - "8443:8443"
+    environment:
+      - SECBEAT_CONFIG=config.prod
+      - RUST_LOG=${MITIGATION_LOG_LEVEL:-info}
+      - SYN_COOKIE_SECRET=${SYN_COOKIE_SECRET}
+      - NODE_ID=mitigation-1
+      - BACKEND_SERVERS=${BACKEND_SERVERS}
+    volumes:
+      - ./config.prod.toml:/app/config.prod.toml:ro
+      - ./mitigation-node/config:/app/config:ro
+      - ${TLS_CERT_PATH:-./mitigation-node/certs/cert.pem}:/app/certs/cert.pem:ro
+      - ${TLS_KEY_PATH:-./mitigation-node/certs/key.pem}:/app/certs/key.pem:ro
+      - ./logs:/app/logs
+    networks:
+      - secbeat-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9191/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Mitigation Node - Instance 2  
+  mitigation-node-2:
+    image: secbeat/mitigation-node:latest
+    container_name: secbeat-mitigation-2
+    depends_on:
+      - orchestrator
+    ports:
+      - "8444:8443"
+    environment:
+      - SECBEAT_CONFIG=config.prod
+      - RUST_LOG=${MITIGATION_LOG_LEVEL:-info}
+      - SYN_COOKIE_SECRET=${SYN_COOKIE_SECRET}
+      - NODE_ID=mitigation-2
+      - BACKEND_SERVERS=${BACKEND_SERVERS}
+    volumes:
+      - ./config.prod.toml:/app/config.prod.toml:ro
+      - ./mitigation-node/config:/app/config:ro
+      - ${TLS_CERT_PATH:-./mitigation-node/certs/cert.pem}:/app/certs/cert.pem:ro
+      - ${TLS_KEY_PATH:-./mitigation-node/certs/key.pem}:/app/certs/key.pem:ro
+      - ./logs:/app/logs
+    networks:
+      - secbeat-network
+    restart: unless-stopped
+
+  # Load Balancer (HAProxy)
+  loadbalancer:
+    image: haproxy:2.8-alpine
+    container_name: secbeat-lb
+    ports:
+      - "443:443"
+      - "80:80"
+      - "8080:8080"  # HAProxy stats
+    volumes:
+      - ./docker/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    networks:
+      - secbeat-network
+    depends_on:
+      - mitigation-node-1
+      - mitigation-node-2
+    restart: unless-stopped
+
+  # Prometheus monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: secbeat-prometheus
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./docker/prometheus.prod.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - secbeat-network
+    restart: unless-stopped
+
+networks:
+  secbeat-network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  prometheus-data:
