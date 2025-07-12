@@ -1,5 +1,5 @@
 # SecBeat Mitigation Node - Production Docker Image
-FROM rust:1.78-slim as builder
+FROM rust:1.88-slim AS builder
 
 # Install system dependencies for building
 RUN apt-get update && apt-get install -y \

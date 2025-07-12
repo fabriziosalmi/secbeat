@@ -378,6 +378,8 @@ pub fn collect_system_metrics(
 }
 
 /// Get CPU usage percentage from /proc/stat on Linux or system estimates on other platforms
+use std::fs;
+
 fn get_cpu_usage() -> f64 {
     #[cfg(target_os = "linux")]
     {
