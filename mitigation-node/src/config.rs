@@ -365,6 +365,7 @@ impl MitigationConfig {
     }
 
     /// Save configuration to file
+    #[allow(dead_code)] // Utility function for future use
     pub fn save_to_file(&self, path: &str) -> Result<(), Box<dyn std::error::Error>> {
         let toml_string = toml::to_string_pretty(self)?;
         std::fs::write(path, toml_string)?;
@@ -372,6 +373,7 @@ impl MitigationConfig {
     }
 
     /// Get rate limit duration
+    #[allow(dead_code)] // Utility function for future use
     pub fn rate_limit_duration(&self) -> Duration {
         Duration::from_secs(self.ddos.rate_limiting.window_seconds)
     }

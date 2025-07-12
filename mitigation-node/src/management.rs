@@ -154,7 +154,7 @@ async fn handle_terminate(
 
     let response = TerminationResponse {
         success: true,
-        message: format!("Graceful shutdown initiated with {} second grace period", grace_period),
+        message: format!("Graceful shutdown initiated with {grace_period} second grace period"),
         grace_period_seconds: grace_period,
     };
 

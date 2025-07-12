@@ -26,6 +26,7 @@ pub struct BlockInfo {
 
 /// Security event from NATS stream
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct SecurityEvent {
     /// Node ID that generated this event
     pub node_id: Uuid,
@@ -53,6 +54,7 @@ pub struct SecurityEvent {
 
 /// WAF analysis result
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct WafEventResult {
     /// Action taken (LOG, BLOCK, etc.)
     pub action: String,
@@ -118,6 +120,7 @@ pub struct ThreatIntelExpert {
 
 /// Configuration for the threat intelligence expert
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ThreatIntelConfig {
     /// Default TTL for manual blocks (seconds)
     pub default_ttl_seconds: u64,

@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
@@ -484,10 +484,16 @@ async fn dead_node_monitor_with_self_healing(
     let mut interval = time::interval(Duration::from_secs(state.config.dead_node_check_interval));
     
     // HTTP client for self-healing webhooks
-    let http_client = reqwest::Client::builder()
+    let http_client = match reqwest::Client::builder()
         .timeout(Duration::from_secs(30))
         .build()
-        .expect("Failed to create HTTP client for self-healing");
+    {
+        Ok(client) => client,
+        Err(e) => {
+            error!("Failed to create HTTP client for self-healing: {}", e);
+            return;
+        }
+    };
     
     loop {
         interval.tick().await;
@@ -504,10 +510,11 @@ async fn dead_node_monitor_with_self_healing(
             let last_heartbeat = node.last_heartbeat;
             let time_since_heartbeat = now - last_heartbeat;
             
-            if time_since_heartbeat > chrono::Duration::from_std(heartbeat_timeout).unwrap() 
-                && node.status != NodeStatus::Dead 
-                && node.status != NodeStatus::Terminating 
-            {
+            if let Ok(duration_since_heartbeat) = chrono::Duration::from_std(heartbeat_timeout) {
+                if time_since_heartbeat > duration_since_heartbeat 
+                    && node.status != NodeStatus::Dead 
+                    && node.status != NodeStatus::Terminating 
+                {
                 let node_id = node.node_id;
                 let node_ip = node.public_ip;
                 
@@ -548,6 +555,9 @@ async fn dead_node_monitor_with_self_healing(
                 dead_nodes.push(node_id);
                 
                 counter!("orchestrator_nodes_marked_dead_total", 1);
+                }
+            } else {
+                warn!("Invalid heartbeat timeout duration conversion");
             }
         }
         
@@ -751,9 +761,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_orchestrator_state() {
+        let threat_intel = ThreatIntelExpert::new(Default::default());
         let state = OrchestratorState {
             nodes: Arc::new(DashMap::new()),
             config: OrchestratorConfig::default(),
+            threat_intel: Arc::new(threat_intel),
         };
 
         let node_id = Uuid::new_v4();

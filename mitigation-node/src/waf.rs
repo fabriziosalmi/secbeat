@@ -234,7 +234,7 @@ impl WafEngine {
         // Inspect headers
         if self.config.http_inspection.inspect_headers {
             for (name, value) in &request.headers {
-                if let Some(result) = self.inspect_string(value, &format!("header:{}", name)) {
+                if let Some(result) = self.inspect_string(value, &format!("header:{name}")) {
                     return result;
                 }
             }
@@ -323,7 +323,7 @@ impl WafEngine {
                     "Custom pattern matched"
                 );
                 counter!("waf_blocked_custom_pattern", 1);
-                return Some(WafResult::CustomPattern(format!("pattern_{}", i)));
+                return Some(WafResult::CustomPattern(format!("pattern_{i}")));
             }
         }
 

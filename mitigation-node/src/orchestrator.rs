@@ -1,7 +1,6 @@
 use anyhow::{Context, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use serde_json;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::sync::RwLock;
@@ -390,7 +389,7 @@ fn get_cpu_usage() -> f64 {
         
         #[cfg(target_os = "macos")]
         {
-            if let Ok(output) = Command::new("top").args(&["-l", "1", "-n", "0"]).output() {
+            if let Ok(output) = Command::new("top").args(["-l", "1", "-n", "0"]).output() {
                 if let Ok(top_output) = String::from_utf8(output.stdout) {
                     if let Some(cpu_usage) = parse_macos_cpu(&top_output) {
                         return cpu_usage;

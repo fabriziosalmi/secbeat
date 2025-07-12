@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use dashmap::DashMap;
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -48,6 +48,7 @@ pub struct ResourceManager {
 
 /// Scaling action types
 #[derive(Debug, Clone, Serialize)]
+#[allow(dead_code)]
 pub enum ScalingAction {
     ScaleUp,
     ScaleDown { target_node_id: Uuid },
@@ -276,8 +277,8 @@ impl ResourceManager {
 
         for node in &active_nodes {
             if let Some(metrics) = &node.metrics {
-                total_cpu += metrics.cpu_usage as f64;
-                total_memory += metrics.memory_usage as f64;
+                total_cpu += metrics.cpu_usage;
+                total_memory += metrics.memory_usage;
                 total_connections += metrics.active_connections;
 
                 if metrics.active_connections < lowest_connections {
@@ -339,8 +340,7 @@ impl ResourceManager {
         let features: Vec<f64> = self.cpu_history
             .iter()
             .map(|point| {
-                let elapsed = point.timestamp.duration_since(start_time).as_secs() as f64 / 60.0;
-                elapsed
+                point.timestamp.duration_since(start_time).as_secs() as f64 / 60.0
             })
             .collect();
 
@@ -376,7 +376,7 @@ impl ResourceManager {
         let predicted_cpu = prediction[0] as f32;
         
         // Clamp prediction to reasonable bounds (0-100%)
-        let clamped_prediction = predicted_cpu.max(0.0).min(1.0);
+        let clamped_prediction = predicted_cpu.clamp(0.0, 1.0);
         
         info!(
             raw_prediction = predicted_cpu,
@@ -458,6 +458,7 @@ impl ResourceManager {
 
     /// Execute self-healing action for unexpected node failure
     #[instrument(skip(self))]
+    #[allow(dead_code)]
     pub async fn execute_self_healing(&mut self, failed_node_id: Uuid, failed_node_ip: std::net::IpAddr) -> Result<()> {
         let metrics = self.calculate_fleet_metrics();
         

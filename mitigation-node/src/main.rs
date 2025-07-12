@@ -35,11 +35,14 @@ struct ProxyState {
     config: MitigationConfig,
     /// DDoS protection engine
     ddos_protection: Arc<DdosProtection>,
+    /// WAF engine
+    waf_engine: Arc<waf::WafEngine>,
     /// Global metrics counters
     metrics: ProxyMetrics,
     /// HTTP client for backend connections
     http_client: Client<hyper_rustls::HttpsConnector<hyper::client::HttpConnector>>,
     /// Orchestrator client
+    #[allow(dead_code)] // Will be used in future phases
     orchestrator_client: Option<Arc<OrchestratorClient>>,
     /// Event system for NATS communication
     event_system: Option<Arc<EventSystem>>,
@@ -122,6 +125,9 @@ async fn main() -> Result<()> {
     // Initialize DDoS protection
     let ddos_protection = Arc::new(DdosProtection::new(config.ddos.clone())?);
     
+    // Initialize WAF engine
+    let waf_engine = Arc::new(waf::WafEngine::new(config.waf.clone())?);
+    
     // Initialize metrics
     let metrics = ProxyMetrics::new();
     initialize_metrics();
@@ -177,7 +183,7 @@ async fn main() -> Result<()> {
         
         // Get node ID from orchestrator client or generate one
         let node_id = if let Some(ref client) = orchestrator_client {
-            client.get_node_id().await.unwrap_or_else(|| uuid::Uuid::new_v4())
+            client.get_node_id().await.unwrap_or_else(uuid::Uuid::new_v4)
         } else {
             uuid::Uuid::new_v4()
         };
@@ -212,6 +218,7 @@ async fn main() -> Result<()> {
     let proxy_state = ProxyState {
         config: config.clone(),
         ddos_protection: Arc::clone(&ddos_protection),
+        waf_engine: Arc::clone(&waf_engine),
         metrics: metrics.clone(),
         http_client,
         orchestrator_client: orchestrator_client.clone(),
@@ -302,7 +309,7 @@ async fn run_l7_proxy(state: ProxyState) -> Result<()> {
         state.config.network.tls.tls_port,
     );
     let tcp_listener = TcpListener::bind(&listen_addr).await
-        .with_context(|| format!("Failed to bind to {}", listen_addr))?;
+        .with_context(|| format!("Failed to bind to {listen_addr}"))?;
 
     info!(
         listen_addr = %listen_addr,
@@ -481,7 +488,7 @@ async fn handle_http_request(
     );
 
     // PHASE 5: WAF analysis with event publishing
-    let waf_result = analyze_request_with_waf(&method, &uri, &user_agent);
+    let waf_result = analyze_request_with_waf(&state, &method, &uri, &user_agent, req.headers());
     let response_result = if waf_result.action == "BLOCK" {
         warn!(
             client_addr = %client_addr,
@@ -497,10 +504,23 @@ async fn handle_http_request(
         let response = Response::builder()
             .status(StatusCode::FORBIDDEN)
             .body(Body::from("Request blocked by Web Application Firewall"))
-            .unwrap();
+            .unwrap_or_else(|e| {
+                error!("Failed to create WAF blocked response: {}", e);
+                Response::new(Body::from("Internal Server Error"))
+            });
         
         // Publish security event for blocked request
-        publish_security_event(&state, client_addr.ip(), &method, &uri, &host_header, &user_agent, &waf_result, Some(403), start_time.elapsed()).await;
+        let event_data = SecurityEventData {
+            source_ip: client_addr.ip(),
+            method: method.to_string(),
+            uri: uri.to_string(),
+            host_header: host_header.clone(),
+            user_agent: user_agent.to_string(),
+            waf_result: waf_result.clone(),
+            response_status: Some(403),
+            processing_time: start_time.elapsed(),
+        };
+        publish_security_event(&state, event_data).await;
         
         return Ok(response);
     } else {
@@ -510,39 +530,91 @@ async fn handle_http_request(
     
     // Publish security event for all requests (blocked ones already published above)
     let status_code = response_result.as_ref().map(|r| r.status().as_u16()).ok();
-    publish_security_event(&state, client_addr.ip(), &method, &uri, &host_header, &user_agent, &waf_result, status_code, start_time.elapsed()).await;
+    let event_data = SecurityEventData {
+        source_ip: client_addr.ip(),
+        method: method.to_string(),
+        uri: uri.to_string(),
+        host_header: host_header.clone(),
+        user_agent: user_agent.to_string(),
+        waf_result: waf_result.clone(),
+        response_status: status_code,
+        processing_time: start_time.elapsed(),
+    };
+    publish_security_event(&state, event_data).await;
     
     response_result
 }
 
 /// Analyze request with WAF and return result
-fn analyze_request_with_waf(_method: &hyper::Method, uri: &hyper::Uri, _user_agent: &str) -> WafEventResult {
-    let uri_path = uri.path();
-    let mut matched_rules = Vec::new();
+fn analyze_request_with_waf(
+    state: &ProxyState,
+    method: &hyper::Method,
+    uri: &hyper::Uri,
+    _user_agent: &str,
+    headers: &hyper::HeaderMap,
+) -> WafEventResult {
+    // Convert hyper request to WAF HttpRequest format
+    let mut headers_map = std::collections::HashMap::new();
+    for (name, value) in headers.iter() {
+        if let Ok(value_str) = value.to_str() {
+            headers_map.insert(name.as_str().to_lowercase(), value_str.to_string());
+        }
+    }
     
-    // Simple WAF rules (can be enhanced later)
-    if uri_path.contains("..") {
-        matched_rules.push("PATH_TRAVERSAL".to_string());
-    }
-    if uri_path.contains("<script>") {
-        matched_rules.push("XSS_SCRIPT_TAG".to_string());
-    }
-    if uri_path.contains("UNION") || uri_path.contains("SELECT") {
-        matched_rules.push("SQL_INJECTION".to_string());
-    }
-    
-    let action = if matched_rules.is_empty() {
-        "LOG".to_string()
-    } else {
-        "BLOCK".to_string()
+    let http_request = waf::HttpRequest {
+        method: method.as_str().to_string(),
+        path: uri.path().to_string(),
+        version: "HTTP/1.1".to_string(),
+        headers: headers_map,
+        body: None, // For GET requests, no body to inspect
+        query_string: uri.query().map(|s| s.to_string()),
     };
     
-    let confidence = Some(if matched_rules.is_empty() { 0.0 } else { 0.9 });
+    // Use the WAF engine to inspect the request
+    let waf_result = state.waf_engine.inspect_request(&http_request);
     
-    WafEventResult {
-        action,
-        matched_rules,
-        confidence,
+    // Convert WAF result to WafEventResult
+    match waf_result {
+        waf::WafResult::Allow => WafEventResult {
+            action: "LOG".to_string(),
+            matched_rules: vec![],
+            confidence: Some(0.0),
+        },
+        waf::WafResult::SqlInjection => WafEventResult {
+            action: "BLOCK".to_string(),
+            matched_rules: vec!["SQL_INJECTION".to_string()],
+            confidence: Some(0.95),
+        },
+        waf::WafResult::XssAttempt => WafEventResult {
+            action: "BLOCK".to_string(),
+            matched_rules: vec!["XSS_ATTEMPT".to_string()],
+            confidence: Some(0.90),
+        },
+        waf::WafResult::PathTraversal => WafEventResult {
+            action: "BLOCK".to_string(),
+            matched_rules: vec!["PATH_TRAVERSAL".to_string()],
+            confidence: Some(0.85),
+        },
+        waf::WafResult::CommandInjection => WafEventResult {
+            action: "BLOCK".to_string(),
+            matched_rules: vec!["COMMAND_INJECTION".to_string()],
+            confidence: Some(0.90),
+        },
+        waf::WafResult::CustomPattern(rule) => WafEventResult {
+            action: "BLOCK".to_string(),
+            matched_rules: vec![format!("CUSTOM_PATTERN: {}", rule)],
+            confidence: Some(0.80),
+        },
+        waf::WafResult::InvalidHttp => WafEventResult {
+            action: "BLOCK".to_string(),
+            matched_rules: vec!["INVALID_HTTP".to_string()],
+            confidence: Some(1.0),
+        },
+        waf::WafResult::OversizedRequest => WafEventResult {
+            action: "BLOCK".to_string(),
+            matched_rules: vec!["OVERSIZED_REQUEST".to_string()],
+            confidence: Some(1.0),
+        },
     }
 }
 
@@ -587,7 +659,15 @@ async fn proxy_to_backend(
 
     let backend_request = backend_req
         .body(req.into_body())
-        .unwrap();
+        .unwrap_or_else(|e| {
+            error!("Failed to create backend request: {}", e);
+            // Return a dummy request that will be handled as an error
+            hyper::Request::builder()
+                .method("GET")
+                .uri("http://invalid")
+                .body(Body::empty())
+                .expect("Creating fallback request should never fail")
+        });
 
     // Send request to backend
     match state.http_client.request(backend_request).await {
@@ -619,37 +699,46 @@ async fn proxy_to_backend(
             let error_response = Response::builder()
                 .status(StatusCode::BAD_GATEWAY)
                 .body(Body::from("Backend server unavailable"))
-                .unwrap();
+                .unwrap_or_else(|e| {
+                    error!("Failed to create error response: {}", e);
+                    Response::new(Body::from("Internal Server Error"))
+                });
             Ok(error_response)
         }
     }
 }
 
+/// Security event data for NATS publishing
+#[derive(Debug)]
+struct SecurityEventData {
+    source_ip: IpAddr,
+    method: String,
+    uri: String,
+    host_header: Option<String>,
+    user_agent: String,
+    waf_result: WafEventResult,
+    response_status: Option<u16>,
+    processing_time: Duration,
+}
+
 /// Publish security event to NATS for fleet-wide analysis
 async fn publish_security_event(
     state: &ProxyState,
-    source_ip: IpAddr,
-    method: &hyper::Method,
-    uri: &hyper::Uri,
-    host_header: &Option<String>,
-    user_agent: &str,
-    waf_result: &WafEventResult,
-    response_status: Option<u16>,
-    processing_time: Duration,
+    event_data: SecurityEventData,
 ) {
     if let Some(ref event_system) = state.event_system {
         let event = SecurityEvent {
             node_id: event_system.node_id,
             timestamp: chrono::Utc::now(),
-            source_ip,
-            http_method: method.to_string(),
-            uri: uri.to_string(),
-            host_header: host_header.clone(),
-            user_agent: Some(user_agent.to_string()),
-            waf_result: waf_result.clone(),
+            source_ip: event_data.source_ip,
+            http_method: event_data.method,
+            uri: event_data.uri,
+            host_header: event_data.host_header,
+            user_agent: Some(event_data.user_agent),
+            waf_result: event_data.waf_result,
             request_size: None, // Could be calculated from body if needed
-            response_status,
-            processing_time_ms: Some(processing_time.as_millis() as u64),
+            response_status: event_data.response_status,
+            processing_time_ms: Some(event_data.processing_time.as_millis() as u64),
         };
         
         if let Err(e) = event_system.publish_security_event(event).await {
@@ -762,7 +851,7 @@ async fn start_metrics_server(listen_addr: SocketAddr, metrics: ProxyMetrics) ->
 
     // Install Prometheus exporter
     let builder = metrics_exporter_prometheus::PrometheusBuilder::new();
-    let _handle = builder
+    builder
         .with_http_listener(listen_addr)
         .install()
         .context("Failed to install Prometheus exporter")?;
