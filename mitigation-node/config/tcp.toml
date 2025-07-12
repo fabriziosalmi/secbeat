@@ -1,0 +1,179 @@
+# SecBeat Test Configuration - TCP Mode
+# Basic TCP proxy mode for testing
+
+[platform]
+environment = "test"
+deployment_id = "test-tcp"
+region = "local"
+features = ["tcp_proxy"]
+mode = "tcp"
+
+[network]
+public_interface = "127.0.0.1"
+public_port = 8443
+backend_interface = "127.0.0.1"
+backend_port = 8080
+max_connections = 1000
+connection_timeout_seconds = 30
+keep_alive_timeout_seconds = 60
+buffer_size = 8192
+load_balance_mode = "round_robin"
+backend_servers = []
+
+[network.tls]
+enabled = false
+cert_path = "certs/cert.pem"
+key_path = "certs/key.pem"
+ca_path = ""
+min_version = "TLSv1.2"
+max_version = "TLSv1.3"
+cipher_suites = []
+alpn_protocols = ["http/1.1"]
+require_client_certificates = false
+
+[ddos]
+enabled = false
+
+[ddos.syn_proxy]
+enabled = false
+listen_port = 8443
+handshake_timeout_ms = 5000
+max_handshakes = 10000
+cookie_lifetime_seconds = 30
+
+[ddos.rate_limiting]
+enabled = false
+requests_per_second = 1000
+burst_size = 100
+window_seconds = 1
+penalty_duration_seconds = 300
+
+[ddos.blacklist]
+enabled = false
+auto_blacklist_enabled = false
+violation_threshold = 10
+blacklist_duration_seconds = 3600
+escalation_multiplier = 2.0
+max_blacklist_duration_seconds = 86400
+static_blacklist = []
+static_whitelist = []
+geo_blocking_enabled = false
+blocked_countries = []
+allowed_countries = []
+
+[waf]
+enabled = false
+
+[waf.http_inspection]
+inspect_headers = false
+inspect_body = false
+inspect_url = false
+inspect_cookies = false
+inspect_user_agent = false
+max_body_size_bytes = 1048576
+body_inspection_timeout_ms = 1000
+allowed_content_types = ["text/html", "application/json"]
+
+[waf.attack_patterns]
+sql_injection = false
+xss_detection = false
+path_traversal = false
+command_injection = false
+ldap_injection = false
+xml_injection = false
+xxe_protection = false
+csrf_protection = false
+session_fixation_protection = false
+clickjacking_protection = false
+custom_rules_enabled = false
+custom_rules_path = ""
+anomaly_scoring_enabled = false
+anomaly_threshold = 5
+inbound_anomaly_threshold = 5
+outbound_anomaly_threshold = 5
+
+[waf.ai_detection]
+enabled = false
+model_path = ""
+confidence_threshold = 0.8
+batch_size = 32
+inference_timeout_ms = 100
+feature_extraction = ["headers", "body", "url"]
+
+[orchestrator]
+enabled = false
+url = "http://127.0.0.1:3030"
+register_interval_seconds = 30
+heartbeat_interval_seconds = 10
+max_retries = 5
+retry_interval_seconds = 5
+timeout_seconds = 10
+connect_timeout_seconds = 5
+
+[nats]
+enabled = false
+servers = ["nats://127.0.0.1:4222"]
+name = "secbeat-mitigation"
+connect_timeout_seconds = 5
+reconnect_wait_seconds = 2
+max_reconnects = 10
+ping_interval_seconds = 2
+max_outstanding_pings = 2
+
+[metrics]
+enabled = true
+listen_addr = "127.0.0.1:9191"
+collection_interval_seconds = 5
+aggregation_interval_seconds = 60
+retention_hours = 24
+prometheus_enabled = true
+prometheus_path = "/metrics"
+prometheus_namespace = "secbeat"
+custom_metrics_enabled = false
+high_cardinality_metrics = false
+
+[logging]
+level = "info"
+format = "pretty"
+outputs = ["stdout"]
+file_path = ""
+max_file_size_mb = 100
+max_files = 10
+log_rotation_enabled = false
+log_compression_enabled = false
+
+[management]
+enabled = false
+listen_addr = "127.0.0.1:9192"
+tls_enabled = false
+auth_method = "none"
+auth_token = ""
+basic_auth_user = ""
+basic_auth_password = ""
+enable_status = true
+enable_metrics = true
+enable_config = false
+enable_health = true
+enable_debug = false
+cors_enabled = true
+cors_origins = ["*"]
+rate_limiting_enabled = false
+rate_limit_requests_per_minute = 60
+shutdown_grace_period_seconds = 30
+force_shutdown_timeout_seconds = 5
+
+[health]
+enabled = false
+listen_addr = "127.0.0.1:9193"
+path = "/health"
+check_interval_seconds = 30
+timeout_seconds = 5
+failure_threshold = 3
+recovery_threshold = 2
+
+[debug]
+enabled = false
+enable_profiling = false
+enable_tracing = false
+profiling_port = 6060
+trace_sample_rate = 0.01

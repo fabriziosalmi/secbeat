@@ -174,16 +174,36 @@ async fn main() -> Result<()> {
         "SecBeat platform initialized"
     );
 
-    // Determine operation mode based on feature toggles and configuration
-    if config.syn_proxy_enabled() {
-        info!("Starting in SYN Proxy mode (Layer 4 Protection)");
-        run_syn_proxy_mode(config).await
-    } else if config.tls_enabled() {
-        info!("Starting in L7 TLS/HTTP Proxy mode (Full Feature Set)");
-        run_l7_proxy_mode(config).await
-    } else {
-        info!("Starting in basic TCP Proxy mode (Minimal Features)");
-        run_tcp_proxy_mode(config).await
+    // Determine operation mode based on configuration
+    let mode = config.platform.mode.as_deref().unwrap_or("auto");
+    info!("Selected operation mode: {} (from config: {:?})", mode, config.platform.mode);
+    
+    match mode {
+        "tcp" => {
+            info!("Starting in basic TCP Proxy mode (Minimal Features)");
+            run_tcp_proxy_mode(config).await
+        }
+        "syn" => {
+            info!("Starting in SYN Proxy mode (Layer 4 Protection)");
+            run_syn_proxy_mode(config).await
+        }
+        "l7" => {
+            info!("Starting in L7 TLS/HTTP Proxy mode (Full Feature Set)");
+            run_l7_proxy_mode(config).await
+        }
+        "auto" | _ => {
+            // Auto-detect mode based on feature toggles and configuration
+            if config.syn_proxy_enabled() {
+                info!("Starting in SYN Proxy mode (Layer 4 Protection)");
+                run_syn_proxy_mode(config).await
+            } else if config.tls_enabled() {
+                info!("Starting in L7 TLS/HTTP Proxy mode (Full Feature Set)");
+                run_l7_proxy_mode(config).await
+            } else {
+                info!("Starting in basic TCP Proxy mode (Minimal Features)");
+                run_tcp_proxy_mode(config).await
+            }
+        }
     }
 }
 

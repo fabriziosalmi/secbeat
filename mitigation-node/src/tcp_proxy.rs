@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use std::net::SocketAddr;
 use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::{TcpListener, TcpStream, tcp::{ReadHalf, WriteHalf}};
 use tracing::{debug, error, info, warn};
 
 /// Basic TCP proxy implementation for Phase 1
@@ -142,8 +142,8 @@ async fn handle_connection(
 
 /// Copy data between split streams
 async fn copy_data_split(
-    source: &mut ReadHalf<TcpStream>,
-    destination: &mut WriteHalf<TcpStream>,
+    source: &mut ReadHalf<'_>,
+    destination: &mut WriteHalf<'_>,
     direction: &str,
     buffer_size: usize,
 ) -> Result<u64> {

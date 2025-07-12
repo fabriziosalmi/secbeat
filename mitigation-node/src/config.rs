@@ -41,6 +41,8 @@ pub struct PlatformConfig {
     pub region: String,
     /// Enabled platform features
     pub features: Vec<String>,
+    /// Operation mode: tcp, syn, l7, auto
+    pub mode: Option<String>,
 }
 
 /// Backend server configuration for load balancing
@@ -711,6 +713,7 @@ impl Default for MitigationConfig {
                     "metrics".to_string(),
                     "management_api".to_string(),
                 ],
+                mode: Some("auto".to_string()),
             },
             network: NetworkConfig {
                 public_interface: "127.0.0.1".to_string(),

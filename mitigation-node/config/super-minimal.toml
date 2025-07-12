@@ -1,0 +1,16 @@
+# SecBeat Super Minimal TCP Configuration
+[platform]
+environment = "test"
+deployment_id = "test-tcp-minimal"
+region = "local"
+features = ["tcp_proxy"]
+
+[network]
+public_interface = "127.0.0.1"
+public_port = 8443
+backend_interface = "127.0.0.1"
+backend_port = 8080
+max_connections = 1000
+connection_timeout_seconds = 30
+keep_alive_timeout_seconds = 60
+buffer_size = 8192

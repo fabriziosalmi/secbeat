@@ -1,0 +1,51 @@
+# SecBeat Minimal TCP Configuration
+[platform]
+environment = "test"
+deployment_id = "test-tcp-minimal"
+region = "local"
+features = ["tcp_proxy"]
+mode = "tcp"
+
+[network]
+public_interface = "127.0.0.1"
+public_port = 8443
+backend_interface = "127.0.0.1"
+backend_port = 8080
+max_connections = 1000
+connection_timeout_seconds = 30
+keep_alive_timeout_seconds = 60
+buffer_size = 8192
+load_balance_mode = "round_robin"
+backend_servers = []
+
+[network.tls]
+enabled = false
+
+[ddos]
+enabled = false
+
+[waf]
+enabled = false
+
+[orchestrator]
+enabled = false
+
+[nats]
+enabled = false
+
+[metrics]
+enabled = true
+listen_addr = "127.0.0.1:9191"
+
+[logging]
+level = "info"
+format = "pretty"
+
+[management]
+enabled = false
+
+[health]
+enabled = false
+
+[debug]
+enabled = false
