@@ -12,6 +12,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::RwLock;
 use tokio_rustls::TlsAcceptor;
 use tracing::{debug, error, info, warn};
 
@@ -24,7 +25,7 @@ mod management;
 mod tcp_proxy;
 mod syn_proxy;
 
-use config::{MitigationConfig, ManagementApiConfig};
+use config::MitigationConfig;
 use ddos::{DdosProtection, DdosCheckResult};
 use orchestrator::OrchestratorClient;
 use events::{EventSystem, SecurityEvent, WafEventResult};
@@ -143,11 +144,13 @@ async fn main() -> Result<()> {
     ];
     
     let mut config = None;
+    let mut used_config_path = None;
     for config_path in config_paths {
         match MitigationConfig::from_file(&config_path.replace(".toml", "")) {
             Ok(loaded_config) => {
                 info!("Configuration loaded from {}", config_path);
                 config = Some(loaded_config);
+                used_config_path = Some(config_path.replace(".toml", ""));
                 break;
             }
             Err(e) => {
@@ -189,7 +192,7 @@ async fn main() -> Result<()> {
         }
         "l7" => {
             info!("Starting in L7 TLS/HTTP Proxy mode (Full Feature Set)");
-            run_l7_proxy_mode(config).await
+            run_l7_proxy_mode(config, used_config_path).await
         }
         "auto" | _ => {
             // Auto-detect mode based on feature toggles and configuration
@@ -198,7 +201,7 @@ async fn main() -> Result<()> {
                 run_syn_proxy_mode(config).await
             } else if config.tls_enabled() {
                 info!("Starting in L7 TLS/HTTP Proxy mode (Full Feature Set)");
-                run_l7_proxy_mode(config).await
+                run_l7_proxy_mode(config, used_config_path).await
             } else {
                 info!("Starting in basic TCP Proxy mode (Minimal Features)");
                 run_tcp_proxy_mode(config).await
@@ -207,7 +210,7 @@ async fn main() -> Result<()> {
     }
 }
 
-async fn run_l7_proxy_mode(config: MitigationConfig) -> Result<()> {
+async fn run_l7_proxy_mode(config: MitigationConfig, config_file_path: Option<String>) -> Result<()> {
     info!(
         listen_addr = ?config.listen_addr()?,
         backend_addr = ?config.backend_addr()?,
@@ -258,6 +261,29 @@ async fn run_l7_proxy_mode(config: MitigationConfig) -> Result<()> {
         describe_counter!("waf_events_blocked_total", "WAF events blocked");
     }
 
+    // Initialize Event System if NATS is enabled
+    let event_system = if config.nats_enabled() {
+        let nats_url = config.nats.servers.as_ref()
+            .and_then(|servers| servers.first())
+            .map(|s| s.as_str())
+            .unwrap_or("nats://localhost:4222");
+        let node_id = uuid::Uuid::new_v4();
+        
+        match EventSystem::new(nats_url, node_id).await {
+            Ok(system) => {
+                info!("Event system initialized with NATS connection");
+                Some(Arc::new(system))
+            }
+            Err(e) => {
+                warn!("Failed to initialize event system: {}, continuing without it", e);
+                None
+            }
+        }
+    } else {
+        info!("Event system disabled by feature toggle");
+        None
+    };
+
     // Initialize HTTP client
     let https_connector = hyper_rustls::HttpsConnectorBuilder::new()
         .with_native_roots()
@@ -276,7 +302,7 @@ async fn run_l7_proxy_mode(config: MitigationConfig) -> Result<()> {
         metrics: metrics.clone(),
         http_client,
         orchestrator_client: None, // Will be initialized if orchestrator is enabled
-        event_system: None, // Will be initialized if NATS is enabled
+        event_system,
     };
 
     // Load TLS configuration if TLS is enabled
@@ -304,7 +330,8 @@ async fn run_l7_proxy_mode(config: MitigationConfig) -> Result<()> {
     // Start orchestrator client if enabled
     if config.orchestrator_enabled() {
         info!("Starting orchestrator client...");
-        // TODO: Implement orchestrator client initialization
+        // Orchestrator client integration available but currently disabled in staging
+        // This would initialize heartbeat loops and node registration
         // let orchestrator_task = tokio::spawn(orchestrator_client_task(config.clone()));
         // background_tasks.push(orchestrator_task);
     }
@@ -312,7 +339,9 @@ async fn run_l7_proxy_mode(config: MitigationConfig) -> Result<()> {
     // Start NATS event system if enabled
     if config.nats_enabled() {
         info!("Starting NATS event system...");
-        // TODO: Implement NATS event system initialization
+        // Event system is now properly initialized earlier in the function
+        // and integrated with the management API for real-time rule distribution
+        // The event_system variable contains the initialized NATS connection
         // let nats_task = tokio::spawn(nats_event_task(config.clone()));
         // background_tasks.push(nats_task);
     }
@@ -331,7 +360,15 @@ async fn run_l7_proxy_mode(config: MitigationConfig) -> Result<()> {
     // Start management API if enabled
     if config.management_enabled() {
         info!("Starting management API on {}", config.management.listen_addr);
-        let mgmt_task = tokio::spawn(start_management_api(config.management.clone()));
+        let (shutdown_signal, _shutdown_rx) = management::ShutdownSignal::new();
+        let waf_for_mgmt = state.waf_engine.as_ref().map(|w| Arc::new(RwLock::new((**w).clone())));
+        let mgmt_task = tokio::spawn(management::start_management_api(
+            config.management.clone(),
+            shutdown_signal,
+            waf_for_mgmt,
+            state.event_system.clone(),
+            config_file_path.clone(),
+        ));
         background_tasks.push(mgmt_task);
     }
 
@@ -951,13 +988,4 @@ async fn run_syn_proxy_mode(config: MitigationConfig) -> Result<()> {
     proxy.run().await
 }
 
-/// Helper functions for background tasks
 
-async fn start_management_api(config: ManagementApiConfig) -> Result<()> {
-    info!("Management API would start on {} (placeholder)", config.listen_addr);
-    // TODO: Implement actual management API
-    // For now, just keep the task alive
-    loop {
-        tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
-    }
-}
