@@ -1,5 +1,5 @@
 use crate::config::WafConfig;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use metrics::counter;
 use regex::Regex;
 use std::collections::HashMap;
@@ -51,7 +51,7 @@ pub struct HttpRequest {
 
 impl WafEngine {
     /// Create new WAF engine
-    pub fn new(config: WafConfig) -> Result<Self> {
+    pub async fn new(config: WafConfig) -> Result<Self> {
         info!("Initializing WAF engine");
 
         let mut waf = Self {
@@ -63,7 +63,7 @@ impl WafEngine {
             custom_patterns: Vec::new(),
         };
 
-        waf.compile_patterns()?;
+        waf.compile_patterns().await?;
         
         info!(
             sql_patterns = waf.sql_injection_patterns.len(),
@@ -78,7 +78,7 @@ impl WafEngine {
     }
 
     /// Compile attack pattern regexes
-    fn compile_patterns(&mut self) -> Result<()> {
+    async fn compile_patterns(&mut self) -> Result<()> {
         // SQL Injection patterns
         if self.config.attack_patterns.sql_injection {
             let sql_patterns = vec![
@@ -182,17 +182,99 @@ impl WafEngine {
             }
         }
 
-        // Custom patterns - TODO: implement proper custom pattern loading from file
-        // For now, skip custom patterns since the config structure doesn't include them
-        // Future enhancement: load patterns from config.attack_patterns.custom_rules_path
+        // Custom patterns - load from file if configured
         if self.config.attack_patterns.custom_rules_enabled.unwrap_or(false) {
             if let Some(ref custom_rules_path) = self.config.attack_patterns.custom_rules_path {
-                warn!("Custom rules configured at {} but not yet implemented", custom_rules_path);
-                // TODO: Load custom patterns from file
+                match self.load_custom_patterns(custom_rules_path).await {
+                    Ok(patterns) => {
+                        self.custom_patterns = patterns;
+                        info!(
+                            path = %custom_rules_path,
+                            count = self.custom_patterns.len(),
+                            "Loaded custom WAF patterns"
+                        );
+                    }
+                    Err(e) => {
+                        warn!(
+                            path = %custom_rules_path,
+                            error = %e,
+                            "Failed to load custom WAF patterns, continuing without them"
+                        );
+                    }
+                }
             }
         }
 
         Ok(())
+    }
+
+    /// Load custom patterns from file
+    async fn load_custom_patterns(&self, file_path: &str) -> Result<Vec<Regex>> {
+        use serde::{Deserialize};
+        use tokio::fs;
+        
+        #[derive(Deserialize)]
+        struct CustomRuleFile {
+            patterns: Vec<String>,
+        }
+        
+        let content = fs::read_to_string(file_path).await
+            .context("Failed to read custom rules file")?;
+        
+        let rules: CustomRuleFile = serde_yaml::from_str(&content)
+            .or_else(|_| serde_json::from_str(&content))
+            .context("Failed to parse custom rules file (expected JSON or YAML)")?;
+        
+        let mut compiled_patterns = Vec::new();
+        for pattern in rules.patterns {
+            match Regex::new(&pattern) {
+                Ok(regex) => {
+                    compiled_patterns.push(regex);
+                    debug!(pattern = %pattern, "Compiled custom WAF pattern");
+                }
+                Err(e) => {
+                    warn!(pattern = %pattern, error = %e, "Failed to compile custom WAF pattern");
+                }
+            }
+        }
+        
+        Ok(compiled_patterns)
+    }
+
+    /// Reload patterns from configuration (for runtime updates)
+    pub async fn reload_patterns(&mut self) -> Result<()> {
+        // Clear existing patterns
+        self.sql_injection_patterns.clear();
+        self.xss_patterns.clear();
+        self.path_traversal_patterns.clear();
+        self.command_injection_patterns.clear();
+        self.custom_patterns.clear();
+        
+        // Reinitialize patterns
+        self.compile_patterns().await
+    }
+
+    /// Add a custom pattern at runtime
+    pub async fn add_custom_pattern(&mut self, pattern: &str) -> Result<()> {
+        let regex = Regex::new(pattern)
+            .context("Failed to compile custom pattern")?;
+        
+        self.custom_patterns.push(regex);
+        info!(pattern = %pattern, "Added custom WAF pattern");
+        Ok(())
+    }
+
+    /// Remove custom patterns matching a specific pattern
+    pub async fn remove_custom_pattern(&mut self, pattern: &str) -> Result<usize> {
+        let initial_count = self.custom_patterns.len();
+        self.custom_patterns.retain(|regex| regex.as_str() != pattern);
+        let removed_count = initial_count - self.custom_patterns.len();
+        
+        if removed_count > 0 {
+            info!(pattern = %pattern, count = removed_count, "Removed custom WAF patterns");
+        }
+        
+        Ok(removed_count)
     }
 
     /// Inspect HTTP request
@@ -398,7 +480,7 @@ impl WafEngine {
     }
 
     /// Get WAF statistics
-    pub fn get_stats(&self) -> WafStats {
+    pub async fn get_stats(&self) -> WafStats {
         WafStats {
             enabled: self.config.enabled,
             sql_patterns: self.sql_injection_patterns.len() as u32,

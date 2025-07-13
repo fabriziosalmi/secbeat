@@ -1,0 +1,145 @@
+# SecBeat Proxmox Deployment Configuration
+# Multi-node production setup for Proxmox VE
+
+proxmox:
+  node: "192.168.100.23"
+  api_host: "https://192.168.100.23:8006"
+  username: "root@pam"
+  # SSH key authentication recommended
+  ssh_key_path: "~/.ssh/id_rsa"
+
+# VM Configuration Templates
+vm_templates:
+  # Mitigation Node VMs
+  mitigation_node:
+    cores: 4
+    memory: 8192  # 8GB RAM
+    disk_size: 40  # 40GB SSD
+    network_bridge: "vmbr0"
+    os_template: "ubuntu-22.04-server"
+    count: 3
+    
+  # Orchestrator Node VMs  
+  orchestrator_node:
+    cores: 2
+    memory: 4096  # 4GB RAM
+    disk_size: 20  # 20GB SSD
+    network_bridge: "vmbr0"
+    os_template: "ubuntu-22.04-server"
+    count: 1
+    
+  # NATS Cluster VMs
+  nats_cluster:
+    cores: 2
+    memory: 2048  # 2GB RAM
+    disk_size: 10  # 10GB SSD
+    network_bridge: "vmbr0"
+    os_template: "ubuntu-22.04-server"
+    count: 3
+    
+  # Load Balancer VMs
+  load_balancer:
+    cores: 2
+    memory: 2048  # 2GB RAM
+    disk_size: 10  # 10GB SSD
+    network_bridge: "vmbr0"
+    os_template: "ubuntu-22.04-server"
+    count: 2
+    
+  # Monitoring Stack
+  monitoring:
+    cores: 4
+    memory: 8192  # 8GB RAM
+    disk_size: 60  # 60GB SSD
+    network_bridge: "vmbr0"
+    os_template: "ubuntu-22.04-server"
+    count: 1
+
+# Network Configuration
+network:
+  management_vlan: 100
+  application_vlan: 200
+  monitoring_vlan: 300
+  
+  subnets:
+    management: "192.168.100.0/24"
+    application: "192.168.200.0/24"
+    monitoring: "192.168.300.0/24"
+    
+  ip_ranges:
+    mitigation_nodes: "192.168.200.10-192.168.200.19"
+    orchestrator: "192.168.200.20"
+    nats_cluster: "192.168.200.30-192.168.200.32"
+    load_balancers: "192.168.200.40-192.168.200.41"
+    monitoring: "192.168.300.10"
+
+# Storage Configuration
+storage:
+  primary_pool: "local-lvm"
+  backup_pool: "backup-storage"
+  
+  backup_schedule:
+    frequency: "daily"
+    retention_days: 30
+    time: "02:00"
+
+# Security Configuration
+security:
+  firewall_enabled: true
+  ssh_key_only: true
+  fail2ban_enabled: true
+  
+  firewall_rules:
+    - { port: 22, protocol: "tcp", source: "192.168.100.0/24", comment: "SSH Management" }
+    - { port: 8443, protocol: "tcp", source: "0.0.0.0/0", comment: "SecBeat HTTPS" }
+    - { port: 9090, protocol: "tcp", source: "192.168.200.0/24", comment: "Orchestrator API" }
+    - { port: 9191, protocol: "tcp", source: "192.168.300.0/24", comment: "Metrics" }
+    - { port: 4222, protocol: "tcp", source: "192.168.200.0/24", comment: "NATS" }
+
+# Deployment Configuration
+deployment:
+  ansible_enabled: true
+  terraform_enabled: true
+  
+  prerequisites:
+    - "Ubuntu 22.04 LTS template"
+    - "Cloud-init support"
+    - "SSH key authentication"
+    - "Internet connectivity"
+    
+  automation_tools:
+    ansible_playbook: "deployment/ansible/site.yml"
+    terraform_config: "deployment/terraform/main.tf"
+    
+# Monitoring and Alerting
+monitoring:
+  prometheus_retention: "30d"
+  grafana_enabled: true
+  alertmanager_enabled: true
+  
+  exporters:
+    - node_exporter
+    - prometheus
+    - blackbox_exporter
+    
+  dashboards:
+    - secbeat_overview
+    - system_metrics
+    - security_events
+    - performance_metrics
+
+# Testing Configuration
+testing:
+  load_testing:
+    tool: "artillery"
+    max_rps: 10000
+    duration_minutes: 30
+    
+  security_testing:
+    tool: "nmap"
+    vulnerability_scanning: true
+    
+  performance_testing:
+    latency_target_ms: 5
+    throughput_target_rps: 5000
+    availability_target: 99.9

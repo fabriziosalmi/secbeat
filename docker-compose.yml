@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   # NATS message broker
@@ -19,6 +18,9 @@ services:
 
   # Test Origin Server (backend)
   test-origin:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: secbeat/mitigation-node:latest
     container_name: secbeat-test-origin
     command: ["test-origin"]
@@ -34,6 +36,9 @@ services:
 
   # Mitigation Node (proxy)
   mitigation-node:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: secbeat/mitigation-node:latest
     container_name: secbeat-mitigation
     depends_on:
@@ -64,11 +69,11 @@ services:
 
   # Orchestrator Node (optional)
   orchestrator:
-    image: secbeat/orchestrator-node:latest
-    container_name: secbeat-orchestrator
     build:
       context: .
       dockerfile: orchestrator.Dockerfile
+    image: secbeat/orchestrator-node:latest
+    container_name: secbeat-orchestrator
     ports:
       - "9090:9090"   # Orchestrator API
     environment:

@@ -230,7 +230,7 @@ async fn run_l7_proxy_mode(config: MitigationConfig) -> Result<()> {
 
     // Initialize WAF engine if enabled
     let waf_engine = if config.waf_enabled() {
-        Some(Arc::new(waf::WafEngine::new(config.waf.clone())
+        Some(Arc::new(waf::WafEngine::new(config.waf.clone()).await
             .context("Failed to initialize WAF engine")?))
     } else {
         info!("WAF protection disabled by feature toggle");
@@ -511,7 +511,7 @@ async fn handle_http_request(
     );
 
     // PHASE 5: WAF analysis with event publishing
-    let waf_result = analyze_request_with_waf(&state, &method, &uri, &user_agent, req.headers());
+    let waf_result = analyze_request_with_waf(&state, &method, &uri, &user_agent, req.headers()).await;
     let response_result = if waf_result.action == "BLOCK" {
         warn!(
             client_addr = %client_addr,
@@ -569,7 +569,7 @@ async fn handle_http_request(
 }
 
 /// Analyze request with WAF and return result
-fn analyze_request_with_waf(
+async fn analyze_request_with_waf(
     state: &ProxyState,
     method: &hyper::Method,
     uri: &hyper::Uri,
@@ -944,6 +944,7 @@ async fn run_syn_proxy_mode(config: MitigationConfig) -> Result<()> {
         config.ddos.syn_proxy.listen_port,
         config.backend_addr()?,
         std::time::Duration::from_millis(config.ddos.syn_proxy.handshake_timeout_ms),
+        std::net::Ipv4Addr::new(0, 0, 0, 0), // Listen on all interfaces
     );
 
     proxy.initialize().await?;

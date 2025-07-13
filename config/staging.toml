@@ -1,0 +1,205 @@
+# Staging Configuration for SecBeat Platform
+# Environment: Staging
+# Deployment: Proxmox Single Node
+
+[platform]
+environment = "staging"
+deployment_id = "stage-secbeat-001"
+region = "datacenter-1"
+features = ["ddos_protection", "waf_engine", "orchestrator_client", "nats_events", "metrics_collection", "management_api"]
+mode = "l7"
+
+[network]
+public_interface = "0.0.0.0"
+public_port = 8443
+backend_interface = "127.0.0.1"
+backend_port = 8080
+max_connections = 10000
+connection_timeout_seconds = 30
+keep_alive_timeout_seconds = 60
+buffer_size = 8192
+load_balance_mode = "round_robin"
+
+backend_servers = [
+    { address = "127.0.0.1:8080", weight = 100, health_check = true }
+]
+
+[network.tls]
+enabled = true
+cert_path = "certs/cert.pem"
+key_path = "certs/key.pem"
+min_version = "TLSv1.2"
+max_version = "TLSv1.3"
+alpn_protocols = ["h2", "http/1.1"]
+client_cert_required = false
+ocsp_stapling = false
+
+[ddos]
+enabled = true
+detection_threshold_multiplier = 1.5
+mitigation_duration_seconds = 180
+learning_period_seconds = 600
+
+[ddos.rate_limiting]
+requests_per_second = 500
+burst_size = 1000
+window_seconds = 60
+penalty_duration_seconds = 180
+global_requests_per_second = 5000
+global_burst_size = 10000
+
+[ddos.connection_limits]
+max_connections_per_ip = 50
+max_total_connections = 10000
+max_new_connections_per_second = 500
+max_concurrent_handshakes = 1000
+track_connection_state = true
+connection_timeout_seconds = 30
+idle_timeout_seconds = 300
+
+[ddos.syn_proxy]
+enabled = true
+cookie_secret = "staging-secret-key-change-in-production"
+listen_port = 8443
+handshake_timeout_ms = 3000
+max_pending_handshakes = 5000
+syn_flood_threshold = 200
+
+[ddos.blacklist]
+enabled = true
+auto_blacklist_enabled = true
+violation_threshold = 5
+blacklist_duration_seconds = 1800
+escalation_multiplier = 1.5
+max_blacklist_duration_seconds = 7200
+
+static_whitelist = [
+    "127.0.0.0/8",
+    "10.0.0.0/8",
+    "172.16.0.0/12",
+    "192.168.100.0/24"
+]
+
+geo_blocking_enabled = false
+blocked_countries = []
+allowed_countries = []
+
+[waf]
+enabled = true
+mode = "monitor"  # Staging mode: log but don't block
+max_request_size_bytes = 5242880  # 5MB
+max_header_size_bytes = 16384     # 16KB
+max_url_length = 2048
+max_query_params = 50
+
+[waf.http_inspection]
+inspect_headers = true
+inspect_body = true
+inspect_url = true
+inspect_cookies = true
+inspect_user_agent = true
+max_body_size_bytes = 5242880
+body_inspection_timeout_ms = 3000
+allowed_content_types = [
+    "application/json",
+    "application/x-www-form-urlencoded",
+    "multipart/form-data",
+    "text/plain"
+]
+
+[waf.attack_patterns]
+sql_injection = true
+xss_detection = true
+path_traversal = true
+command_injection = true
+ldap_injection = false
+xml_injection = false
+xxe_protection = false
+csrf_protection = false
+session_fixation_protection = false
+clickjacking_protection = false
+custom_rules_enabled = false
+anomaly_scoring_enabled = false
+
+[waf.ai_detection]
+enabled = false
+
+[orchestrator]
+enabled = false  # Disabled for staging
+
+[nats]
+enabled = false  # Disabled for staging
+
+[metrics]
+enabled = true
+listen_addr = "0.0.0.0:9191"
+collection_interval_seconds = 15
+aggregation_interval_seconds = 60
+retention_hours = 24
+
+prometheus_enabled = true
+prometheus_path = "/metrics"
+prometheus_namespace = "secbeat_staging"
+custom_metrics_enabled = true
+high_cardinality_metrics = true
+
+[metrics.exporters]
+prometheus = { enabled = true, port = 9191 }
+
+[logging]
+level = "debug"
+format = "pretty"
+output = "stdout"
+file_path = "logs/mitigation-node.log"
+max_file_size_mb = 50
+max_files = 5
+compress_rotated = false
+
+[logging.structured_fields]
+service = "mitigation-node"
+environment = "staging"
+deployment_id = "stage-secbeat-001"
+
+[management]
+enabled = true
+listen_addr = "0.0.0.0:9192"
+api_key = "staging-api-key"
+timeout_seconds = 30
+cors_enabled = true
+rate_limit_requests_per_minute = 120
+
+[management.endpoints]
+health = true
+metrics = true
+config_reload = true
+waf_rules = true
+blacklist = true
+cache_clear = true
+debug_info = true
+
+[health]
+enabled = true
+check_interval_seconds = 15
+timeout_seconds = 5
+max_failures = 2
+recovery_time_seconds = 30
+
+[health.checks]
+backend_connectivity = true
+memory_usage = true
+cpu_usage = true
+disk_space = false
+certificate_expiry = false
+orchestrator_connectivity = false
+nats_connectivity = false
+
+[health.thresholds]
+memory_usage_percent = 90
+cpu_usage_percent = 90
+
+[debug]
+enabled = true
+log_requests = false
+log_responses = false
+detailed_errors = true
+performance_profiling = true

@@ -1,0 +1,77 @@
+# SecBeat L7 WAF Configuration (Docker-compatible)
+[mitigation]
+environment = "production"
+deployment_id = "secbeat-l7-001"
+operation_mode = "l7"  # Force L7 WAF mode (no raw sockets needed)
+
+# L7 WAF Configuration
+[waf]
+enabled = true
+listen_port = 8443
+backend_addr = "127.0.0.1:8080"
+max_connections = 10000
+request_timeout = "30s"
+buffer_size = 65536
+
+# TLS Configuration for HTTPS
+[tls]
+enabled = true
+cert_path = "certs/cert.pem"
+key_path = "certs/key.pem"
+protocols = ["TLSv1.2", "TLSv1.3"]
+
+# Rate Limiting (L7)
+[rate_limiting]
+enabled = true
+requests_per_second = 100
+burst_size = 200
+window_size = "1m"
+
+# Geo Blocking
+[geo_blocking]
+enabled = true
+blocked_countries = ["CN", "RU", "KP"]
+allowed_countries = []
+
+# Management API
+[management]
+enabled = true
+listen_addr = "0.0.0.0:9090"
+api_key = "secbeat-mgmt-key-dev"
+
+# Metrics
+[metrics]
+enabled = true
+listen_addr = "0.0.0.0:9191"
+path = "/metrics"
+
+# Health Checks
+[health]
+enabled = true
+listen_addr = "0.0.0.0:9999"
+path = "/health"
+
+# Logging
+[logging]
+level = "info"
+format = "json"
+file_path = "logs/secbeat.log"
+rotation = "daily"
+
+# Features (L7 only)
+[features]
+ddos_protection = true
+waf_protection = true
+syn_proxy = false  # Disable SYN proxy (requires raw sockets)
+tls_termination = true
+orchestrator = false  # Disable for standalone mode
+nats_messaging = false
+ai_detection = true
+auto_scaling = false
+geo_blocking = true
+rate_limiting = true
+circuit_breaker = true
+health_checks = true
+metrics = true
+tracing = true
+management_api = true

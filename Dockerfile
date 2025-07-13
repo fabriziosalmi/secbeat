@@ -44,10 +44,15 @@ COPY --from=builder /app/target/release/test-origin /usr/local/bin/
 # Copy configuration files
 COPY --chown=secbeat:secbeat config.prod.toml ./config.prod.toml
 COPY --chown=secbeat:secbeat config.dev.toml ./config.dev.toml
+COPY --chown=secbeat:secbeat config.l7.toml ./config.l7.toml
+COPY --chown=secbeat:secbeat config.l7-notls.toml ./config.l7-notls.toml
 COPY --chown=secbeat:secbeat mitigation-node/config/ ./config/
 
-# Copy certificates (if they exist)
-COPY --chown=secbeat:secbeat mitigation-node/certs/ ./certs/
+# Copy certificates (create empty files if not present to prevent errors)
+RUN mkdir -p certs
+RUN touch certs/cert.pem certs/key.pem
+COPY --chown=secbeat:secbeat mitigation-node/certs/cert.pem ./certs/cert.pem
+COPY --chown=secbeat:secbeat mitigation-node/certs/key.pem ./certs/key.pem
 
 # Create logs directory
 RUN mkdir -p logs && chown secbeat:secbeat logs
@@ -60,7 +65,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:9191/metrics || exit 1
 
 # Default configuration
-ENV SECBEAT_CONFIG=config.prod
+ENV SECBEAT_CONFIG=config.l7-notls
 ENV RUST_LOG=info
 ENV RUST_BACKTRACE=1
 
@@ -68,4 +73,4 @@ ENV RUST_BACKTRACE=1
 EXPOSE 8443 9090 9191 9999
 
 # Default command
-CMD ["mitigation-node", "--config", "config.prod.toml"]
+CMD ["mitigation-node"]

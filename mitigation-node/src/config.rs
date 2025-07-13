@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::RwLock;
+use tracing::{info};
 
 /// Main configuration for the mitigation node - unified platform config
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -992,6 +995,102 @@ impl MitigationConfig {
             return Err("SYN proxy requires DDoS protection to be enabled".to_string());
         }
 
+        Ok(())
+    }
+}
+
+/// Runtime configuration manager for hot-reloading
+pub struct ConfigManager {
+    current_config: Arc<RwLock<MitigationConfig>>,
+    config_path: String,
+    watchers: Vec<tokio::sync::broadcast::Sender<MitigationConfig>>,
+}
+
+impl ConfigManager {
+    /// Create new configuration manager
+    pub fn new(config: MitigationConfig, config_path: String) -> Self {
+        Self {
+            current_config: Arc::new(RwLock::new(config)),
+            config_path,
+            watchers: Vec::new(),
+        }
+    }
+
+    /// Get current configuration
+    pub async fn get_config(&self) -> MitigationConfig {
+        self.current_config.read().await.clone()
+    }
+
+    /// Reload configuration from file
+    pub async fn reload_config(&mut self) -> Result<(), String> {
+        info!("Reloading configuration from {}", self.config_path);
+        
+        let new_config = MitigationConfig::from_file(&self.config_path)
+            .map_err(|e| format!("Failed to load config: {}", e))?;
+        
+        // Validate new configuration
+        new_config.validate().map_err(|e| format!("Invalid config: {}", e))?;
+        
+        // Update current configuration
+        {
+            let mut current = self.current_config.write().await;
+            *current = new_config.clone();
+        }
+        
+        // Notify watchers
+        for sender in &self.watchers {
+            let _ = sender.send(new_config.clone());
+        }
+        
+        info!("Configuration reloaded successfully");
+        Ok(())
+    }
+
+    /// Subscribe to configuration changes
+    pub fn subscribe(&mut self) -> tokio::sync::broadcast::Receiver<MitigationConfig> {
+        let (sender, receiver) = tokio::sync::broadcast::channel(10);
+        self.watchers.push(sender);
+        receiver
+    }
+
+    /// Update configuration with environment variables
+    pub async fn apply_env_overrides(&mut self) -> Result<(), String> {
+        let mut config = self.current_config.write().await;
+        
+        // Apply environment variable overrides
+        if let Ok(log_level) = std::env::var("RUST_LOG") {
+            config.logging.level = log_level;
+        }
+        
+        if let Ok(max_connections) = std::env::var("MAX_CONNECTIONS") {
+            config.ddos.connection_limits.max_connections_per_ip = max_connections.parse()
+                .map_err(|e| format!("Invalid MAX_CONNECTIONS: {}", e))?;
+        }
+        
+        if let Ok(backend_addr) = std::env::var("BACKEND_ADDRESS") {
+            config.network.backend_interface = backend_addr;
+        }
+        
+        if let Ok(public_port) = std::env::var("PUBLIC_PORT") {
+            config.network.public_port = public_port.parse()
+                .map_err(|e| format!("Invalid PUBLIC_PORT: {}", e))?;
+        }
+        
+        // TLS certificate overrides
+        if let Ok(cert_path) = std::env::var("TLS_CERT_PATH") {
+            config.network.tls.cert_path = cert_path;
+        }
+        
+        if let Ok(key_path) = std::env::var("TLS_KEY_PATH") {
+            config.network.tls.key_path = key_path;
+        }
+        
+        // Security overrides
+        if let Ok(syn_cookie_secret) = std::env::var("SYN_COOKIE_SECRET") {
+            config.ddos.syn_proxy.cookie_secret = syn_cookie_secret;
+        }
+        
+        info!("Applied environment variable overrides");
         Ok(())
     }
 }

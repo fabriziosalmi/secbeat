@@ -1,0 +1,259 @@
+# SecBeat Docker Configuration (L7 Mode - No Raw Sockets Required)
+# This configuration runs in L7 TLS/HTTP proxy mode which doesn't require privileged access
+
+#===============================================================================
+# PLATFORM CONFIGURATION
+#===============================================================================
+
+[platform]
+# Deployment environment: development, staging, production
+environment = "production"
+
+# Unique identifier for this deployment instance
+deployment_id = "secbeat-docker-001"
+
+# Regional identifier (useful for multi-region deployments)  
+region = "us-east-1"
+
+# Operation mode - force L7 mode to avoid raw socket requirements
+mode = "l7"
+
+# Platform features (disable syn_proxy to avoid raw socket requirements)
+features = [
+    "ddos_protection",    # Enable DDoS protection across all nodes
+    "waf_protection",     # Enable WAF protection
+    "tls_termination",    # Enable TLS termination
+    "orchestrator",       # Enable orchestrator integration
+    "nats_messaging",     # Enable NATS messaging
+    "ai_detection",       # Enable AI-powered threat detection
+    "auto_scaling",       # Enable automatic scaling
+    "geo_blocking",       # Enable geographic blocking
+    "rate_limiting",      # Enable advanced rate limiting
+    "circuit_breaker",    # Enable circuit breaker patterns
+    "health_checks",      # Enable health check endpoints
+    "metrics",            # Enable metrics collection
+    "tracing",            # Enable distributed tracing
+    "management_api"      # Enable management API
+]
+
+#===============================================================================
+# NETWORK CONFIGURATION
+#===============================================================================
+
+[network]
+# Primary network interface (public-facing)
+public_interface = "0.0.0.0"
+public_port = 8443
+
+# Backend network configuration
+backend_interface = "127.0.0.1"
+backend_port = 8080
+
+# Additional network settings
+max_connections = 10000
+connection_timeout = 30
+read_timeout = 30
+write_timeout = 30
+
+#===============================================================================
+# TLS CONFIGURATION
+#===============================================================================
+
+[tls]
+# Enable TLS termination
+enabled = true
+
+# TLS version configuration
+min_version = "1.2"
+max_version = "1.3"
+
+# Certificate and key paths (using self-signed for demo)
+cert_path = "certs/cert.pem"
+key_path = "certs/key.pem"
+
+# Advanced TLS settings
+session_cache_size = 10000
+session_timeout = 3600
+
+# Cipher suites (modern, secure configuration)
+cipher_suites = [
+    "TLS_AES_256_GCM_SHA384",
+    "TLS_CHACHA20_POLY1305_SHA256",
+    "TLS_AES_128_GCM_SHA256",
+    "TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384",
+    "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384",
+    "TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256",
+    "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256",
+    "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+    "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+]
+
+#===============================================================================
+# DDOS PROTECTION CONFIGURATION
+#===============================================================================
+
+[ddos]
+# Enable DDoS protection
+enabled = true
+
+# Rate limiting configuration
+rate_limit_rps = 1000
+rate_limit_burst = 5000
+
+# Connection limits
+max_connections_per_ip = 100
+max_connections_global = 10000
+
+# Detection thresholds
+pps_threshold = 10000
+bandwidth_threshold = "100MB"
+connection_threshold = 5000
+
+# Mitigation actions
+enable_rate_limiting = true
+enable_geo_blocking = true
+enable_connection_throttling = true
+
+# Advanced detection
+enable_behavioral_analysis = true
+enable_ml_detection = true
+
+#===============================================================================
+# WAF CONFIGURATION
+#===============================================================================
+
+[waf]
+# Enable WAF protection
+enabled = true
+
+# WAF rule sets
+rule_sets = ["core", "web_application", "api_protection", "ddos"]
+
+# Request limits
+max_request_size = "10MB"
+max_header_size = "8KB"
+max_url_length = 2048
+
+# Detection settings
+enable_sql_injection_protection = true
+enable_xss_protection = true
+enable_file_inclusion_protection = true
+enable_command_injection_protection = true
+
+# Response settings
+block_suspicious_requests = true
+log_all_requests = false
+log_blocked_requests = true
+
+#===============================================================================
+# LOGGING CONFIGURATION
+#===============================================================================
+
+[logging]
+# Log level: trace, debug, info, warn, error
+level = "info"
+
+# Log format: json, text
+format = "json"
+
+# Log outputs
+outputs = ["stdout", "file"]
+
+# File logging configuration
+file_path = "logs/mitigation.log"
+max_file_size = "100MB"
+max_files = 10
+compress_rotated = true
+
+# Structured logging
+enable_metrics_logging = true
+enable_access_logging = true
+enable_security_logging = true
+
+#===============================================================================
+# METRICS CONFIGURATION
+#===============================================================================
+
+[metrics]
+# Enable metrics collection
+enabled = true
+
+# Metrics endpoint configuration
+bind_addr = "0.0.0.0:9191"
+path = "/metrics"
+
+# Collection intervals
+collection_interval = 10
+retention_period = 3600
+
+# Metric categories
+enable_system_metrics = true
+enable_network_metrics = true
+enable_security_metrics = true
+enable_performance_metrics = true
+
+#===============================================================================
+# MANAGEMENT API CONFIGURATION
+#===============================================================================
+
+[management]
+# Enable management API
+enabled = true
+
+# API endpoint configuration
+bind_addr = "0.0.0.0:9090"
+
+# API authentication
+enable_auth = false
+api_key = "secbeat-dev-key-2024"
+
+# API rate limiting
+rate_limit = 100
+burst_limit = 200
+
+#===============================================================================
+# ORCHESTRATOR CONFIGURATION
+#===============================================================================
+
+[orchestrator]
+# Enable orchestrator integration
+enabled = false
+
+# Orchestrator endpoint
+endpoint = "http://orchestrator:8080"
+
+# Authentication
+api_key = "orchestrator-api-key-2024"
+
+# Registration settings
+node_id = "mitigation-node-001"
+region = "us-east-1"
+capabilities = ["ddos_protection", "waf_protection", "tls_termination"]
+
+# Heartbeat configuration
+heartbeat_interval = 30
+heartbeat_timeout = 60
+
+#===============================================================================
+# NATS CONFIGURATION
+#===============================================================================
+
+[nats]
+# Enable NATS messaging
+enabled = false
+
+# NATS server configuration
+servers = ["nats://nats:4222"]
+
+# Authentication
+username = "secbeat"
+password = "secbeat-nats-2024"
+
+# Connection settings
+max_reconnects = 10
+reconnect_wait = 2
+
+# Subject configuration
+security_events_subject = "secbeat.security.events"
+metrics_subject = "secbeat.metrics"
+alerts_subject = "secbeat.alerts"

@@ -1,10 +1,5 @@
 use anyhow::{Context, Result};
-use pnet::packet::{
-    tcp::{TcpFlags, TcpPacket},
-    ipv4::Ipv4Packet,
-};
 use pnet::transport::{transport_channel, TransportChannelType, TransportProtocol, TransportReceiver, TransportSender};
-use rand::Rng;
 use sha2::{Sha256, Digest};
 use std::collections::HashMap;
 use std::net::{Ipv4Addr, SocketAddr};
@@ -24,6 +19,8 @@ pub struct SynProxy {
     backend_addr: SocketAddr,
     /// Maximum time to wait for ACK after SYN-ACK
     handshake_timeout: Duration,
+    /// Local IP address to bind to
+    local_ip: Ipv4Addr,
     /// Active handshakes being tracked
     pending_handshakes: Arc<Mutex<HashMap<String, PendingHandshake>>>,
     /// Transport layer sender for raw packets
@@ -54,12 +51,14 @@ impl SynProxy {
         listen_port: u16,
         backend_addr: SocketAddr,
         handshake_timeout: Duration,
+        local_ip: Ipv4Addr,
     ) -> Self {
         Self {
             secret_key,
             listen_port,
             backend_addr,
             handshake_timeout,
+            local_ip,
             pending_handshakes: Arc::new(Mutex::new(HashMap::new())),
             tx: Arc::new(Mutex::new(None)),
             rx: Arc::new(Mutex::new(None)),
@@ -107,17 +106,48 @@ impl SynProxy {
 
     /// Process incoming packets
     async fn process_packets(&self) -> Result<()> {
-        // This is a simplified implementation
-        // In a real implementation, we would:
-        // 1. Receive raw IP packets
-        // 2. Parse TCP headers
-        // 3. Handle SYN, ACK packets appropriately
-        // 4. Generate SYN cookies
-        // 5. Validate ACK packets against cookies
+        let mut rx_guard = self.rx.lock().await;
+        if let Some(ref mut rx) = *rx_guard {
+            let mut buffer = vec![0u8; 4096];
+            
+            // Try to receive a packet with a short timeout to avoid blocking
+            match tokio::time::timeout(Duration::from_millis(10), async {
+                // Note: pnet's transport receiver is blocking, so in a real implementation
+                // we would need to run this in a separate thread or use async-compatible
+                // networking libraries like tokio's UDP/TCP sockets
+                
+                // For now, we'll simulate packet processing
+                // In production, this would be:
+                // 1. rx.next() to get the next packet
+                // 2. Parse IP and TCP headers
+                // 3. Handle SYN/ACK packets based on TCP flags
+                
+                Ok::<(), anyhow::Error>(())
+            }).await {
+                Ok(_) => {
+                    // Process the packet here
+                    debug!("Processed network packet");
+                }
+                Err(_) => {
+                    // Timeout - no packets available
+                }
+            }
+        }
         
-        // For now, we'll simulate the core logic
-        tokio::time::sleep(Duration::from_millis(10)).await;
+        // Clean up expired handshakes
+        self.cleanup_expired_handshakes().await;
+        
         Ok(())
+    }
+
+    /// Clean up expired handshakes
+    async fn cleanup_expired_handshakes(&self) {
+        let mut pending = self.pending_handshakes.lock().await;
+        let now = Instant::now();
+        
+        pending.retain(|_, handshake| {
+            now.duration_since(handshake.timestamp) < self.handshake_timeout
+        });
     }
 
     /// Generate SYN cookie for a client connection

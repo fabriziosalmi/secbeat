@@ -378,11 +378,10 @@ pub fn collect_system_metrics(
 }
 
 /// Get CPU usage percentage from /proc/stat on Linux or system estimates on other platforms
-use std::fs;
-
 fn get_cpu_usage() -> f64 {
     #[cfg(target_os = "linux")]
     {
+        use std::fs;
         if let Ok(stat_content) = fs::read_to_string("/proc/stat") {
             if let Some(cpu_line) = stat_content.lines().next() {
                 if let Some(cpu_stats) = parse_cpu_line(cpu_line) {
@@ -419,6 +418,7 @@ fn get_cpu_usage() -> f64 {
 fn get_memory_usage() -> f64 {
     #[cfg(target_os = "linux")]
     {
+        use std::fs;
         if let Ok(meminfo_content) = fs::read_to_string("/proc/meminfo") {
             if let (Some(total), Some(available)) = parse_meminfo(&meminfo_content) {
                 let used = total - available;
