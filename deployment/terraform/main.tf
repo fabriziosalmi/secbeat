@@ -6,7 +6,7 @@ terraform {
   required_providers {
     proxmox = {
       source  = "telmate/proxmox"
-      version = "~> 2.9"
+      version = "2.9.11"
     }
     local = {
       source  = "hashicorp/local"
@@ -62,10 +62,8 @@ variable "storage_pool" {
 }
 
 # Provider configuration
+# Using environment variables: PM_API_URL, PM_USER, PM_PASS
 provider "proxmox" {
-  pm_api_url      = "https://${var.proxmox_host}:8006/api2/json"
-  pm_user         = var.proxmox_user
-  pm_password     = var.proxmox_password
   pm_tls_insecure = true
   pm_timeout      = 600
 }
@@ -167,10 +165,10 @@ locals {
 resource "proxmox_vm_qemu" "mitigation_nodes" {
   count       = local.vm_configs.mitigation_nodes.count
   name        = "secbeat-mitigation-${count.index + 1}"
-  target_node = "proxmox-lab"
+  target_node = var.target_node
   vmid        = 200 + count.index
   
-  # Clone from template or use cloud image
+  # Clone from template
   clone = var.vm_template
   
   # VM Resources
@@ -201,9 +199,6 @@ resource "proxmox_vm_qemu" "mitigation_nodes" {
   
   # SSH configuration
   sshkeys = var.ssh_public_key
-  
-  # Cloud-init user data
-  cicustom = "user=local:snippets/mitigation-${count.index + 1}-user.yml"
   
   # Start VM automatically
   onboot = false
