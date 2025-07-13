@@ -6,7 +6,7 @@ terraform {
   required_providers {
     proxmox = {
       source  = "telmate/proxmox"
-      version = "2.9.11"
+      version = "3.0.1-rc9"
     }
     local = {
       source  = "hashicorp/local"
@@ -52,7 +52,7 @@ variable "vm_template" {
 variable "target_node" {
   description = "Proxmox target node name"
   type        = string
-  default     = "pve"  # Change this to match your Proxmox node name
+  default     = "proxmox-lab"
 }
 
 variable "storage_pool" {
@@ -170,17 +170,21 @@ resource "proxmox_vm_qemu" "mitigation_nodes" {
   
   # Clone from template
   clone = var.vm_template
+  kvm   = false
   
   # VM Resources
-  cores    = local.vm_configs.mitigation_nodes.cores
+  cpu {
+    cores = local.vm_configs.mitigation_nodes.cores
+    type  = "qemu64"
+  }
   memory   = local.vm_configs.mitigation_nodes.memory
   scsihw   = "virtio-scsi-pci"
   bootdisk = "scsi0"
   
   # Disk configuration
   disk {
-    slot    = 0
-    type    = "scsi"
+    slot    = "scsi0"
+    type    = "disk"
     storage = var.storage_pool
     size    = "${local.vm_configs.mitigation_nodes.disk}G"
     format  = "raw"
@@ -188,6 +192,7 @@ resource "proxmox_vm_qemu" "mitigation_nodes" {
   
   # Network configuration
   network {
+    id     = 0
     model  = "virtio"
     bridge = local.bridge
   }
@@ -209,26 +214,31 @@ resource "proxmox_vm_qemu" "mitigation_nodes" {
 # Orchestrator Node VM
 resource "proxmox_vm_qemu" "orchestrator" {
   name        = "secbeat-orchestrator"
-  target_node = "proxmox-lab"
+  target_node = var.target_node
   vmid        = 210
   
   # Clone from template
   clone = var.vm_template
+  kvm   = false
   
-  cores    = local.vm_configs.orchestrator.cores
+  cpu {
+    cores = local.vm_configs.orchestrator.cores
+    type  = "qemu64"
+  }
   memory   = local.vm_configs.orchestrator.memory
   scsihw   = "virtio-scsi-pci"
   bootdisk = "scsi0"
   
   disk {
-    slot    = 0
-    type    = "scsi"
+    slot    = "scsi0"
+    type    = "disk"
     storage = var.storage_pool
     size    = "${local.vm_configs.orchestrator.disk}G"
     format  = "raw"
   }
   
   network {
+    id     = 0
     model  = "virtio"
     bridge = local.bridge
   }
@@ -247,26 +257,31 @@ resource "proxmox_vm_qemu" "orchestrator" {
 resource "proxmox_vm_qemu" "nats_cluster" {
   count       = local.vm_configs.nats_cluster.count
   name        = "secbeat-nats-${count.index + 1}"
-  target_node = "proxmox-lab"
+  target_node = var.target_node
   vmid        = 220 + count.index
   
   # Clone from template
   clone = var.vm_template
+  kvm   = false
   
-  cores    = local.vm_configs.nats_cluster.cores
+  cpu {
+    cores = local.vm_configs.nats_cluster.cores
+    type  = "qemu64"
+  }
   memory   = local.vm_configs.nats_cluster.memory
   scsihw   = "virtio-scsi-pci"
   bootdisk = "scsi0"
   
   disk {
-    slot    = 0
-    type    = "scsi"
+    slot    = "scsi0"
+    type    = "disk"
     storage = var.storage_pool
     size    = "${local.vm_configs.nats_cluster.disk}G"
     format  = "raw"
   }
   
   network {
+    id     = 0
     model  = "virtio"
     bridge = local.bridge
   }
@@ -285,26 +300,31 @@ resource "proxmox_vm_qemu" "nats_cluster" {
 resource "proxmox_vm_qemu" "load_balancers" {
   count       = local.vm_configs.load_balancers.count
   name        = "secbeat-lb-${count.index + 1}"
-  target_node = "proxmox-lab"
+  target_node = var.target_node
   vmid        = 230 + count.index
   
   # Clone from template
   clone = var.vm_template
+  kvm   = false
   
   disk {
-    slot    = 0
-    type    = "scsi"
+    slot    = "scsi0"
+    type    = "disk"
     storage = var.storage_pool
     size    = "${local.vm_configs.load_balancers.disk}G"
     format  = "raw"
   }
   
-  cores    = local.vm_configs.load_balancers.cores
+  cpu {
+    cores = local.vm_configs.load_balancers.cores
+    type  = "qemu64"
+  }
   memory   = local.vm_configs.load_balancers.memory
   scsihw   = "virtio-scsi-pci"
   bootdisk = "scsi0"
   
   network {
+    id     = 0
     model  = "virtio"
     bridge = local.bridge
   }
@@ -322,26 +342,31 @@ resource "proxmox_vm_qemu" "load_balancers" {
 # Monitoring VM (Prometheus + Grafana)
 resource "proxmox_vm_qemu" "monitoring" {
   name        = "secbeat-monitoring"
-  target_node = "proxmox-lab"
+  target_node = var.target_node
   vmid        = 240
   
   # Clone from template
   clone = var.vm_template
+  kvm   = false
   
-  cores    = local.vm_configs.monitoring.cores
+  cpu {
+    cores = local.vm_configs.monitoring.cores
+    type  = "qemu64"
+  }
   memory   = local.vm_configs.monitoring.memory
   scsihw   = "virtio-scsi-pci"
   bootdisk = "scsi0"
   
   disk {
-    slot    = 0
-    type    = "scsi"
+    slot    = "scsi0"
+    type    = "disk"
     storage = var.storage_pool
     size    = "${local.vm_configs.monitoring.disk}G"
     format  = "raw"
   }
   
   network {
+    id     = 0
     model  = "virtio"
     bridge = local.bridge
   }
