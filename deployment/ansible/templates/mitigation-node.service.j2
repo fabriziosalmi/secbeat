@@ -1,0 +1,15 @@
+[Unit]
+Description=SecBeat Mitigation Node
+After=network.target nats.service
+
+[Service]
+Type=simple
+User={{ secbeat_user }}
+WorkingDirectory={{ secbeat_home }}
+ExecStart={{ secbeat_home }}/target/release/mitigation-node --config {{ secbeat_home }}/config/production.toml
+Restart=always
+RestartSec=10s
+Environment=RUST_LOG=info
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,32 @@
+global
+    daemon
+    log stdout local0
+    maxconn 4096
+
+defaults
+    mode http
+    timeout connect 5000ms
+    timeout client 50000ms
+    timeout server 50000ms
+    log global
+    option httplog
+
+frontend secbeat_frontend
+    bind *:443 ssl crt /etc/ssl/certs/secbeat.pem
+    bind *:80
+    redirect scheme https if !{ ssl_fc }
+    default_backend secbeat_mitigation_nodes
+
+backend secbeat_mitigation_nodes
+    balance roundrobin
+    option httpchk GET /health
+{% for host in groups['mitigation_nodes'] %}
+    server {{ host }} {{ hostvars[host]['ansible_host'] }}:8443 check
+{% endfor %}
+
+frontend stats
+    bind *:8404
+    stats enable
+    stats uri /stats
+    stats refresh 30s
+    stats admin if TRUE

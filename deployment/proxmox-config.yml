@@ -4,7 +4,7 @@
 proxmox:
   node: "192.168.100.23"
   api_host: "https://192.168.100.23:8006"
-  username: "root@pam"
+  username: "root"
   # SSH key authentication recommended
   ssh_key_path: "~/.ssh/id_rsa"
 

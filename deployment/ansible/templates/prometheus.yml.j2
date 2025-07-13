@@ -1,0 +1,43 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'node_exporter'
+    static_configs:
+      - targets:
+{% for host in groups['all'] %}
+        - '{{ hostvars[host]['ansible_host'] }}:9100'
+{% endfor %}
+
+  - job_name: 'secbeat_mitigation'
+    static_configs:
+      - targets:
+{% for host in groups['mitigation_nodes'] %}
+        - '{{ hostvars[host]['ansible_host'] }}:9192'
+{% endfor %}
+
+  - job_name: 'secbeat_orchestrator'
+    static_configs:
+      - targets:
+{% for host in groups['orchestrator'] %}
+        - '{{ hostvars[host]['ansible_host'] }}:9191'
+{% endfor %}
+
+  - job_name: 'nats'
+    static_configs:
+      - targets:
+{% for host in groups['nats_cluster'] %}
+        - '{{ hostvars[host]['ansible_host'] }}:8222'
+{% endfor %}
+
+  - job_name: 'haproxy'
+    static_configs:
+      - targets:
+{% for host in groups['load_balancers'] %}
+        - '{{ hostvars[host]['ansible_host'] }}:8404'
+{% endfor %}

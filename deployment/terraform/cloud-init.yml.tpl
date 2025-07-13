@@ -4,17 +4,22 @@
 hostname: ${hostname}
 fqdn: ${hostname}.secbeat.local
 
-# User configuration
+# User configuration  
 users:
+  - name: root
+    ssh_authorized_keys:
+      - ${ssh_public_key}
+    shell: /bin/bash
   - name: secbeat
     groups: sudo
     shell: /bin/bash
     sudo: ['ALL=(ALL) NOPASSWD:ALL']
     ssh_authorized_keys:
       - ${ssh_public_key}
-  - name: root
-    ssh_authorized_keys:
-      - ${ssh_public_key}
+
+# SSH configuration
+ssh_pwauth: false
+disable_root: false
 
 # Package updates and installation
 package_update: true
@@ -28,6 +33,12 @@ packages:
   - net-tools
   - unzip
   - jq
+  - vim
+  - ca-certificates
+  - gnupg
+  - lsb-release
+  - fail2ban
+  - ufw
   - fail2ban
   - ufw
   - docker.io

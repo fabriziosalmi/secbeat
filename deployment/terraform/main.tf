@@ -29,7 +29,7 @@ variable "proxmox_host" {
 variable "proxmox_user" {
   description = "Proxmox username"
   type        = string
-  default     = "root@pam"
+  default     = "root"
 }
 
 variable "proxmox_password" {
@@ -46,7 +46,13 @@ variable "ssh_public_key" {
 variable "vm_template" {
   description = "VM template name"
   type        = string
-  default     = "ubuntu-22.04-server"
+  default     = "ubuntu-24.04-server"
+}
+
+variable "target_node" {
+  description = "Proxmox target node name"
+  type        = string
+  default     = "pve"  # Change this to match your Proxmox node name
 }
 
 variable "storage_pool" {
@@ -61,6 +67,51 @@ provider "proxmox" {
   pm_user         = var.proxmox_user
   pm_password     = var.proxmox_password
   pm_tls_insecure = true
+  pm_timeout      = 600
+}
+
+# Local variables for VM configuration
+locals {
+  cloud_image = "ubuntu-24.04-server-cloudimg-amd64.img"
+  storage     = "local"
+  bridge      = "vmbr0"
+  
+  # VM configurations matching your original setup
+  vm_configs = {
+    mitigation_nodes = {
+      count  = 3
+      cores  = 1
+      memory = 1024
+      disk   = 8
+      base_ip = 200
+    }
+    orchestrator = {
+      cores  = 1
+      memory = 1024
+      disk   = 8
+      ip     = 203
+    }
+    nats_cluster = {
+      count  = 3
+      cores  = 1
+      memory = 512
+      disk   = 6
+      base_ip = 204
+    }
+    load_balancers = {
+      count  = 2
+      cores  = 1
+      memory = 512
+      disk   = 6
+      base_ip = 207
+    }
+    monitoring = {
+      cores  = 1
+      memory = 1536
+      disk   = 12
+      ip     = 209
+    }
+  }
 }
 
 # Generate TLS certificates for SecBeat
@@ -95,16 +146,17 @@ resource "tls_self_signed_cert" "secbeat_cert" {
   ]
 
   ip_addresses = [
-    "192.168.200.10",
-    "192.168.200.11", 
-    "192.168.200.12",
-    "192.168.200.20"
+    "192.168.100.200",
+    "192.168.100.201", 
+    "192.168.100.202",
+    "192.168.100.203"
   ]
 }
 
 # Cloud-init configuration template
 locals {
   cloud_init_config = templatefile("${path.module}/cloud-init.yml.tpl", {
+    hostname       = "secbeat-vm"
     ssh_public_key = var.ssh_public_key
     secbeat_cert   = base64encode(tls_self_signed_cert.secbeat_cert.cert_pem)
     secbeat_key    = base64encode(tls_private_key.secbeat_key.private_key_pem)
@@ -113,41 +165,48 @@ locals {
 
 # Mitigation Node VMs
 resource "proxmox_vm_qemu" "mitigation_nodes" {
-  count       = 3
+  count       = local.vm_configs.mitigation_nodes.count
   name        = "secbeat-mitigation-${count.index + 1}"
-  target_node = "pve"  # Adjust to your Proxmox node name
-  clone       = var.vm_template
+  target_node = "proxmox-lab"
+  vmid        = 200 + count.index
+  
+  # Clone from template or use cloud image
+  clone = var.vm_template
   
   # VM Resources
-  cores  = 4
-  memory = 8192
+  cores    = local.vm_configs.mitigation_nodes.cores
+  memory   = local.vm_configs.mitigation_nodes.memory
+  scsihw   = "virtio-scsi-pci"
+  bootdisk = "scsi0"
   
   # Disk configuration
   disk {
-    storage = var.storage_pool
+    slot    = 0
     type    = "scsi"
-    size    = "40G"
-    format  = "qcow2"
+    storage = var.storage_pool
+    size    = "${local.vm_configs.mitigation_nodes.disk}G"
+    format  = "raw"
   }
   
   # Network configuration
   network {
     model  = "virtio"
-    bridge = "vmbr0"
+    bridge = local.bridge
   }
   
-  # Cloud-init
+  # Cloud-init configuration
   os_type = "cloud-init"
-  ipconfig0 = "ip=192.168.200.${10 + count.index}/24,gw=192.168.200.1"
+  ipconfig0 = "ip=192.168.100.${local.vm_configs.mitigation_nodes.base_ip + count.index}/24,gw=192.168.100.1"
+  nameserver = "8.8.8.8,8.8.4.4"
   
   # SSH configuration
   sshkeys = var.ssh_public_key
   
-  # Start VM automatically
-  onboot = true
+  # Cloud-init user data
+  cicustom = "user=local:snippets/mitigation-${count.index + 1}-user.yml"
   
-  # Wait for cloud-init to complete
-  define_connection_info = false
+  # Start VM automatically
+  onboot = false
   
   tags = "secbeat,mitigation,production"
 }
@@ -155,91 +214,112 @@ resource "proxmox_vm_qemu" "mitigation_nodes" {
 # Orchestrator Node VM
 resource "proxmox_vm_qemu" "orchestrator" {
   name        = "secbeat-orchestrator"
-  target_node = "pve"
-  clone       = var.vm_template
+  target_node = "proxmox-lab"
+  vmid        = 210
   
-  cores  = 2
-  memory = 4096
+  # Clone from template
+  clone = var.vm_template
+  
+  cores    = local.vm_configs.orchestrator.cores
+  memory   = local.vm_configs.orchestrator.memory
+  scsihw   = "virtio-scsi-pci"
+  bootdisk = "scsi0"
   
   disk {
-    storage = var.storage_pool
+    slot    = 0
     type    = "scsi"
-    size    = "20G"
-    format  = "qcow2"
+    storage = var.storage_pool
+    size    = "${local.vm_configs.orchestrator.disk}G"
+    format  = "raw"
   }
   
   network {
     model  = "virtio"
-    bridge = "vmbr0"
+    bridge = local.bridge
   }
   
   os_type = "cloud-init"
-  ipconfig0 = "ip=192.168.200.20/24,gw=192.168.200.1"
+  ipconfig0 = "ip=192.168.100.${local.vm_configs.orchestrator.ip}/24,gw=192.168.100.1"
+  nameserver = "8.8.8.8 8.8.4.4"
   
   sshkeys = var.ssh_public_key
-  onboot = true
+  onboot = false
   
   tags = "secbeat,orchestrator,production"
 }
 
 # NATS Cluster VMs
 resource "proxmox_vm_qemu" "nats_cluster" {
-  count       = 3
+  count       = local.vm_configs.nats_cluster.count
   name        = "secbeat-nats-${count.index + 1}"
-  target_node = "pve"
-  clone       = var.vm_template
+  target_node = "proxmox-lab"
+  vmid        = 220 + count.index
   
-  cores  = 2
-  memory = 2048
+  # Clone from template
+  clone = var.vm_template
+  
+  cores    = local.vm_configs.nats_cluster.cores
+  memory   = local.vm_configs.nats_cluster.memory
+  scsihw   = "virtio-scsi-pci"
+  bootdisk = "scsi0"
   
   disk {
-    storage = var.storage_pool
+    slot    = 0
     type    = "scsi"
-    size    = "10G"
-    format  = "qcow2"
+    storage = var.storage_pool
+    size    = "${local.vm_configs.nats_cluster.disk}G"
+    format  = "raw"
   }
   
   network {
     model  = "virtio"
-    bridge = "vmbr0"
+    bridge = local.bridge
   }
   
   os_type = "cloud-init"
-  ipconfig0 = "ip=192.168.200.${30 + count.index}/24,gw=192.168.200.1"
+  ipconfig0 = "ip=192.168.100.${local.vm_configs.nats_cluster.base_ip + count.index}/24,gw=192.168.100.1"
+  nameserver = "8.8.8.8 8.8.4.4"
   
   sshkeys = var.ssh_public_key
-  onboot = true
+  onboot = false
   
   tags = "secbeat,nats,messaging"
 }
 
 # Load Balancer VMs (HAProxy)
 resource "proxmox_vm_qemu" "load_balancers" {
-  count       = 2
+  count       = local.vm_configs.load_balancers.count
   name        = "secbeat-lb-${count.index + 1}"
-  target_node = "pve"
-  clone       = var.vm_template
+  target_node = "proxmox-lab"
+  vmid        = 230 + count.index
   
-  cores  = 2
-  memory = 2048
+  # Clone from template
+  clone = var.vm_template
   
   disk {
-    storage = var.storage_pool
+    slot    = 0
     type    = "scsi"
-    size    = "10G"
-    format  = "qcow2"
+    storage = var.storage_pool
+    size    = "${local.vm_configs.load_balancers.disk}G"
+    format  = "raw"
   }
+  
+  cores    = local.vm_configs.load_balancers.cores
+  memory   = local.vm_configs.load_balancers.memory
+  scsihw   = "virtio-scsi-pci"
+  bootdisk = "scsi0"
   
   network {
     model  = "virtio"
-    bridge = "vmbr0"
+    bridge = local.bridge
   }
   
   os_type = "cloud-init"
-  ipconfig0 = "ip=192.168.200.${40 + count.index}/24,gw=192.168.200.1"
+  ipconfig0 = "ip=192.168.100.${local.vm_configs.load_balancers.base_ip + count.index}/24,gw=192.168.100.1"
+  nameserver = "8.8.8.8 8.8.4.4"
   
   sshkeys = var.ssh_public_key
-  onboot = true
+  onboot = false
   
   tags = "secbeat,loadbalancer,production"
 }
@@ -247,29 +327,36 @@ resource "proxmox_vm_qemu" "load_balancers" {
 # Monitoring VM (Prometheus + Grafana)
 resource "proxmox_vm_qemu" "monitoring" {
   name        = "secbeat-monitoring"
-  target_node = "pve"
-  clone       = var.vm_template
+  target_node = "proxmox-lab"
+  vmid        = 240
   
-  cores  = 4
-  memory = 8192
+  # Clone from template
+  clone = var.vm_template
+  
+  cores    = local.vm_configs.monitoring.cores
+  memory   = local.vm_configs.monitoring.memory
+  scsihw   = "virtio-scsi-pci"
+  bootdisk = "scsi0"
   
   disk {
-    storage = var.storage_pool
+    slot    = 0
     type    = "scsi"
-    size    = "60G"
-    format  = "qcow2"
+    storage = var.storage_pool
+    size    = "${local.vm_configs.monitoring.disk}G"
+    format  = "raw"
   }
   
   network {
     model  = "virtio"
-    bridge = "vmbr0"
+    bridge = local.bridge
   }
   
   os_type = "cloud-init"
-  ipconfig0 = "ip=192.168.300.10/24,gw=192.168.300.1"
+  ipconfig0 = "ip=192.168.100.${local.vm_configs.monitoring.ip}/24,gw=192.168.100.1"
+  nameserver = "8.8.8.8 8.8.4.4"
   
   sshkeys = var.ssh_public_key
-  onboot = true
+  onboot = false
   
   tags = "secbeat,monitoring,prometheus,grafana"
 }

@@ -3,24 +3,24 @@
 
 [mitigation_nodes]
 %{ for idx, node in mitigation_nodes ~}
-${node.name} ansible_host=${node.default_ipv4_address} ansible_user=secbeat
+${node.name} ansible_host=${node.default_ipv4_address} ansible_user=secbeat vm_id=${node.vmid}
 %{ endfor ~}
 
 [orchestrator]
-${orchestrator.name} ansible_host=${orchestrator.default_ipv4_address} ansible_user=secbeat
+${orchestrator.name} ansible_host=${orchestrator.default_ipv4_address} ansible_user=secbeat vm_id=${orchestrator.vmid}
 
 [nats_cluster]
 %{ for idx, node in nats_cluster ~}
-${node.name} ansible_host=${node.default_ipv4_address} ansible_user=secbeat
+${node.name} ansible_host=${node.default_ipv4_address} ansible_user=secbeat vm_id=${node.vmid}
 %{ endfor ~}
 
 [load_balancers]
 %{ for idx, node in load_balancers ~}
-${node.name} ansible_host=${node.default_ipv4_address} ansible_user=secbeat
+${node.name} ansible_host=${node.default_ipv4_address} ansible_user=secbeat vm_id=${node.vmid}
 %{ endfor ~}
 
 [monitoring]
-${monitoring.name} ansible_host=${monitoring.default_ipv4_address} ansible_user=secbeat
+${monitoring.name} ansible_host=${monitoring.default_ipv4_address} ansible_user=secbeat vm_id=${monitoring.vmid}
 
 [secbeat:children]
 mitigation_nodes
