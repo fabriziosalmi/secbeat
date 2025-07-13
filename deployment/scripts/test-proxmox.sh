@@ -6,25 +6,11 @@
 set -e
 
 # Configuration
-PROXMOX_HOSTnetwork:network:
-  version: 2
-  ethernets:
-    ens18:
-      dhcp4: false
-      addresses: [$TEST_VM_IP/24]
-      gateway4: 192.168.100.1
-      nameservers:
-        addresses: [8.8.8.8, 8.8.4.4]n: 2
-  ethernets:
-    ens18:
-      dhcp4: false
-      addresses: [$ip_address/24]
-      gateway4: 192.168.100.1
-      nameservers:
-        addresses: [8.8.8.8, 8.8.4.4].100.23"
+PROXMOX_HOST="192.168.100.23"
 PROXMOX_USER="root@pam"
 SSH_KEY_PATH="$HOME/.ssh/id_rsa"
 ISO_NAME="ubuntu-24.04.2-live-server-amd64.iso"
+ISO_PATH="/var/lib/vz/template/iso/ubuntu-24.04.2-live-server-amd64.iso"
 STORAGE="local"
 BRIDGE="vmbr0"
 
@@ -94,7 +80,7 @@ run_predeploy_checks() {
     
     # Check ISO availability
     print_status "Checking ISO availability"
-    if proxmox_exec "test -f /var/lib/vz/template/iso/$ISO_NAME" "Checking ISO file"; then
+    if proxmox_exec "test -f $ISO_PATH" "Checking ISO file"; then
         print_success "ISO file found"
     else
         print_error "ISO file not found"
@@ -189,7 +175,7 @@ EOF
     
     # Create VM
     print_status "Creating test VM"
-    proxmox_exec "qm create $TEST_VM_ID --name $TEST_VM_NAME --memory $TEST_VM_MEMORY --cores $TEST_VM_CORES --net0 virtio,bridge=$BRIDGE --scsihw virtio-scsi-pci --scsi0 $STORAGE:$TEST_VM_DISK,import-from=/var/lib/vz/template/iso/$ISO_NAME" "Creating VM $TEST_VM_NAME"
+    proxmox_exec "qm create $TEST_VM_ID --name $TEST_VM_NAME --memory $TEST_VM_MEMORY --cores $TEST_VM_CORES --net0 virtio,bridge=$BRIDGE --scsihw virtio-scsi-pci --scsi0 $STORAGE:$TEST_VM_DISK,import-from=$ISO_PATH" "Creating VM $TEST_VM_NAME"
     
     # Configure VM
     proxmox_exec "qm set $TEST_VM_ID --ide2 $STORAGE:cloudinit --boot c --bootdisk scsi0 --serial0 socket --vga serial0" "Configuring VM $TEST_VM_NAME"

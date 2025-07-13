@@ -10,6 +10,7 @@ PROXMOX_HOST="192.168.100.23"
 PROXMOX_USER="root@pam"
 SSH_KEY_PATH="$HOME/.ssh/id_rsa"
 ISO_NAME="ubuntu-24.04.2-live-server-amd64.iso"
+ISO_PATH="/var/lib/vz/template/iso/ubuntu-24.04.2-live-server-amd64.iso"
 STORAGE="local"
 BRIDGE="vmbr0"
 
@@ -118,8 +119,9 @@ check_prerequisites() {
     fi
     
     # Check if ISO exists
-    if ! proxmox_exec "test -f /var/lib/vz/template/iso/$ISO_NAME" "Checking ISO availability"; then
-        print_error "ISO $ISO_NAME not found in Proxmox storage"
+    if ! proxmox_exec "test -f $ISO_PATH" "Checking ISO availability"; then
+        print_error "ISO $ISO_NAME not found at $ISO_PATH"
+        print_info "Expected path: $ISO_PATH"
         print_info "Upload ISO to Proxmox: datacenter -> storage -> local -> ISO Images"
         exit 1
     fi
@@ -220,7 +222,7 @@ create_vm() {
     proxmox_exec "qm create $vm_id --name $vm_name --memory $memory --cores $cores --net0 virtio,bridge=$BRIDGE --scsihw virtio-scsi-pci --scsi0 $STORAGE:${disk}" "Creating VM $vm_name"
     
     # Import disk
-    proxmox_exec "qm importdisk $vm_id /var/lib/vz/template/iso/$ISO_NAME $STORAGE" "Importing disk for VM $vm_name"
+    proxmox_exec "qm importdisk $vm_id $ISO_PATH $STORAGE" "Importing disk for VM $vm_name"
     
     # Configure VM
     proxmox_exec "qm set $vm_id --scsi0 $STORAGE:vm-$vm_id-disk-0 --ide2 $STORAGE:cloudinit --boot c --bootdisk scsi0 --serial0 socket --vga serial0" "Configuring VM $vm_name"

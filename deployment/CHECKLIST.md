@@ -5,6 +5,7 @@
 ### Proxmox Environment
 - [ ] Proxmox VE 7.0+ installed and accessible at 192.168.100.23
 - [ ] Ubuntu 24.04.2 LTS ISO uploaded to Proxmox storage
+- [ ] ISO available at `/var/lib/vz/template/iso/ubuntu-24.04.2-live-server-amd64.iso`
 - [ ] Sufficient resources available (8+ cores, 8+ GB RAM, 100+ GB storage)
 - [ ] Network bridges configured (vmbr0 recommended)
 - [ ] Internet connectivity available for package downloads
