@@ -70,3 +70,8 @@ opt-level = 3
 # Faster compilation during development
 opt-level = 0
 debug = true
+
+[dev-dependencies]
+# Testing dependencies
+tempfile = "3.8"
+tokio-test = "0.4"

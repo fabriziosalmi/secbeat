@@ -16,8 +16,8 @@ use tokio::time::Duration;
 // Import modules under test
 use mitigation_node::config::MitigationConfig;
 use mitigation_node::waf::{WafEngine, WafResult};
-use mitigation_node::ddos::{DdosProtection, DdosConfig};
-use mitigation_node::events::{EventSystem, EventConfig};
+use mitigation_node::ddos::DdosProtection;
+use mitigation_node::events::EventSystem;
 
 /// Test configuration loading and validation
 #[cfg(test)]
@@ -205,19 +205,20 @@ mod ddos_tests {
     
     #[tokio::test]
     async fn test_ddos_protection_initialization() {
-        let config = DdosConfig::default();
-        let ddos = DdosProtection::new(config);
+        let config = MitigationConfig::default();
+        let ddos = DdosProtection::new(config.ddos.clone());
         
         assert!(ddos.is_ok(), "DDoS protection should initialize successfully");
     }
     
     #[tokio::test]
     async fn test_rate_limiting() {
-        let mut config = DdosConfig::default();
-        config.rate_limiting.requests_per_second = 10;
-        config.rate_limiting.burst_size = 20;
+        let config = MitigationConfig::default();
+        let mut ddos_config = config.ddos.clone();
+        ddos_config.rate_limiting.requests_per_second = 10;
+        ddos_config.rate_limiting.burst_size = 20;
         
-        let ddos = DdosProtection::new(config).unwrap();
+        let ddos = DdosProtection::new(ddos_config).unwrap();
         let client_ip: IpAddr = "192.168.1.100".parse().unwrap();
         
         // Test within limits
@@ -237,8 +238,8 @@ mod ddos_tests {
     
     #[tokio::test]
     async fn test_connection_tracking() {
-        let config = DdosConfig::default();
-        let ddos = DdosProtection::new(config).unwrap();
+        let config = MitigationConfig::default();
+        let ddos = DdosProtection::new(config.ddos.clone()).unwrap();
         let client_ip: IpAddr = "192.168.1.101".parse().unwrap();
         
         // Record connections
@@ -255,8 +256,8 @@ mod ddos_tests {
     
     #[tokio::test]
     async fn test_blacklist_functionality() {
-        let config = DdosConfig::default();
-        let ddos = DdosProtection::new(config).unwrap();
+        let config = MitigationConfig::default();
+        let ddos = DdosProtection::new(config.ddos.clone()).unwrap();
         let malicious_ip: IpAddr = "10.0.0.1".parse().unwrap();
         
         // Add to blacklist
@@ -280,13 +281,11 @@ mod event_tests {
     
     #[tokio::test]
     async fn test_event_system_initialization() {
-        let config = EventConfig {
-            nats_url: "nats://localhost:4222".to_string(),
-            node_id: "test-node-001".to_string(),
-        };
+        let nats_url = "nats://localhost:4222";
+        let node_id = uuid::Uuid::new_v4();
         
         // This will fail if NATS is not running, but that's expected in unit tests
-        let event_system = EventSystem::new(config).await;
+        let event_system = EventSystem::new(nats_url, node_id).await;
         
         // We expect this to fail in unit test environment without NATS
         // The important thing is that it handles the error gracefully
@@ -298,16 +297,24 @@ mod event_tests {
     
     #[tokio::test]
     async fn test_event_serialization() {
-        use mitigation_node::events::{SecurityEvent, EventSeverity};
+        use mitigation_node::events::{SecurityEvent, WafEventResult};
         
         let event = SecurityEvent {
-            event_type: "sql_injection_detected".to_string(),
-            severity: EventSeverity::High,
-            source_ip: "192.168.1.100".parse().unwrap(),
-            target: "/api/users".to_string(),
-            description: "SQL injection attempt detected".to_string(),
+            node_id: uuid::Uuid::new_v4(),
             timestamp: chrono::Utc::now(),
-            metadata: HashMap::new(),
+            source_ip: "192.168.1.100".parse().unwrap(),
+            http_method: "GET".to_string(),
+            uri: "/api/users".to_string(),
+            host_header: Some("example.com".to_string()),
+            user_agent: Some("test-agent".to_string()),
+            waf_result: WafEventResult {
+                action: "BLOCK".to_string(),
+                matched_rules: vec!["sql_injection".to_string()],
+                confidence: Some(0.95),
+            },
+            request_size: Some(1024),
+            response_status: Some(403),
+            processing_time_ms: Some(5),
         };
         
         // Test serialization

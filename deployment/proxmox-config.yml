@@ -12,26 +12,26 @@ proxmox:
 vm_templates:
   # Mitigation Node VMs
   mitigation_node:
-    cores: 4
-    memory: 8192  # 8GB RAM
-    disk_size: 40  # 40GB SSD
+    cores: 1
+    memory: 1024  # 8GB RAM
+    disk_size: 10  # 40GB SSD
     network_bridge: "vmbr0"
     os_template: "ubuntu-22.04-server"
     count: 3
     
   # Orchestrator Node VMs  
   orchestrator_node:
-    cores: 2
-    memory: 4096  # 4GB RAM
-    disk_size: 20  # 20GB SSD
+    cores: 1
+    memory: 1024  # 4GB RAM
+    disk_size: 10  # 20GB SSD
     network_bridge: "vmbr0"
     os_template: "ubuntu-22.04-server"
     count: 1
     
   # NATS Cluster VMs
   nats_cluster:
-    cores: 2
-    memory: 2048  # 2GB RAM
+    cores: 1
+    memory: 1024  # 2GB RAM
     disk_size: 10  # 10GB SSD
     network_bridge: "vmbr0"
     os_template: "ubuntu-22.04-server"
@@ -39,8 +39,8 @@ vm_templates:
     
   # Load Balancer VMs
   load_balancer:
-    cores: 2
-    memory: 2048  # 2GB RAM
+    cores: 1
+    memory: 1024  # 2GB RAM
     disk_size: 10  # 10GB SSD
     network_bridge: "vmbr0"
     os_template: "ubuntu-22.04-server"
@@ -48,9 +48,9 @@ vm_templates:
     
   # Monitoring Stack
   monitoring:
-    cores: 4
-    memory: 8192  # 8GB RAM
-    disk_size: 60  # 60GB SSD
+    cores: 1
+    memory: 1024  # 8GB RAM
+    disk_size: 10  # 60GB SSD
     network_bridge: "vmbr0"
     os_template: "ubuntu-22.04-server"
     count: 1

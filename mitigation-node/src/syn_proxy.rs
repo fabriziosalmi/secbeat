@@ -395,6 +395,7 @@ mod tests {
             8080,
             "127.0.0.1:8081".parse().unwrap(),
             Duration::from_secs(30),
+            Ipv4Addr::new(127, 0, 0, 1), // local_ip parameter
         );
 
         let client_ip = Ipv4Addr::new(192, 168, 1, 100);
@@ -426,6 +427,7 @@ mod tests {
             8080,
             "127.0.0.1:8081".parse().unwrap(),
             Duration::from_secs(30),
+            Ipv4Addr::new(127, 0, 0, 1), // local_ip parameter
         );
 
         // Note: This test would require root privileges to actually create raw sockets
