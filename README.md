@@ -351,46 +351,82 @@ make test-failover
 
 ## 🚀 Deployment
 
+SecBeat supports multiple deployment scenarios from development testing to enterprise production environments.
+
+### 🏢 Proxmox Virtual Environment (Recommended)
+
+**Automated multi-node deployment with full production stack:**
+
+```bash
+# Quick deployment to Proxmox VE
+./deploy_proxmox.sh test     # Pre-deployment validation
+./deploy_proxmox.sh deploy   # Full multi-VM deployment
+
+# Check deployment status
+./deploy_proxmox.sh status
+
+# Access monitoring
+open http://192.168.300.10:3000  # Grafana (admin/secbeat123)
+open http://192.168.300.10:9090  # Prometheus
+```
+
+**What gets deployed:**
+- **3 Mitigation Nodes** - DDoS protection and WAF (192.168.200.10-12)
+- **1 Orchestrator** - Central coordination (192.168.200.20)
+- **3 NATS Cluster** - Event messaging (192.168.200.30-32)
+- **2 Load Balancers** - HA traffic distribution (192.168.200.40-41)
+- **1 Monitoring Stack** - Grafana + Prometheus (192.168.300.10)
+
+**Prerequisites:**
+- Proxmox VE 7.0+ at 192.168.100.23 (configurable)
+- Ubuntu 22.04 LTS ISO uploaded to Proxmox
+- SSH key access: `ssh-copy-id root@192.168.100.23`
+- 20+ CPU cores, 32+ GB RAM, 300+ GB storage
+
+📖 **[Complete Proxmox Deployment Guide](deployment/README.md)**
+
 ### 🐳 Container Deployment
 
 ```bash
-# Build container images
-make docker-build
-
-# Deploy with Docker Compose
+# Development environment
 docker-compose up -d
 
-# Deploy to Kubernetes
+# Production with custom configs
+docker-compose -f docker-compose.prod.yml up -d
+
+# Kubernetes deployment
 kubectl apply -f k8s/
 ```
 
 ### ☁️ Cloud Deployment
 
 ```bash
-# Deploy to AWS
+# Deploy to AWS (planned)
 cd terraform/aws
 terraform init && terraform apply
 
-# Deploy to Azure
-cd terraform/azure
+# Deploy to Azure (planned)
+cd terraform/azure  
 terraform init && terraform apply
 
-# Deploy to GCP
+# Deploy to GCP (planned)
 cd terraform/gcp
 terraform init && terraform apply
 ```
 
-### 🏗️ Bare Metal Deployment
+### 🏗️ Single Node Deployment
 
 ```bash
-# Install system services
-sudo make install
+# Development/testing on single machine
+make build
+make install
 
-# Configure systemd
-sudo systemctl enable secbeat-orchestrator
-sudo systemctl enable secbeat-mitigation
-sudo systemctl start secbeat-orchestrator
-sudo systemctl start secbeat-mitigation
+# Start services
+sudo systemctl enable --now secbeat-orchestrator
+sudo systemctl enable --now secbeat-mitigation
+
+# Verify installation
+curl -k https://localhost:8443/health
 ```
 
 ## 📊 Monitoring
