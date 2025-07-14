@@ -73,14 +73,14 @@ locals {
   cloud_image = "ubuntu-24.04-server-cloudimg-amd64.img"
   storage     = "local"
   bridge      = "vmbr0"
-  
+
   # VM configurations matching your original setup
   vm_configs = {
     mitigation_nodes = {
-      count  = 3
-      cores  = 1
-      memory = 768
-      disk   = 8
+      count   = 3
+      cores   = 1
+      memory  = 768
+      disk    = 8
       base_ip = 200
     }
     orchestrator = {
@@ -90,17 +90,17 @@ locals {
       ip     = 203
     }
     nats_cluster = {
-      count  = 3
-      cores  = 1
-      memory = 512
-      disk   = 6
+      count   = 3
+      cores   = 1
+      memory  = 512
+      disk    = 6
       base_ip = 204
     }
     load_balancers = {
-      count  = 2
-      cores  = 1
-      memory = 512
-      disk   = 6
+      count   = 2
+      cores   = 1
+      memory  = 512
+      disk    = 6
       base_ip = 207
     }
     monitoring = {
@@ -126,7 +126,7 @@ resource "tls_self_signed_cert" "secbeat_cert" {
     organization = "SecBeat Security Platform"
   }
 
-  validity_period_hours = 8760  # 1 year
+  validity_period_hours = 8760 # 1 year
 
   allowed_uses = [
     "key_encipherment",
@@ -145,7 +145,7 @@ resource "tls_self_signed_cert" "secbeat_cert" {
 
   ip_addresses = [
     "192.168.100.200",
-    "192.168.100.201", 
+    "192.168.100.201",
     "192.168.100.202",
     "192.168.100.203"
   ]
@@ -167,11 +167,11 @@ resource "proxmox_vm_qemu" "mitigation_nodes" {
   name        = "secbeat-mitigation-${count.index + 1}"
   target_node = var.target_node
   vmid        = 200 + count.index
-  
+
   # Clone from template
   clone = var.vm_template
   kvm   = false
-  
+
   # VM Resources
   cpu {
     cores = local.vm_configs.mitigation_nodes.cores
@@ -180,7 +180,7 @@ resource "proxmox_vm_qemu" "mitigation_nodes" {
   memory   = local.vm_configs.mitigation_nodes.memory
   scsihw   = "virtio-scsi-pci"
   bootdisk = "scsi0"
-  
+
   # Disk configuration
   disk {
     slot    = "scsi0"
@@ -189,25 +189,25 @@ resource "proxmox_vm_qemu" "mitigation_nodes" {
     size    = "${local.vm_configs.mitigation_nodes.disk}G"
     format  = "raw"
   }
-  
+
   # Network configuration
   network {
     id     = 0
     model  = "virtio"
     bridge = local.bridge
   }
-  
+
   # Cloud-init configuration
-  os_type = "cloud-init"
-  ipconfig0 = "ip=192.168.100.${local.vm_configs.mitigation_nodes.base_ip + count.index}/24,gw=192.168.100.1"
+  os_type    = "cloud-init"
+  ipconfig0  = "ip=192.168.100.${local.vm_configs.mitigation_nodes.base_ip + count.index}/24,gw=192.168.100.1"
   nameserver = "8.8.8.8,8.8.4.4"
-  
+
   # SSH configuration
   sshkeys = var.ssh_public_key
-  
+
   # Start VM automatically
   onboot = false
-  
+
   tags = "secbeat,mitigation,production"
 }
 
@@ -216,11 +216,11 @@ resource "proxmox_vm_qemu" "orchestrator" {
   name        = "secbeat-orchestrator"
   target_node = var.target_node
   vmid        = 210
-  
+
   # Clone from template
   clone = var.vm_template
   kvm   = false
-  
+
   cpu {
     cores = local.vm_configs.orchestrator.cores
     type  = "qemu64"
@@ -228,7 +228,7 @@ resource "proxmox_vm_qemu" "orchestrator" {
   memory   = local.vm_configs.orchestrator.memory
   scsihw   = "virtio-scsi-pci"
   bootdisk = "scsi0"
-  
+
   disk {
     slot    = "scsi0"
     type    = "disk"
@@ -236,20 +236,20 @@ resource "proxmox_vm_qemu" "orchestrator" {
     size    = "${local.vm_configs.orchestrator.disk}G"
     format  = "raw"
   }
-  
+
   network {
     id     = 0
     model  = "virtio"
     bridge = local.bridge
   }
-  
-  os_type = "cloud-init"
-  ipconfig0 = "ip=192.168.100.${local.vm_configs.orchestrator.ip}/24,gw=192.168.100.1"
+
+  os_type    = "cloud-init"
+  ipconfig0  = "ip=192.168.100.${local.vm_configs.orchestrator.ip}/24,gw=192.168.100.1"
   nameserver = "8.8.8.8 8.8.4.4"
-  
+
   sshkeys = var.ssh_public_key
-  onboot = false
-  
+  onboot  = false
+
   tags = "secbeat,orchestrator,production"
 }
 
@@ -259,11 +259,11 @@ resource "proxmox_vm_qemu" "nats_cluster" {
   name        = "secbeat-nats-${count.index + 1}"
   target_node = var.target_node
   vmid        = 220 + count.index
-  
+
   # Clone from template
   clone = var.vm_template
   kvm   = false
-  
+
   cpu {
     cores = local.vm_configs.nats_cluster.cores
     type  = "qemu64"
@@ -271,7 +271,7 @@ resource "proxmox_vm_qemu" "nats_cluster" {
   memory   = local.vm_configs.nats_cluster.memory
   scsihw   = "virtio-scsi-pci"
   bootdisk = "scsi0"
-  
+
   disk {
     slot    = "scsi0"
     type    = "disk"
@@ -279,20 +279,20 @@ resource "proxmox_vm_qemu" "nats_cluster" {
     size    = "${local.vm_configs.nats_cluster.disk}G"
     format  = "raw"
   }
-  
+
   network {
     id     = 0
     model  = "virtio"
     bridge = local.bridge
   }
-  
-  os_type = "cloud-init"
-  ipconfig0 = "ip=192.168.100.${local.vm_configs.nats_cluster.base_ip + count.index}/24,gw=192.168.100.1"
+
+  os_type    = "cloud-init"
+  ipconfig0  = "ip=192.168.100.${local.vm_configs.nats_cluster.base_ip + count.index}/24,gw=192.168.100.1"
   nameserver = "8.8.8.8 8.8.4.4"
-  
+
   sshkeys = var.ssh_public_key
-  onboot = false
-  
+  onboot  = false
+
   tags = "secbeat,nats,messaging"
 }
 
@@ -302,11 +302,11 @@ resource "proxmox_vm_qemu" "load_balancers" {
   name        = "secbeat-lb-${count.index + 1}"
   target_node = var.target_node
   vmid        = 230 + count.index
-  
+
   # Clone from template
   clone = var.vm_template
   kvm   = false
-  
+
   disk {
     slot    = "scsi0"
     type    = "disk"
@@ -314,7 +314,7 @@ resource "proxmox_vm_qemu" "load_balancers" {
     size    = "${local.vm_configs.load_balancers.disk}G"
     format  = "raw"
   }
-  
+
   cpu {
     cores = local.vm_configs.load_balancers.cores
     type  = "qemu64"
@@ -322,20 +322,20 @@ resource "proxmox_vm_qemu" "load_balancers" {
   memory   = local.vm_configs.load_balancers.memory
   scsihw   = "virtio-scsi-pci"
   bootdisk = "scsi0"
-  
+
   network {
     id     = 0
     model  = "virtio"
     bridge = local.bridge
   }
-  
-  os_type = "cloud-init"
-  ipconfig0 = "ip=192.168.100.${local.vm_configs.load_balancers.base_ip + count.index}/24,gw=192.168.100.1"
+
+  os_type    = "cloud-init"
+  ipconfig0  = "ip=192.168.100.${local.vm_configs.load_balancers.base_ip + count.index}/24,gw=192.168.100.1"
   nameserver = "8.8.8.8 8.8.4.4"
-  
+
   sshkeys = var.ssh_public_key
-  onboot = false
-  
+  onboot  = false
+
   tags = "secbeat,loadbalancer,production"
 }
 
@@ -344,11 +344,11 @@ resource "proxmox_vm_qemu" "monitoring" {
   name        = "secbeat-monitoring"
   target_node = var.target_node
   vmid        = 240
-  
+
   # Clone from template
   clone = var.vm_template
   kvm   = false
-  
+
   cpu {
     cores = local.vm_configs.monitoring.cores
     type  = "qemu64"
@@ -356,7 +356,7 @@ resource "proxmox_vm_qemu" "monitoring" {
   memory   = local.vm_configs.monitoring.memory
   scsihw   = "virtio-scsi-pci"
   bootdisk = "scsi0"
-  
+
   disk {
     slot    = "scsi0"
     type    = "disk"
@@ -364,20 +364,20 @@ resource "proxmox_vm_qemu" "monitoring" {
     size    = "${local.vm_configs.monitoring.disk}G"
     format  = "raw"
   }
-  
+
   network {
     id     = 0
     model  = "virtio"
     bridge = local.bridge
   }
-  
-  os_type = "cloud-init"
-  ipconfig0 = "ip=192.168.100.${local.vm_configs.monitoring.ip}/24,gw=192.168.100.1"
+
+  os_type    = "cloud-init"
+  ipconfig0  = "ip=192.168.100.${local.vm_configs.monitoring.ip}/24,gw=192.168.100.1"
   nameserver = "8.8.8.8 8.8.4.4"
-  
+
   sshkeys = var.ssh_public_key
-  onboot = false
-  
+  onboot  = false
+
   tags = "secbeat,monitoring,prometheus,grafana"
 }
 
@@ -427,11 +427,11 @@ output "monitoring_ip" {
 
 output "deployment_summary" {
   value = {
-    total_vms = length(proxmox_vm_qemu.mitigation_nodes) + 1 + length(proxmox_vm_qemu.nats_cluster) + length(proxmox_vm_qemu.load_balancers) + 1
-    mitigation_nodes = length(proxmox_vm_qemu.mitigation_nodes)
-    orchestrator_nodes = 1
-    nats_nodes = length(proxmox_vm_qemu.nats_cluster)
+    total_vms           = length(proxmox_vm_qemu.mitigation_nodes) + 1 + length(proxmox_vm_qemu.nats_cluster) + length(proxmox_vm_qemu.load_balancers) + 1
+    mitigation_nodes    = length(proxmox_vm_qemu.mitigation_nodes)
+    orchestrator_nodes  = 1
+    nats_nodes          = length(proxmox_vm_qemu.nats_cluster)
     load_balancer_nodes = length(proxmox_vm_qemu.load_balancers)
-    monitoring_nodes = 1
+    monitoring_nodes    = 1
   }
 }
