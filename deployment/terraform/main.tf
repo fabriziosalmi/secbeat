@@ -177,9 +177,11 @@ resource "proxmox_vm_qemu" "mitigation_nodes" {
     cores = local.vm_configs.mitigation_nodes.cores
     type  = "qemu64"
   }
-  memory   = local.vm_configs.mitigation_nodes.memory
-  scsihw   = "virtio-scsi-pci"
-  bootdisk = "scsi0"
+  memory     = local.vm_configs.mitigation_nodes.memory
+  scsihw     = "virtio-scsi-pci"
+  bootdisk   = "scsi0"
+  ciuser     = "secbeat"
+  cipassword = "secbeat123"
 
   # Disk configuration
   disk {
