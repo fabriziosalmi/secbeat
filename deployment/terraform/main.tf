@@ -105,7 +105,7 @@ locals {
     }
     monitoring = {
       cores  = 1
-      memory = 1536
+      memory = 512
       disk   = 12
       ip     = 209
     }
