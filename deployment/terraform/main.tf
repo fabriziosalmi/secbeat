@@ -79,13 +79,13 @@ locals {
     mitigation_nodes = {
       count  = 3
       cores  = 1
-      memory = 1024
+      memory = 768
       disk   = 8
       base_ip = 200
     }
     orchestrator = {
       cores  = 1
-      memory = 1024
+      memory = 768
       disk   = 8
       ip     = 203
     }
