@@ -4,7 +4,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
-use tracing::{info};
+use tracing::info;
 
 /// Main configuration for the mitigation node - unified platform config
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -634,12 +634,20 @@ impl MitigationConfig {
 
     /// Get listen address from network config
     pub fn listen_addr(&self) -> Result<SocketAddr, std::net::AddrParseError> {
-        format!("{}:{}", self.network.public_interface, self.network.public_port).parse()
+        format!(
+            "{}:{}",
+            self.network.public_interface, self.network.public_port
+        )
+        .parse()
     }
 
     /// Get backend address from network config
     pub fn backend_addr(&self) -> Result<SocketAddr, std::net::AddrParseError> {
-        format!("{}:{}", self.network.backend_interface, self.network.backend_port).parse()
+        format!(
+            "{}:{}",
+            self.network.backend_interface, self.network.backend_port
+        )
+        .parse()
     }
 
     /// Get connection timeout as Duration
@@ -650,14 +658,20 @@ impl MitigationConfig {
     /// Get penalty duration as Duration
     pub fn penalty_duration(&self) -> Duration {
         Duration::from_secs(
-            self.ddos.rate_limiting.penalty_duration_seconds.unwrap_or(300)
+            self.ddos
+                .rate_limiting
+                .penalty_duration_seconds
+                .unwrap_or(300),
         )
     }
 
     /// Get blacklist duration as Duration
     pub fn blacklist_duration(&self) -> Duration {
         Duration::from_secs(
-            self.ddos.blacklist.blacklist_duration_seconds.unwrap_or(3600)
+            self.ddos
+                .blacklist
+                .blacklist_duration_seconds
+                .unwrap_or(3600),
         )
     }
 
@@ -957,7 +971,7 @@ impl MitigationConfig {
             .add_source(config::File::with_name(path))
             .add_source(config::Environment::with_prefix("SECBEAT"))
             .build()?;
-        
+
         settings.try_deserialize()
     }
 
@@ -1024,24 +1038,26 @@ impl ConfigManager {
     /// Reload configuration from file
     pub async fn reload_config(&mut self) -> Result<(), String> {
         info!("Reloading configuration from {}", self.config_path);
-        
+
         let new_config = MitigationConfig::from_file(&self.config_path)
             .map_err(|e| format!("Failed to load config: {}", e))?;
-        
+
         // Validate new configuration
-        new_config.validate().map_err(|e| format!("Invalid config: {}", e))?;
-        
+        new_config
+            .validate()
+            .map_err(|e| format!("Invalid config: {}", e))?;
+
         // Update current configuration
         {
             let mut current = self.current_config.write().await;
             *current = new_config.clone();
         }
-        
+
         // Notify watchers
         for sender in &self.watchers {
             let _ = sender.send(new_config.clone());
         }
-        
+
         info!("Configuration reloaded successfully");
         Ok(())
     }
@@ -1056,40 +1072,42 @@ impl ConfigManager {
     /// Update configuration with environment variables
     pub async fn apply_env_overrides(&mut self) -> Result<(), String> {
         let mut config = self.current_config.write().await;
-        
+
         // Apply environment variable overrides
         if let Ok(log_level) = std::env::var("RUST_LOG") {
             config.logging.level = log_level;
         }
-        
+
         if let Ok(max_connections) = std::env::var("MAX_CONNECTIONS") {
-            config.ddos.connection_limits.max_connections_per_ip = max_connections.parse()
+            config.ddos.connection_limits.max_connections_per_ip = max_connections
+                .parse()
                 .map_err(|e| format!("Invalid MAX_CONNECTIONS: {}", e))?;
         }
-        
+
         if let Ok(backend_addr) = std::env::var("BACKEND_ADDRESS") {
             config.network.backend_interface = backend_addr;
         }
-        
+
         if let Ok(public_port) = std::env::var("PUBLIC_PORT") {
-            config.network.public_port = public_port.parse()
+            config.network.public_port = public_port
+                .parse()
                 .map_err(|e| format!("Invalid PUBLIC_PORT: {}", e))?;
         }
-        
+
         // TLS certificate overrides
         if let Ok(cert_path) = std::env::var("TLS_CERT_PATH") {
             config.network.tls.cert_path = cert_path;
         }
-        
+
         if let Ok(key_path) = std::env::var("TLS_KEY_PATH") {
             config.network.tls.key_path = key_path;
         }
-        
+
         // Security overrides
         if let Ok(syn_cookie_secret) = std::env::var("SYN_COOKIE_SECRET") {
             config.ddos.syn_proxy.cookie_secret = syn_cookie_secret;
         }
-        
+
         info!("Applied environment variable overrides");
         Ok(())
     }

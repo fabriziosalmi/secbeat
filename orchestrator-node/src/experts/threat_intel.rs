@@ -144,32 +144,33 @@ impl ThreatIntelExpert {
     /// Create a new threat intelligence expert
     pub async fn new(nats_url: &str) -> Result<Self> {
         info!(nats_url = %nats_url, "Initializing Threat Intelligence Expert");
-        
+
         let nats_client = async_nats::connect(nats_url)
             .await
             .context("Failed to connect to NATS server")?;
-            
+
         info!("Successfully connected to NATS server for threat intelligence");
-        
+
         Ok(Self {
             nats_client,
             blocked_ips: Arc::new(DashMap::new()),
             config: ThreatIntelConfig::default(),
         })
     }
-    
+
     /// Start the event consumer that processes security events from the fleet
     #[instrument(skip(self))]
     pub async fn start_event_consumer(self: Arc<Self>) -> Result<()> {
         info!("Starting security event consumer");
-        
-        let mut subscriber = self.nats_client
+
+        let mut subscriber = self
+            .nats_client
             .subscribe("secbeat.events.waf")
             .await
             .context("Failed to subscribe to security events topic")?;
-            
+
         info!("Successfully subscribed to secbeat.events.waf topic");
-        
+
         // Process events in a loop
         while let Some(message) = subscriber.next().await {
             match serde_json::from_slice::<SecurityEvent>(&message.payload) {
@@ -181,7 +182,7 @@ impl ThreatIntelExpert {
                         uri = %event.uri,
                         "Received security event from fleet"
                     );
-                    
+
                     // Analyze the event
                     if let Err(e) = self.analyze_security_event(&event).await {
                         error!(error = %e, "Failed to analyze security event");
@@ -192,11 +193,11 @@ impl ThreatIntelExpert {
                 }
             }
         }
-        
+
         warn!("Security event consumer loop ended");
         Ok(())
     }
-    
+
     /// Analyze a security event and take action if needed
     #[instrument(skip(self, event))]
     async fn analyze_security_event(&self, event: &SecurityEvent) -> Result<()> {
@@ -210,14 +211,16 @@ impl ThreatIntelExpert {
                 blocked_at = %block_info.blocked_at,
                 "High-threat event detected! Blocked IP attempted access"
             );
-            
+
             // Publish a control command to ensure all nodes have this IP blocked
             let command = ControlCommand {
                 command_id: Uuid::new_v4(),
                 action: "ADD_DYNAMIC_RULE".to_string(),
                 rule_type: "IP_BLOCK".to_string(),
                 target: event.source_ip.to_string(),
-                ttl_seconds: block_info.ttl_seconds.unwrap_or(self.config.default_ttl_seconds),
+                ttl_seconds: block_info
+                    .ttl_seconds
+                    .unwrap_or(self.config.default_ttl_seconds),
                 timestamp: Utc::now(),
                 metadata: Some(serde_json::json!({
                     "triggered_by_event": {
@@ -228,10 +231,10 @@ impl ThreatIntelExpert {
                     "original_block_reason": block_info.reason
                 })),
             };
-            
+
             self.publish_control_command(&command).await?;
         }
-        
+
         // Check for suspicious patterns in the event itself
         if event.waf_result.action == "BLOCK" {
             info!(
@@ -240,13 +243,13 @@ impl ThreatIntelExpert {
                 matched_rules = ?event.waf_result.matched_rules,
                 "WAF blocked suspicious request"
             );
-            
+
             // Could implement additional logic here for auto-blocking repeat offenders
         }
-        
+
         Ok(())
     }
-    
+
     /// Manually add an IP to the blocklist
     #[instrument(skip(self))]
     pub async fn block_ip(&self, request: BlockIpRequest) -> Result<BlockIpResponse> {
@@ -256,9 +259,11 @@ impl ThreatIntelExpert {
             ttl_seconds = ?request.ttl_seconds,
             "Manually blocking IP address"
         );
-        
-        let ttl_seconds = request.ttl_seconds.unwrap_or(self.config.default_ttl_seconds);
-        
+
+        let ttl_seconds = request
+            .ttl_seconds
+            .unwrap_or(self.config.default_ttl_seconds);
+
         let block_info = BlockInfo {
             reason: request.reason.clone(),
             blocked_at: Utc::now(),
@@ -266,10 +271,10 @@ impl ThreatIntelExpert {
             ttl_seconds: Some(ttl_seconds),
             metadata: request.metadata.clone(),
         };
-        
+
         // Add to our in-memory blocklist
         self.blocked_ips.insert(request.ip, block_info);
-        
+
         // Create and publish control command
         let command = ControlCommand {
             command_id: Uuid::new_v4(),
@@ -284,7 +289,7 @@ impl ThreatIntelExpert {
                 "metadata": request.metadata
             })),
         };
-        
+
         match self.publish_control_command(&command).await {
             Ok(()) => {
                 info!(
@@ -292,7 +297,7 @@ impl ThreatIntelExpert {
                     command_id = %command.command_id,
                     "Successfully published IP block command to fleet"
                 );
-                
+
                 Ok(BlockIpResponse {
                     success: true,
                     message: format!("IP {} blocked successfully", request.ip),
@@ -305,10 +310,10 @@ impl ThreatIntelExpert {
                     error = %e,
                     "Failed to publish IP block command"
                 );
-                
+
                 // Remove from our blocklist since the command failed
                 self.blocked_ips.remove(&request.ip);
-                
+
                 Ok(BlockIpResponse {
                     success: false,
                     message: format!("Failed to block IP {}: {}", request.ip, e),
@@ -317,44 +322,44 @@ impl ThreatIntelExpert {
             }
         }
     }
-    
+
     /// Publish a control command to the fleet
     #[instrument(skip(self, command))]
     async fn publish_control_command(&self, command: &ControlCommand) -> Result<()> {
-        let payload = serde_json::to_vec(command)
-            .context("Failed to serialize control command")?;
-            
+        let payload = serde_json::to_vec(command).context("Failed to serialize control command")?;
+
         self.nats_client
             .publish("secbeat.control.commands", payload.into())
             .await
             .context("Failed to publish control command")?;
-            
+
         debug!(
             command_id = %command.command_id,
             action = %command.action,
             target = %command.target,
             "Published control command to fleet"
         );
-        
+
         Ok(())
     }
-    
+
     /// Get current blocklist statistics
     pub fn get_blocklist_stats(&self) -> BlocklistStats {
         let total_blocked = self.blocked_ips.len();
-        let manual_blocks = self.blocked_ips
+        let manual_blocks = self
+            .blocked_ips
             .iter()
             .filter(|entry| entry.value().blocked_by == "manual_operator")
             .count();
         let auto_blocks = total_blocked - manual_blocks;
-        
+
         BlocklistStats {
             total_blocked_ips: total_blocked,
             manual_blocks,
             auto_blocks,
         }
     }
-    
+
     /// Get list of blocked IPs
     pub fn get_blocked_ips(&self) -> Vec<(IpAddr, BlockInfo)> {
         self.blocked_ips
@@ -362,13 +367,13 @@ impl ThreatIntelExpert {
             .map(|entry| (*entry.key(), entry.value().clone()))
             .collect()
     }
-    
+
     /// Remove an IP from the blocklist
     #[instrument(skip(self))]
     pub async fn unblock_ip(&self, ip: IpAddr) -> Result<()> {
         if self.blocked_ips.remove(&ip).is_some() {
             info!(ip = %ip, "Removed IP from threat intelligence blocklist");
-            
+
             // Publish command to remove from all nodes
             let command = ControlCommand {
                 command_id: Uuid::new_v4(),
@@ -381,10 +386,10 @@ impl ThreatIntelExpert {
                     "unblocked_by": "manual_operator"
                 })),
             };
-            
+
             self.publish_control_command(&command).await?;
         }
-        
+
         Ok(())
     }
 }

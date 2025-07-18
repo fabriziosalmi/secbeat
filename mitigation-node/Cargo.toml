@@ -59,18 +59,6 @@ tls = []
 orchestrator = []
 events = []
 
-[profile.release]
-# Optimize for performance in production
-lto = true
-codegen-units = 1
-panic = "abort"
-opt-level = 3
-
-[profile.dev]
-# Faster compilation during development
-opt-level = 0
-debug = true
-
 [dev-dependencies]
 # Testing dependencies
 tempfile = "3.8"

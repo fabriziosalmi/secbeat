@@ -1,6 +1,8 @@
 use anyhow::{Context, Result};
-use pnet::transport::{transport_channel, TransportChannelType, TransportProtocol, TransportReceiver, TransportSender};
-use sha2::{Sha256, Digest};
+use pnet::transport::{
+    transport_channel, TransportChannelType, TransportProtocol, TransportReceiver, TransportSender,
+};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
@@ -67,15 +69,18 @@ impl SynProxy {
 
     /// Initialize raw socket transport layer
     pub async fn initialize(&mut self) -> Result<()> {
-        info!(port = self.listen_port, "Initializing SYN proxy raw sockets");
+        info!(
+            port = self.listen_port,
+            "Initializing SYN proxy raw sockets"
+        );
 
         // Create transport channel for TCP packets
         let protocol = TransportChannelType::Layer4(TransportProtocol::Ipv4(
-            pnet::packet::ip::IpNextHeaderProtocols::Tcp
+            pnet::packet::ip::IpNextHeaderProtocols::Tcp,
         ));
 
-        let (tx, rx) = transport_channel(4096, protocol)
-            .context("Failed to create transport channel")?;
+        let (tx, rx) =
+            transport_channel(4096, protocol).context("Failed to create transport channel")?;
 
         *self.tx.lock().await = Some(tx);
         *self.rx.lock().await = Some(rx);
@@ -107,23 +112,25 @@ impl SynProxy {
     /// Process incoming packets
     async fn process_packets(&self) -> Result<()> {
         let mut rx_guard = self.rx.lock().await;
-        if let Some(ref mut rx) = *rx_guard {
-            let mut buffer = vec![0u8; 4096];
-            
+        if let Some(ref mut _rx) = *rx_guard {
+            let _buffer = vec![0u8; 4096];
+
             // Try to receive a packet with a short timeout to avoid blocking
             match tokio::time::timeout(Duration::from_millis(10), async {
                 // Note: pnet's transport receiver is blocking, so in a real implementation
                 // we would need to run this in a separate thread or use async-compatible
                 // networking libraries like tokio's UDP/TCP sockets
-                
+
                 // For now, we'll simulate packet processing
                 // In production, this would be:
                 // 1. rx.next() to get the next packet
                 // 2. Parse IP and TCP headers
                 // 3. Handle SYN/ACK packets based on TCP flags
-                
+
                 Ok::<(), anyhow::Error>(())
-            }).await {
+            })
+            .await
+            {
                 Ok(_) => {
                     // Process the packet here
                     debug!("Processed network packet");
@@ -133,10 +140,10 @@ impl SynProxy {
                 }
             }
         }
-        
+
         // Clean up expired handshakes
         self.cleanup_expired_handshakes().await;
-        
+
         Ok(())
     }
 
@@ -144,7 +151,7 @@ impl SynProxy {
     async fn cleanup_expired_handshakes(&self) {
         let mut pending = self.pending_handshakes.lock().await;
         let now = Instant::now();
-        
+
         pending.retain(|_, handshake| {
             now.duration_since(handshake.timestamp) < self.handshake_timeout
         });
@@ -164,11 +171,14 @@ impl SynProxy {
         hasher.update(&client_port.to_be_bytes());
         hasher.update(&server_port.to_be_bytes());
         hasher.update(&client_seq.to_be_bytes());
-        
+
         // Add timestamp to prevent replay attacks (truncated to fit in cookie)
-        let timestamp = (Instant::now().elapsed().as_secs() / 60) as u32; // 1-minute resolution
+        let timestamp = (std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() / 60) as u32; // 1-minute resolution
         hasher.update(&timestamp.to_be_bytes());
-        
+
         let result = hasher.finalize();
         u32::from_be_bytes([result[0], result[1], result[2], result[3]])
     }
@@ -190,13 +200,16 @@ impl SynProxy {
             hasher.update(&client_port.to_be_bytes());
             hasher.update(&server_port.to_be_bytes());
             hasher.update(&client_seq.to_be_bytes());
-            
-            let timestamp = ((Instant::now().elapsed().as_secs() / 60) - time_offset) as u32;
+
+            let timestamp = ((std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs() / 60).saturating_sub(time_offset)) as u32;
             hasher.update(&timestamp.to_be_bytes());
-            
+
             let result = hasher.finalize();
             let expected_cookie = u32::from_be_bytes([result[0], result[1], result[2], result[3]]);
-            
+
             if cookie == expected_cookie {
                 return true;
             }
@@ -219,15 +232,12 @@ impl SynProxy {
         );
 
         // Generate SYN cookie
-        let syn_cookie = self.generate_syn_cookie(
-            client_ip,
-            client_port,
-            self.listen_port,
-            client_seq,
-        );
+        let syn_cookie =
+            self.generate_syn_cookie(client_ip, client_port, self.listen_port, client_seq);
 
         // Send SYN-ACK with cookie as sequence number
-        self.send_syn_ack(client_ip, client_port, client_seq, syn_cookie).await?;
+        self.send_syn_ack(client_ip, client_port, client_seq, syn_cookie)
+            .await?;
 
         debug!(
             client_ip = %client_ip,
@@ -259,7 +269,13 @@ impl SynProxy {
         let cookie = ack_seq.wrapping_sub(1);
 
         // Validate SYN cookie
-        if self.validate_syn_cookie(client_ip, client_port, self.listen_port, client_seq.wrapping_sub(1), cookie) {
+        if self.validate_syn_cookie(
+            client_ip,
+            client_port,
+            self.listen_port,
+            client_seq.wrapping_sub(1),
+            cookie,
+        ) {
             info!(
                 client_ip = %client_ip,
                 client_port = client_port,
@@ -267,7 +283,8 @@ impl SynProxy {
             );
 
             // Cookie is valid, establish real connection to backend
-            self.establish_backend_connection(client_ip, client_port, client_seq).await?;
+            self.establish_backend_connection(client_ip, client_port, client_seq)
+                .await?;
         } else {
             warn!(
                 client_ip = %client_ip,
@@ -349,9 +366,7 @@ impl SynProxy {
                 let now = Instant::now();
                 let initial_count = handshakes.len();
 
-                handshakes.retain(|_, handshake| {
-                    now.duration_since(handshake.timestamp) < timeout
-                });
+                handshakes.retain(|_, handshake| now.duration_since(handshake.timestamp) < timeout);
 
                 let cleaned_count = initial_count - handshakes.len();
                 if cleaned_count > 0 {
@@ -393,7 +408,7 @@ mod tests {
         let proxy = SynProxy::new(
             secret_key,
             8080,
-            "127.0.0.1:8081".parse().unwrap(),
+            "127.0.0.1:8081".parse().expect("Test address should be valid"),
             Duration::from_secs(30),
             Ipv4Addr::new(127, 0, 0, 1), // local_ip parameter
         );
@@ -422,10 +437,10 @@ mod tests {
     #[tokio::test]
     async fn test_syn_proxy_initialization() {
         let secret_key = [1u8; 32];
-        let mut proxy = SynProxy::new(
+        let proxy = SynProxy::new(
             secret_key,
             8080,
-            "127.0.0.1:8081".parse().unwrap(),
+            "127.0.0.1:8081".parse().expect("Test address should be valid"),
             Duration::from_secs(30),
             Ipv4Addr::new(127, 0, 0, 1), // local_ip parameter
         );

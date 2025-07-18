@@ -1,7 +1,7 @@
 use crate::config::DdosConfig;
 use anyhow::Result;
 use dashmap::DashMap;
-use governor::{Quota, RateLimiter, clock::DefaultClock, state::InMemoryState};
+use governor::{clock::DefaultClock, state::InMemoryState, Quota, RateLimiter};
 use ipnet::IpNet;
 use metrics::{counter, gauge};
 use std::net::IpAddr;
@@ -54,7 +54,7 @@ impl DdosProtection {
     /// Create new DDoS protection instance
     pub fn new(config: DdosConfig) -> Result<Self> {
         info!("Initializing DDoS protection");
-        
+
         // Parse whitelist CIDR ranges
         let whitelist: Vec<IpNet> = config
             .blacklist
@@ -62,13 +62,11 @@ impl DdosProtection {
             .as_ref()
             .unwrap_or(&Vec::new())
             .iter()
-            .filter_map(|cidr| {
-                match cidr.parse::<IpNet>() {
-                    Ok(net) => Some(net),
-                    Err(e) => {
-                        warn!(cidr = %cidr, error = %e, "Failed to parse whitelist CIDR");
-                        None
-                    }
+            .filter_map(|cidr| match cidr.parse::<IpNet>() {
+                Ok(net) => Some(net),
+                Err(e) => {
+                    warn!(cidr = %cidr, error = %e, "Failed to parse whitelist CIDR");
+                    None
                 }
             })
             .collect();
@@ -80,13 +78,11 @@ impl DdosProtection {
             .as_ref()
             .unwrap_or(&Vec::new())
             .iter()
-            .filter_map(|cidr| {
-                match cidr.parse::<IpNet>() {
-                    Ok(net) => Some(net),
-                    Err(e) => {
-                        warn!(cidr = %cidr, error = %e, "Failed to parse blacklist CIDR");
-                        None
-                    }
+            .filter_map(|cidr| match cidr.parse::<IpNet>() {
+                Ok(net) => Some(net),
+                Err(e) => {
+                    warn!(cidr = %cidr, error = %e, "Failed to parse blacklist CIDR");
+                    None
                 }
             })
             .collect();
@@ -233,10 +229,13 @@ impl DdosProtection {
     /// Check if IP is rate limited
     fn is_rate_limited(&self, ip: IpAddr) -> bool {
         let rate_limiter = self.rate_limiters.entry(ip).or_insert_with(|| {
-            RateLimiter::direct(Quota::per_second(
-                std::num::NonZeroU32::new(self.config.rate_limiting.requests_per_second)
-                    .unwrap_or_else(|| std::num::NonZeroU32::new(1).unwrap())
-            ))
+            let requests_per_second = std::num::NonZeroU32::new(self.config.rate_limiting.requests_per_second)
+                .unwrap_or_else(|| {
+                    tracing::warn!("Invalid requests_per_second value {}, using default of 10", 
+                        self.config.rate_limiting.requests_per_second);
+                    std::num::NonZeroU32::new(10).expect("10 is non-zero")
+                });
+            RateLimiter::direct(Quota::per_second(requests_per_second))
         });
 
         rate_limiter.check().is_err()
@@ -275,7 +274,8 @@ impl DdosProtection {
             .violation_counters
             .entry(ip)
             .or_insert_with(|| AtomicU64::new(0))
-            .fetch_add(1, Ordering::Relaxed) + 1;
+            .fetch_add(1, Ordering::Relaxed)
+            + 1;
 
         debug!(ip = %ip, violations = violations, "Violation recorded");
 
@@ -287,9 +287,15 @@ impl DdosProtection {
 
     /// Add IP to dynamic blacklist
     fn add_to_blacklist(&self, ip: IpAddr) {
-        let expiry = Instant::now() + Duration::from_secs(self.config.blacklist.blacklist_duration_seconds.unwrap_or(300));
+        let expiry = Instant::now()
+            + Duration::from_secs(
+                self.config
+                    .blacklist
+                    .blacklist_duration_seconds
+                    .unwrap_or(300),
+            );
         self.blacklist.insert(ip, expiry);
-        
+
         // Reset violation counter
         self.violation_counters.remove(&ip);
 
@@ -318,8 +324,14 @@ impl DdosProtection {
     /// Cleanup expired entries
     async fn cleanup(&self) {
         let now = Instant::now();
-        let mut last_cleanup = self.last_cleanup.lock().unwrap();
-        
+        let mut last_cleanup = match self.last_cleanup.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                warn!("Cleanup mutex was poisoned, recovering");
+                poisoned.into_inner()
+            }
+        };
+
         // Only cleanup if enough time has passed
         if now.duration_since(*last_cleanup) < Duration::from_secs(60) {
             return;
@@ -363,7 +375,10 @@ impl DdosProtection {
         // Update metrics
         gauge!("ddos_blacklist_size", self.blacklist.len() as f64);
         gauge!("ddos_active_ips", self.connection_counters.len() as f64);
-        gauge!("ddos_total_connections", self.total_connections.load(Ordering::Relaxed) as f64);
+        gauge!(
+            "ddos_total_connections",
+            self.total_connections.load(Ordering::Relaxed) as f64
+        );
 
         debug!(
             blacklist_size = self.blacklist.len(),

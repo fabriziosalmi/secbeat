@@ -2,7 +2,7 @@ use anyhow::Result;
 use std::net::SocketAddr;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
-use tracing::{info, error, warn};
+use tracing::{error, info, warn};
 
 /// Simple HTTP origin server for testing the proxy
 pub struct TestOriginServer {
@@ -47,7 +47,7 @@ impl TestOriginServer {
 /// Handle a single HTTP request with a simple response
 async fn handle_http_request(mut stream: TcpStream, client_addr: SocketAddr) -> Result<()> {
     let mut buffer = vec![0u8; 4096];
-    
+
     // Read the HTTP request
     match stream.read(&mut buffer).await {
         Ok(0) => {
@@ -61,7 +61,7 @@ async fn handle_http_request(mut stream: TcpStream, client_addr: SocketAddr) -> 
                 bytes_read = bytes_read,
                 "Origin: Received HTTP request"
             );
-            
+
             // Log first line of HTTP request
             if let Some(first_line) = request.lines().next() {
                 info!(client_addr = %client_addr, request_line = %first_line, "Origin: HTTP request line");
@@ -161,7 +161,7 @@ async fn main() -> Result<()> {
     // Start test origin server on 127.0.0.1:8080
     let origin_addr: SocketAddr = "127.0.0.1:8080".parse()?;
     let server = TestOriginServer::new(origin_addr);
-    
+
     info!("🚀 Starting Test Origin Server for SecBeat Mitigation Testing");
     server.run().await
 }

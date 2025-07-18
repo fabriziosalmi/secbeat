@@ -104,13 +104,13 @@ pub struct OrchestratorClient {
 impl OrchestratorClient {
     /// Create a new orchestrator client
     pub fn new(config: OrchestratorConfig) -> Self {
-        let http_client = Client::builder()
-            .timeout(Duration::from_secs(config.heartbeat.as_ref().map(|h| h.timeout_seconds).unwrap_or(30)))
-            .build()
-            .expect("Failed to create HTTP client");
+        let http_client = Self::create_http_client().unwrap_or_else(|e| {
+            tracing::error!("Failed to create HTTP client: {}", e);
+            Client::new()
+        });
 
-        // Load or generate node ID
-        let node_id = config.node_id
+        let node_id = config
+            .node_id
             .as_ref()
             .and_then(|id| Uuid::parse_str(id).ok())
             .unwrap_or_else(Uuid::new_v4);
@@ -125,20 +125,36 @@ impl OrchestratorClient {
         }
     }
 
+    /// Create HTTP client with error handling
+    fn create_http_client() -> Result<Client> {
+        Client::builder()
+            .timeout(Duration::from_secs(30))
+            .build()
+            .context("Failed to build HTTP client")
+    }
+
     /// Register node with orchestrator
     pub async fn register(&self, _node_config: NodeConfig) -> Result<RegisterResponse> {
         let mut attempts = self.registration_attempts.write().await;
-        
-        if *attempts >= self.config.registration.as_ref()
-            .and_then(|r| r.max_retries)
-            .unwrap_or(3) {
+
+        if *attempts
+            >= self
+                .config
+                .registration
+                .as_ref()
+                .and_then(|r| r.max_retries)
+                .unwrap_or(3)
+        {
             return Err(anyhow::anyhow!("Max registration attempts exceeded"));
         }
 
         *attempts += 1;
 
         // Get local IP address for registration
-        let public_ip = "127.0.0.1".parse().expect("Valid IP address");
+        let public_ip = "127.0.0.1".parse().unwrap_or_else(|e| {
+            tracing::warn!("Failed to parse default IP address: {}, using fallback", e);
+            std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST)
+        });
 
         let request = RegisterRequest {
             public_ip,
@@ -154,9 +170,14 @@ impl OrchestratorClient {
             },
         };
 
-        let url = format!("{}/api/v1/nodes/register", 
-            self.config.server_url.as_deref().unwrap_or("http://localhost:8080"));
-        
+        let url = format!(
+            "{}/api/v1/nodes/register",
+            self.config
+                .server_url
+                .as_deref()
+                .unwrap_or("http://localhost:8080")
+        );
+
         info!(
             url = %url,
             attempt = *attempts,
@@ -166,12 +187,17 @@ impl OrchestratorClient {
             "Attempting node registration"
         );
 
-        let response = self.http_client
+        let response = self
+            .http_client
             .post(&url)
             .json(&request)
-            .timeout(Duration::from_secs(self.config.registration.as_ref()
-                .and_then(|r| r.timeout_seconds)
-                .unwrap_or(30)))
+            .timeout(Duration::from_secs(
+                self.config
+                    .registration
+                    .as_ref()
+                    .and_then(|r| r.timeout_seconds)
+                    .unwrap_or(30),
+            ))
             .send()
             .await
             .context("Failed to send registration request")?;
@@ -180,7 +206,9 @@ impl OrchestratorClient {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
             return Err(anyhow::anyhow!(
-                "Registration failed with status {}: {}", status, body
+                "Registration failed with status {}: {}",
+                status,
+                body
             ));
         }
 
@@ -204,7 +232,10 @@ impl OrchestratorClient {
 
     /// Send heartbeat to orchestrator
     pub async fn send_heartbeat(&self, metrics: NodeMetrics) -> Result<HeartbeatResponse> {
-        let node_id = self.node_id.read().await
+        let node_id = self
+            .node_id
+            .read()
+            .await
             .ok_or_else(|| anyhow::anyhow!("Node not registered"))?;
 
         let status = self.node_status.read().await.clone();
@@ -215,15 +246,27 @@ impl OrchestratorClient {
             status,
         };
 
-        let url = format!("{}/api/v1/nodes/heartbeat", 
-            self.config.server_url.as_deref().unwrap_or("http://localhost:8080"));
+        let url = format!(
+            "{}/api/v1/nodes/heartbeat",
+            self.config
+                .server_url
+                .as_deref()
+                .unwrap_or("http://localhost:8080")
+        );
 
         debug!(node_id = %node_id, "Sending heartbeat to orchestrator");
 
-        let response = self.http_client
+        let response = self
+            .http_client
             .post(&url)
             .json(&request)
-            .timeout(Duration::from_secs(self.config.heartbeat.as_ref().map(|h| h.timeout_seconds).unwrap_or(30)))
+            .timeout(Duration::from_secs(
+                self.config
+                    .heartbeat
+                    .as_ref()
+                    .map(|h| h.timeout_seconds)
+                    .unwrap_or(30),
+            ))
             .send()
             .await
             .context("Failed to send heartbeat")?;
@@ -232,7 +275,9 @@ impl OrchestratorClient {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
             return Err(anyhow::anyhow!(
-                "Heartbeat failed with status {}: {}", status, body
+                "Heartbeat failed with status {}: {}",
+                status,
+                body
             ));
         }
 
@@ -282,21 +327,32 @@ impl OrchestratorClient {
 
         let client = Arc::clone(&self);
         let metrics_provider = Arc::new(metrics_provider);
-        let interval = Duration::from_secs(self.config.heartbeat.as_ref().map(|h| h.interval_seconds).unwrap_or(60));
+        let interval = Duration::from_secs(
+            self.config
+                .heartbeat
+                .as_ref()
+                .map(|h| h.interval_seconds)
+                .unwrap_or(60),
+        );
 
         tokio::spawn(async move {
             let mut missed_heartbeats = 0;
-            let max_missed = client.config.heartbeat.as_ref().map(|h| h.max_missed).unwrap_or(3);
+            let max_missed = client
+                .config
+                .heartbeat
+                .as_ref()
+                .map(|h| h.max_missed)
+                .unwrap_or(3);
 
             loop {
                 tokio::time::sleep(interval).await;
 
                 let metrics = metrics_provider();
-                
+
                 match client.send_heartbeat(metrics).await {
                     Ok(response) => {
                         missed_heartbeats = 0;
-                        
+
                         // Process configuration updates
                         if let Some(new_config) = response.config_update {
                             info!(config = ?new_config, "Received configuration update from orchestrator");
@@ -325,7 +381,7 @@ impl OrchestratorClient {
                         if missed_heartbeats >= max_missed {
                             error!("Too many missed heartbeats, setting status to Dead");
                             client.set_status(NodeStatus::Dead).await;
-                            
+
                             // Attempt re-registration after failures
                             if let Some(node_id) = client.get_node_id().await {
                                 warn!(node_id = %node_id, "Attempting to recover connection to orchestrator");
@@ -348,9 +404,13 @@ impl OrchestratorClient {
 
     /// Get registration retry interval
     pub fn get_retry_interval(&self) -> Duration {
-        Duration::from_secs(self.config.registration.as_ref()
-            .and_then(|r| r.retry_interval_seconds)
-            .unwrap_or(60))
+        Duration::from_secs(
+            self.config
+                .registration
+                .as_ref()
+                .and_then(|r| r.retry_interval_seconds)
+                .unwrap_or(60),
+        )
     }
 }
 
@@ -361,7 +421,7 @@ pub fn collect_system_metrics(
     ddos_blocks: u64,
     waf_blocks: u64,
 ) -> NodeMetrics {
-    // Get system metrics 
+    // Get system metrics
     let cpu_usage = get_cpu_usage();
     let memory_usage = get_memory_usage();
     let packets_per_second = calculate_packets_per_second(active_connections);
@@ -392,12 +452,12 @@ fn get_cpu_usage() -> f64 {
         // Fallback to a reasonable default for demo purposes
         25.0
     }
-    
+
     #[cfg(not(target_os = "linux"))]
     {
         // On macOS/Windows, provide a simulated value based on system load
         use std::process::Command;
-        
+
         #[cfg(target_os = "macos")]
         {
             if let Ok(output) = Command::new("top").args(["-l", "1", "-n", "0"]).output() {
@@ -408,8 +468,8 @@ fn get_cpu_usage() -> f64 {
                 }
             }
         }
-        
-        // Fallback to a reasonable simulated value 
+
+        // Fallback to a reasonable simulated value
         20.0 + (std::process::id() as f64 % 30.0)
     }
 }
@@ -425,10 +485,10 @@ fn get_memory_usage() -> f64 {
                 return (used as f64 / total as f64) * 100.0;
             }
         }
-        // Fallback 
+        // Fallback
         40.0
     }
-    
+
     #[cfg(not(target_os = "linux"))]
     {
         // Simulate memory usage based on system characteristics
@@ -480,7 +540,7 @@ fn calculate_cpu_percentage(stats: Vec<u64>) -> f64 {
 fn parse_meminfo(content: &str) -> (Option<u64>, Option<u64>) {
     let mut total = None;
     let mut available = None;
-    
+
     for line in content.lines() {
         if line.starts_with("MemTotal:") {
             if let Some(value) = extract_meminfo_value(line) {
@@ -491,12 +551,12 @@ fn parse_meminfo(content: &str) -> (Option<u64>, Option<u64>) {
                 available = Some(value);
             }
         }
-        
+
         if total.is_some() && available.is_some() {
             break;
         }
     }
-    
+
     (total, available)
 }
 
@@ -517,10 +577,19 @@ fn parse_macos_cpu(output: &str) -> Option<f64> {
             // Parse line like "CPU usage: 12.34% user, 5.67% sys, 81.99% idle"
             if let Some(user_start) = line.find(':') {
                 if let Some(user_end) = line[user_start..].find('%') {
-                    if let Ok(user_pct) = line[user_start + 1..user_start + user_end].trim().parse::<f64>() {
+                    if let Ok(user_pct) = line[user_start + 1..user_start + user_end]
+                        .trim()
+                        .parse::<f64>()
+                    {
                         if let Some(sys_start) = line[user_start + user_end..].find(',') {
-                            if let Some(sys_end) = line[user_start + user_end + sys_start..].find('%') {
-                                if let Ok(sys_pct) = line[user_start + user_end + sys_start + 1..user_start + user_end + sys_start + sys_end].trim().parse::<f64>() {
+                            if let Some(sys_end) =
+                                line[user_start + user_end + sys_start..].find('%')
+                            {
+                                if let Ok(sys_pct) = line[user_start + user_end + sys_start + 1
+                                    ..user_start + user_end + sys_start + sys_end]
+                                    .trim()
+                                    .parse::<f64>()
+                                {
                                     return Some(user_pct + sys_pct);
                                 }
                             }
@@ -536,16 +605,16 @@ fn parse_macos_cpu(output: &str) -> Option<f64> {
 /// Process configuration updates from the orchestrator
 async fn process_config_update(config_update: NodeConfig) -> Result<()> {
     info!(config = ?config_update, "Processing configuration update");
-    
+
     // Process the received NodeConfig update
     // This would typically involve updating the current running configuration
-    
+
     info!(
         max_connections = config_update.max_connections,
         backend_addr = %config_update.backend_addr,
         "Updated node configuration from orchestrator"
     );
-    
+
     // In a real implementation, these updates would be applied to:
     // - The proxy server configuration
     // - Rate limiting settings
@@ -553,14 +622,14 @@ async fn process_config_update(config_update: NodeConfig) -> Result<()> {
     // - Backend routing configuration
     // - TLS/SSL settings
     // For now, we just log the configuration change
-    
+
     Ok(())
 }
 
 /// Process commands from the orchestrator
 async fn process_orchestrator_command(command: NodeCommand) -> Result<()> {
     info!(command_type = %command.command_type, "Processing orchestrator command");
-    
+
     match command.command_type.as_str() {
         "terminate" => {
             info!("Received terminate command from orchestrator");
@@ -569,7 +638,7 @@ async fn process_orchestrator_command(command: NodeCommand) -> Result<()> {
             // In a real implementation, this would trigger a graceful shutdown
             // For now, we just log the command
         }
-        
+
         "drain" => {
             info!("Received drain command from orchestrator");
             // Stop accepting new connections, finish existing ones
@@ -577,7 +646,7 @@ async fn process_orchestrator_command(command: NodeCommand) -> Result<()> {
             // In a real implementation, this would put the node in draining mode
             // For now, we just log the command
         }
-        
+
         "update_rules" => {
             if let Some(rules) = command.parameters.get("rules") {
                 info!(rules = ?rules, "Received WAF rules update command");
@@ -585,7 +654,7 @@ async fn process_orchestrator_command(command: NodeCommand) -> Result<()> {
                 // For now, we just log the command
             }
         }
-        
+
         "block_ip" => {
             if let Some(ip) = command.parameters.get("ip") {
                 if let Some(duration) = command.parameters.get("duration_seconds") {
@@ -595,7 +664,7 @@ async fn process_orchestrator_command(command: NodeCommand) -> Result<()> {
                 }
             }
         }
-        
+
         "unblock_ip" => {
             if let Some(ip) = command.parameters.get("ip") {
                 info!(ip = %ip, "Received IP unblock command");
@@ -603,18 +672,18 @@ async fn process_orchestrator_command(command: NodeCommand) -> Result<()> {
                 // For now, we just log the command
             }
         }
-        
+
         "health_check" => {
             info!("Received health check command from orchestrator");
             // Perform internal health checks and report back
             // In a real implementation, this would trigger comprehensive health checks
             // For now, we just log the command
         }
-        
+
         _ => {
             warn!(command_type = %command.command_type, "Unknown command type received from orchestrator");
         }
     }
-    
+
     Ok(())
 }

@@ -30,15 +30,3 @@ tower = { workspace = true }
 tower-http = { workspace = true }
 async-nats = { workspace = true }
 tokio-stream = { workspace = true }
-
-[profile.release]
-# Optimize for performance in production
-lto = true
-codegen-units = 1
-panic = "abort"
-opt-level = 3
-
-[profile.dev]
-# Faster compilation during development
-opt-level = 0
-debug = true

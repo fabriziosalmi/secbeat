@@ -110,10 +110,7 @@ pub struct TerminationCommand {
 
 impl ResourceManager {
     /// Create new resource manager with predictive capabilities
-    pub fn new(
-        node_registry: Arc<DashMap<Uuid, NodeInfo>>,
-        config: OrchestratorConfig,
-    ) -> Self {
+    pub fn new(node_registry: Arc<DashMap<Uuid, NodeInfo>>, config: OrchestratorConfig) -> Self {
         let http_client = Client::builder()
             .timeout(Duration::from_secs(30))
             .build()
@@ -153,7 +150,7 @@ impl ResourceManager {
 
         loop {
             interval.tick().await;
-            
+
             if let Err(e) = self.perform_scaling_check().await {
                 error!(error = %e, "Failed to perform scaling check");
             }
@@ -164,10 +161,10 @@ impl ResourceManager {
     #[instrument(skip(self))]
     async fn perform_scaling_check(&mut self) -> Result<()> {
         let metrics = self.calculate_fleet_metrics();
-        
+
         // Add current CPU usage to history for ML prediction
         self.add_cpu_data_point(metrics.avg_cpu_usage);
-        
+
         debug!(
             active_nodes = metrics.active_node_count,
             avg_cpu = metrics.avg_cpu_usage,
@@ -179,7 +176,7 @@ impl ResourceManager {
 
         // Try to predict future CPU usage
         let predicted_cpu = self.predict_future_cpu().unwrap_or(metrics.avg_cpu_usage);
-        
+
         info!(
             current_cpu = metrics.avg_cpu_usage,
             predicted_cpu = predicted_cpu,
@@ -200,8 +197,9 @@ impl ResourceManager {
                     threshold = self.config.scale_up_cpu_threshold,
                     "Triggering predictive scale-up action"
                 );
-                
-                self.execute_predictive_scale_up(&metrics, predicted_cpu).await?;
+
+                self.execute_predictive_scale_up(&metrics, predicted_cpu)
+                    .await?;
                 self.reset_scaling_counters();
             } else {
                 debug!(
@@ -226,7 +224,7 @@ impl ResourceManager {
                         threshold = self.config.scale_down_cpu_threshold,
                         "Triggering scale-down action"
                     );
-                    
+
                     self.execute_scale_down(target_node_id).await?;
                     self.reset_scaling_counters();
                 } else {
@@ -289,7 +287,7 @@ impl ResourceManager {
         }
 
         let node_count = active_nodes.len();
-        
+
         FleetMetrics {
             active_node_count: node_count,
             avg_cpu_usage: (total_cpu / node_count as f64) as f32,
@@ -337,14 +335,14 @@ impl ResourceManager {
 
         // Convert timestamps to minutes since start
         let start_time = self.cpu_history.front()?.timestamp;
-        let features: Vec<f64> = self.cpu_history
+        let features: Vec<f64> = self
+            .cpu_history
             .iter()
-            .map(|point| {
-                point.timestamp.duration_since(start_time).as_secs() as f64 / 60.0
-            })
+            .map(|point| point.timestamp.duration_since(start_time).as_secs() as f64 / 60.0)
             .collect();
 
-        let targets: Vec<f64> = self.cpu_history
+        let targets: Vec<f64> = self
+            .cpu_history
             .iter()
             .map(|point| point.cpu_usage as f64)
             .collect();
@@ -371,27 +369,26 @@ impl ResourceManager {
         // Predict CPU usage 10 minutes into the future
         let future_time_minutes = last_time + 10.0;
         let future_features = Array2::from_shape_vec((1, 1), vec![future_time_minutes]).ok()?;
-        
+
         let prediction = model.predict(&future_features);
         let predicted_cpu = prediction[0] as f32;
-        
+
         // Clamp prediction to reasonable bounds (0-100%)
         let clamped_prediction = predicted_cpu.clamp(0.0, 1.0);
-        
+
         info!(
             raw_prediction = predicted_cpu,
             clamped_prediction = clamped_prediction,
             data_points = self.cpu_history.len(),
             "CPU usage predicted for +10 minutes"
         );
-        
+
         Some(clamped_prediction)
     }
 
     /// Check if the fleet should scale up based on predicted CPU
     fn should_scale_up_predictive(&self, predicted_cpu: f32, metrics: &FleetMetrics) -> bool {
-        metrics.active_node_count > 0 
-            && predicted_cpu > self.config.scale_up_cpu_threshold
+        metrics.active_node_count > 0 && predicted_cpu > self.config.scale_up_cpu_threshold
     }
 
     /// Check if the fleet should scale down
@@ -403,11 +400,19 @@ impl ResourceManager {
 
     /// Execute predictive scale-up action by calling provisioning webhook
     #[instrument(skip(self))]
-    async fn execute_predictive_scale_up(&mut self, metrics: &FleetMetrics, predicted_cpu: f32) -> Result<()> {
+    async fn execute_predictive_scale_up(
+        &mut self,
+        metrics: &FleetMetrics,
+        predicted_cpu: f32,
+    ) -> Result<()> {
         let prediction_info = PredictionInfo {
             predicted_cpu_usage: predicted_cpu,
             prediction_horizon_minutes: 10,
-            confidence: if self.cpu_history.len() >= 20 { 0.8 } else { 0.6 },
+            confidence: if self.cpu_history.len() >= 20 {
+                0.8
+            } else {
+                0.6
+            },
         };
 
         let payload = ScaleUpWebhookPayload {
@@ -445,7 +450,10 @@ impl ResourceManager {
             self.last_scaling_action = Some(Utc::now());
         } else {
             let status = response.status();
-            let body = response.text().await.unwrap_or_else(|_| "unknown".to_string());
+            let body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "unknown".to_string());
             warn!(
                 status = %status,
                 body = %body,
@@ -459,9 +467,13 @@ impl ResourceManager {
     /// Execute self-healing action for unexpected node failure
     #[instrument(skip(self))]
     #[allow(dead_code)]
-    pub async fn execute_self_healing(&mut self, failed_node_id: Uuid, failed_node_ip: std::net::IpAddr) -> Result<()> {
+    pub async fn execute_self_healing(
+        &mut self,
+        failed_node_id: Uuid,
+        failed_node_ip: std::net::IpAddr,
+    ) -> Result<()> {
         let metrics = self.calculate_fleet_metrics();
-        
+
         let payload = SelfHealingWebhookPayload {
             reason: "UNEXPECTED_NODE_FAILURE".to_string(),
             timestamp: Utc::now(),
@@ -498,7 +510,10 @@ impl ResourceManager {
             );
         } else {
             let status = response.status();
-            let body = response.text().await.unwrap_or_else(|_| "unknown".to_string());
+            let body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "unknown".to_string());
             error!(
                 status = %status,
                 body = %body,
@@ -546,7 +561,7 @@ impl ResourceManager {
 
         if let Some(node) = node_info {
             let termination_url = format!("http://{}:9999/control/terminate", node.public_ip);
-            
+
             let payload = TerminationCommand {
                 reason: "LOW_FLEET_CPU_LOAD".to_string(),
                 timestamp: Utc::now(),
@@ -563,7 +578,10 @@ impl ResourceManager {
             let response = self
                 .http_client
                 .post(&termination_url)
-                .header("Authorization", "Bearer secure-management-token-change-in-production")
+                .header(
+                    "Authorization",
+                    "Bearer secure-management-token-change-in-production",
+                )
                 .json(&payload)
                 .send()
                 .await
@@ -578,14 +596,17 @@ impl ResourceManager {
                 self.last_scaling_action = Some(Utc::now());
             } else {
                 let status = response.status();
-                let body = response.text().await.unwrap_or_else(|_| "unknown".to_string());
+                let body = response
+                    .text()
+                    .await
+                    .unwrap_or_else(|_| "unknown".to_string());
                 warn!(
                     target_node = %target_node_id,
                     status = %status,
                     body = %body,
                     "Termination command failed - removing from terminating set"
                 );
-                
+
                 // Remove from terminating set if command failed
                 let mut terminating = self.terminating_nodes.write().await;
                 terminating.remove(&target_node_id);

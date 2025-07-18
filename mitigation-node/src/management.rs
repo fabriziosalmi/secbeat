@@ -4,10 +4,9 @@ use axum::{
     http::{header::AUTHORIZATION, StatusCode},
     middleware::{self, Next},
     response::{Json, Response},
-    routing::{delete, get, post, put},
+    routing::{delete, get, post},
     Router,
 };
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -45,7 +44,7 @@ impl ShutdownSignal {
         let signal = Self {
             should_shutdown: Arc::new(AtomicBool::new(false)),
         };
-        
+
         // Spawn a task to trigger the receiver when shutdown is initiated
         let should_shutdown = Arc::clone(&signal.should_shutdown);
         tokio::spawn(async move {
@@ -252,7 +251,10 @@ async fn perform_graceful_shutdown(
     );
 
     // Wait for the grace period to allow in-flight requests to complete
-    info!(grace_period = grace_period_seconds, "Waiting for grace period");
+    info!(
+        grace_period = grace_period_seconds,
+        "Waiting for grace period"
+    );
     sleep(Duration::from_secs(grace_period_seconds)).await;
 
     // Log final shutdown message
@@ -270,20 +272,19 @@ fn create_management_router(state: ManagementState) -> Router {
     Router::new()
         // Control endpoints
         .route("/control/terminate", post(handle_terminate))
-        
-        // Health and status endpoints  
+        // Health and status endpoints
         .route("/health", get(health_check))
         .route("/status/waf", get(handle_waf_stats))
-        
         // WAF management endpoints
         .route("/waf/patterns", post(handle_add_waf_pattern))
         .route("/waf/patterns", delete(handle_remove_waf_pattern))
         .route("/waf/reload", post(handle_reload_waf_patterns))
-        
         // Configuration management endpoints
         .route("/config/reload", post(handle_config_reload))
-        
-        .layer(middleware::from_fn_with_state(state.clone(), auth_middleware))
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            auth_middleware,
+        ))
         .with_state(state)
 }
 
@@ -469,7 +470,7 @@ async fn handle_config_reload(
         match crate::config::MitigationConfig::from_file(config_path) {
             Ok(new_config) => {
                 info!(path = %config_path, "Configuration reloaded from file");
-                
+
                 // Validate the new configuration
                 if let Err(e) = new_config.validate() {
                     warn!(error = %e, "New configuration validation failed");
@@ -479,14 +480,14 @@ async fn handle_config_reload(
                         timestamp: chrono::Utc::now().to_rfc3339(),
                     }));
                 }
-                
+
                 // TODO: In a full implementation, we would:
                 // 1. Apply the new configuration to running services
                 // 2. Update DDoS protection settings
                 // 3. Update TLS configuration if needed
                 // 4. Update backend server configuration
                 // 5. Restart services that require it
-                
+
                 info!("Configuration validated and would be applied");
                 true
             }
@@ -499,7 +500,7 @@ async fn handle_config_reload(
         warn!("No configuration file path available for reload");
         false
     };
-    
+
     // Reload WAF patterns if WAF engine is available
     let waf_reloaded = if let Some(ref waf_engine) = state.waf_engine {
         let mut waf = waf_engine.write().await;
@@ -515,7 +516,7 @@ async fn handle_config_reload(
         }
     } else {
         info!("WAF engine not available for reload");
-        true  // Not an error if WAF is disabled
+        true // Not an error if WAF is disabled
     };
 
     if config_reloaded && waf_reloaded {
@@ -527,7 +528,8 @@ async fn handle_config_reload(
     } else if waf_reloaded {
         Ok(Json(ConfigReloadResponse {
             success: true,
-            message: "WAF patterns reloaded successfully (configuration file not available)".to_string(),
+            message: "WAF patterns reloaded successfully (configuration file not available)"
+                .to_string(),
             timestamp: chrono::Utc::now().to_rfc3339(),
         }))
     } else {

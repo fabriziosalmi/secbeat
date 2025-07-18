@@ -1,7 +1,10 @@
 use anyhow::{Context, Result};
 use std::net::SocketAddr;
 use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
-use tokio::net::{TcpListener, TcpStream, tcp::{ReadHalf, WriteHalf}};
+use tokio::net::{
+    tcp::{ReadHalf, WriteHalf},
+    TcpListener, TcpStream,
+};
 use tracing::{debug, error, info, warn};
 
 /// Basic TCP proxy implementation for Phase 1
@@ -43,13 +46,16 @@ impl TcpProxy {
             match listener.accept().await {
                 Ok((client_stream, client_addr)) => {
                     debug!(client_addr = %client_addr, "Accepted new connection");
-                    
+
                     let backend_addr = self.backend_addr;
                     let buffer_size = self.buffer_size;
-                    
+
                     // Spawn a task to handle each connection
                     tokio::spawn(async move {
-                        if let Err(e) = handle_connection(client_stream, client_addr, backend_addr, buffer_size).await {
+                        if let Err(e) =
+                            handle_connection(client_stream, client_addr, backend_addr, buffer_size)
+                                .await
+                        {
                             error!(
                                 client_addr = %client_addr,
                                 error = %e,
@@ -98,8 +104,18 @@ async fn handle_connection(
 
     // Start bidirectional copying
     let (client_to_backend, backend_to_client) = tokio::join!(
-        copy_data_split(&mut client_read, &mut backend_write, "client->backend", buffer_size),
-        copy_data_split(&mut backend_read, &mut client_write, "backend->client", buffer_size)
+        copy_data_split(
+            &mut client_read,
+            &mut backend_write,
+            "client->backend",
+            buffer_size
+        ),
+        copy_data_split(
+            &mut backend_read,
+            &mut client_write,
+            "backend->client",
+            buffer_size
+        )
     );
 
     match (client_to_backend, backend_to_client) {
@@ -156,22 +172,20 @@ async fn copy_data_split(
                 debug!(direction = direction, "Connection closed by source");
                 break;
             }
-            Ok(bytes_read) => {
-                match destination.write_all(&buffer[..bytes_read]).await {
-                    Ok(()) => {
-                        total_bytes += bytes_read as u64;
-                        debug!(
-                            direction = direction,
-                            bytes = bytes_read,
-                            total = total_bytes,
-                            "Data copied"
-                        );
-                    }
-                    Err(e) => {
-                        return Err(e.into());
-                    }
+            Ok(bytes_read) => match destination.write_all(&buffer[..bytes_read]).await {
+                Ok(()) => {
+                    total_bytes += bytes_read as u64;
+                    debug!(
+                        direction = direction,
+                        bytes = bytes_read,
+                        total = total_bytes,
+                        "Data copied"
+                    );
                 }
-            }
+                Err(e) => {
+                    return Err(e.into());
+                }
+            },
             Err(e) => {
                 if e.kind() == io::ErrorKind::UnexpectedEof {
                     debug!(direction = direction, "Connection closed by peer");
@@ -183,7 +197,11 @@ async fn copy_data_split(
         }
     }
 
-    debug!(direction = direction, total_bytes = total_bytes, "Data copying completed");
+    debug!(
+        direction = direction,
+        total_bytes = total_bytes,
+        "Data copying completed"
+    );
     Ok(total_bytes)
 }
 
@@ -206,22 +224,20 @@ async fn copy_data(
                 }
                 break;
             }
-            Ok(bytes_read) => {
-                match destination.write_all(&buffer[..bytes_read]).await {
-                    Ok(()) => {
-                        total_bytes += bytes_read as u64;
-                        debug!(
-                            direction = direction,
-                            bytes = bytes_read,
-                            total = total_bytes,
-                            "Data copied"
-                        );
-                    }
-                    Err(e) => {
-                        return Err(e.into());
-                    }
+            Ok(bytes_read) => match destination.write_all(&buffer[..bytes_read]).await {
+                Ok(()) => {
+                    total_bytes += bytes_read as u64;
+                    debug!(
+                        direction = direction,
+                        bytes = bytes_read,
+                        total = total_bytes,
+                        "Data copied"
+                    );
                 }
-            }
+                Err(e) => {
+                    return Err(e.into());
+                }
+            },
             Err(e) => {
                 if e.kind() == io::ErrorKind::UnexpectedEof {
                     debug!(direction = direction, "Connection closed by peer");
@@ -233,7 +249,11 @@ async fn copy_data(
         }
     }
 
-    debug!(direction = direction, total_bytes = total_bytes, "Data copying completed");
+    debug!(
+        direction = direction,
+        total_bytes = total_bytes,
+        "Data copying completed"
+    );
     Ok(total_bytes)
 }
 
@@ -241,35 +261,33 @@ async fn copy_data(
 mod tests {
     use super::*;
     use tokio::net::TcpListener;
-    
+
     async fn start_echo_server() -> Result<SocketAddr> {
         let listener = TcpListener::bind("127.0.0.1:0").await?;
         let addr = listener.local_addr()?;
-        
+
         tokio::spawn(async move {
             while let Ok((mut stream, _)) = listener.accept().await {
                 tokio::spawn(async move {
                     let mut buffer = [0u8; 1024];
                     while let Ok(n) = stream.read(&mut buffer).await {
-                        if n == 0 { break; }
+                        if n == 0 {
+                            break;
+                        }
                         let _ = stream.write_all(&buffer[..n]).await;
                     }
                 });
             }
         });
-        
+
         Ok(addr)
     }
 
     #[tokio::test]
     async fn test_tcp_proxy_basic_forwarding() {
-        let echo_server_addr = start_echo_server().await.unwrap();
-        let proxy = TcpProxy::new(
-            "127.0.0.1:0".parse().unwrap(),
-            echo_server_addr,
-            4096
-        );
-        
+        let echo_server_addr = start_echo_server().await.expect("Should start echo server for test");
+        let proxy = TcpProxy::new("127.0.0.1:0".parse().expect("Test address should be valid"), echo_server_addr, 4096);
+
         // This is a basic test structure - in a real test we'd:
         // 1. Start the proxy in a background task
         // 2. Connect a client and send data

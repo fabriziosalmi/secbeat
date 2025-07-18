@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use hyper::service::service_fn;
 use hyper::{Body, Client, Request, Response, StatusCode};
-use metrics::{counter, gauge, describe_counter, describe_gauge};
+use metrics::{counter, describe_counter, describe_gauge, gauge};
 use rustls::{Certificate, PrivateKey, ServerConfig};
 use rustls_pemfile::{certs, pkcs8_private_keys};
 use std::convert::Infallible;
@@ -18,19 +18,19 @@ use tracing::{debug, error, info, warn};
 
 mod config;
 mod ddos;
-mod waf;
-mod orchestrator;
 mod events;
 mod management;
-mod tcp_proxy;
+mod orchestrator;
 mod syn_proxy;
+mod tcp_proxy;
+mod waf;
 
 use config::MitigationConfig;
-use ddos::{DdosProtection, DdosCheckResult};
-use orchestrator::OrchestratorClient;
+use ddos::{DdosCheckResult, DdosProtection};
 use events::{EventSystem, SecurityEvent, WafEventResult};
-use tcp_proxy::TcpProxy;
+use orchestrator::OrchestratorClient;
 use syn_proxy::SynProxy;
+use tcp_proxy::TcpProxy;
 
 // Helper macro for safely updating metrics
 macro_rules! update_metric {
@@ -44,7 +44,11 @@ macro_rules! update_metric {
 // Helper macro for safely reading metrics
 macro_rules! read_metric {
     ($state:expr, $field:ident) => {
-        $state.metrics.as_ref().map(|m| m.$field.load(Ordering::Relaxed)).unwrap_or(0)
+        $state
+            .metrics
+            .as_ref()
+            .map(|m| m.$field.load(Ordering::Relaxed))
+            .unwrap_or(0)
     };
 }
 
@@ -107,7 +111,6 @@ struct ProxyState {
     event_system: Option<Arc<EventSystem>>,
 }
 
-
 #[tokio::main]
 async fn main() -> Result<()> {
     // Initialize structured logging
@@ -121,7 +124,10 @@ async fn main() -> Result<()> {
         .with_line_number(true)
         .init();
 
-    info!("Starting SecBeat Mitigation Node v{} - Production-Grade Security Platform", env!("CARGO_PKG_VERSION"));
+    info!(
+        "Starting SecBeat Mitigation Node v{} - Production-Grade Security Platform",
+        env!("CARGO_PKG_VERSION")
+    );
 
     // Determine config file path - support unified config system
     let config_name = std::env::var("SECBEAT_CONFIG").unwrap_or_else(|_| {
@@ -135,14 +141,14 @@ async fn main() -> Result<()> {
             }
         })
     });
-    
+
     // Try root-level config first (unified), then fallback to mitigation-node config
     let config_paths = vec![
         format!("{}.toml", config_name),
         format!("mitigation-node/config/{}.toml", config_name),
         format!("mitigation-node/config/default.toml"), // Final fallback
     ];
-    
+
     let mut config = None;
     let mut used_config_path = None;
     for config_path in config_paths {
@@ -158,7 +164,7 @@ async fn main() -> Result<()> {
             }
         }
     }
-    
+
     let config = config.unwrap_or_else(|| {
         warn!("No configuration file found, using defaults");
         MitigationConfig::default()
@@ -179,8 +185,11 @@ async fn main() -> Result<()> {
 
     // Determine operation mode based on configuration
     let mode = config.platform.mode.as_deref().unwrap_or("auto");
-    info!("Selected operation mode: {} (from config: {:?})", mode, config.platform.mode);
-    
+    info!(
+        "Selected operation mode: {} (from config: {:?})",
+        mode, config.platform.mode
+    );
+
     match mode {
         "tcp" => {
             info!("Starting in basic TCP Proxy mode (Minimal Features)");
@@ -210,7 +219,10 @@ async fn main() -> Result<()> {
     }
 }
 
-async fn run_l7_proxy_mode(config: MitigationConfig, config_file_path: Option<String>) -> Result<()> {
+async fn run_l7_proxy_mode(
+    config: MitigationConfig,
+    config_file_path: Option<String>,
+) -> Result<()> {
     info!(
         listen_addr = ?config.listen_addr()?,
         backend_addr = ?config.backend_addr()?,
@@ -224,8 +236,10 @@ async fn run_l7_proxy_mode(config: MitigationConfig, config_file_path: Option<St
 
     // Initialize DDoS protection if enabled
     let ddos_protection = if config.ddos_enabled() {
-        Some(Arc::new(DdosProtection::new(config.ddos.clone())
-            .context("Failed to initialize DDoS protection")?))
+        Some(Arc::new(
+            DdosProtection::new(config.ddos.clone())
+                .context("Failed to initialize DDoS protection")?,
+        ))
     } else {
         info!("DDoS protection disabled by feature toggle");
         None
@@ -233,8 +247,11 @@ async fn run_l7_proxy_mode(config: MitigationConfig, config_file_path: Option<St
 
     // Initialize WAF engine if enabled
     let waf_engine = if config.waf_enabled() {
-        Some(Arc::new(waf::WafEngine::new(config.waf.clone()).await
-            .context("Failed to initialize WAF engine")?))
+        Some(Arc::new(
+            waf::WafEngine::new(config.waf.clone())
+                .await
+                .context("Failed to initialize WAF engine")?,
+        ))
     } else {
         info!("WAF protection disabled by feature toggle");
         None
@@ -251,8 +268,14 @@ async fn run_l7_proxy_mode(config: MitigationConfig, config_file_path: Option<St
     // Setup metrics descriptions if enabled
     if config.metrics_enabled() {
         describe_counter!("https_requests_total", "Total HTTPS requests received");
-        describe_counter!("requests_proxied_total", "Total requests proxied to backend");
-        describe_counter!("tls_handshakes_completed_total", "Total TLS handshakes completed");
+        describe_counter!(
+            "requests_proxied_total",
+            "Total requests proxied to backend"
+        );
+        describe_counter!(
+            "tls_handshakes_completed_total",
+            "Total TLS handshakes completed"
+        );
         describe_counter!("tls_handshake_errors_total", "Total TLS handshake errors");
         describe_counter!("http_errors_total", "Total HTTP errors");
         describe_gauge!("active_connections", "Currently active connections");
@@ -263,19 +286,25 @@ async fn run_l7_proxy_mode(config: MitigationConfig, config_file_path: Option<St
 
     // Initialize Event System if NATS is enabled
     let event_system = if config.nats_enabled() {
-        let nats_url = config.nats.servers.as_ref()
+        let nats_url = config
+            .nats
+            .servers
+            .as_ref()
             .and_then(|servers| servers.first())
             .map(|s| s.as_str())
             .unwrap_or("nats://localhost:4222");
         let node_id = uuid::Uuid::new_v4();
-        
+
         match EventSystem::new(nats_url, node_id).await {
             Ok(system) => {
                 info!("Event system initialized with NATS connection");
                 Some(Arc::new(system))
             }
             Err(e) => {
-                warn!("Failed to initialize event system: {}, continuing without it", e);
+                warn!(
+                    "Failed to initialize event system: {}, continuing without it",
+                    e
+                );
                 None
             }
         }
@@ -310,13 +339,15 @@ async fn run_l7_proxy_mode(config: MitigationConfig, config_file_path: Option<St
         return Err(anyhow::anyhow!("L7 proxy mode requires TLS to be enabled"));
     }
 
-    let tls_config = load_tls_config(&config.network.tls).await
+    let tls_config = load_tls_config(&config.network.tls)
+        .await
         .context("Failed to load TLS configuration")?;
     let tls_acceptor = TlsAcceptor::from(Arc::new(tls_config));
 
     // Create TCP listener
     let listen_addr = config.listen_addr()?;
-    let tcp_listener = TcpListener::bind(&listen_addr).await
+    let tcp_listener = TcpListener::bind(&listen_addr)
+        .await
         .with_context(|| format!("Failed to bind to {listen_addr}"))?;
 
     info!(
@@ -326,7 +357,7 @@ async fn run_l7_proxy_mode(config: MitigationConfig, config_file_path: Option<St
 
     // Start background tasks if enabled
     let mut background_tasks = Vec::new();
-    
+
     // Start orchestrator client if enabled
     if config.orchestrator_enabled() {
         info!("Starting orchestrator client...");
@@ -335,7 +366,7 @@ async fn run_l7_proxy_mode(config: MitigationConfig, config_file_path: Option<St
         // let orchestrator_task = tokio::spawn(orchestrator_client_task(config.clone()));
         // background_tasks.push(orchestrator_task);
     }
-    
+
     // Start NATS event system if enabled
     if config.nats_enabled() {
         info!("Starting NATS event system...");
@@ -345,23 +376,38 @@ async fn run_l7_proxy_mode(config: MitigationConfig, config_file_path: Option<St
         // let nats_task = tokio::spawn(nats_event_task(config.clone()));
         // background_tasks.push(nats_task);
     }
-    
+
     // Start metrics server if enabled
     if config.metrics_enabled() {
         if let Some(metrics_instance) = metrics {
             info!("Starting metrics server on {}", config.metrics.listen_addr);
-            let metrics_addr: SocketAddr = config.metrics.listen_addr.parse()
-                .expect("Invalid metrics listen address");
-            let metrics_task = tokio::spawn(start_metrics_server(metrics_addr, metrics_instance));
-            background_tasks.push(metrics_task);
+            match config.metrics.listen_addr.parse::<SocketAddr>() {
+                Ok(metrics_addr) => {
+                    let metrics_task = tokio::spawn(start_metrics_server(metrics_addr, metrics_instance));
+                    background_tasks.push(metrics_task);
+                }
+                Err(e) => {
+                    error!(
+                        error = %e,
+                        addr = %config.metrics.listen_addr,
+                        "Invalid metrics listen address format, metrics server disabled"
+                    );
+                }
+            }
         }
     }
-    
+
     // Start management API if enabled
     if config.management_enabled() {
-        info!("Starting management API on {}", config.management.listen_addr);
+        info!(
+            "Starting management API on {}",
+            config.management.listen_addr
+        );
         let (shutdown_signal, _shutdown_rx) = management::ShutdownSignal::new();
-        let waf_for_mgmt = state.waf_engine.as_ref().map(|w| Arc::new(RwLock::new((**w).clone())));
+        let waf_for_mgmt = state
+            .waf_engine
+            .as_ref()
+            .map(|w| Arc::new(RwLock::new((**w).clone())));
         let mgmt_task = tokio::spawn(management::start_management_api(
             config.management.clone(),
             shutdown_signal,
@@ -377,22 +423,29 @@ async fn run_l7_proxy_mode(config: MitigationConfig, config_file_path: Option<St
         match tcp_listener.accept().await {
             Ok((tcp_stream, client_addr)) => {
                 let client_ip = client_addr.ip();
-                
+
                 // DDoS protection check if enabled
                 let ddos_result = if let Some(ref ddos_protection) = state.ddos_protection {
                     ddos_protection.check_connection(client_ip)
                 } else {
                     DdosCheckResult::Allow // Always allow if DDoS protection is disabled
                 };
-                
+
                 match ddos_result {
                     DdosCheckResult::Allow => {
                         // Connection allowed, proceed with TLS handshake
                         let tls_acceptor = tls_acceptor.clone();
                         let state_clone = state.clone();
-                        
+
                         tokio::spawn(async move {
-                            if let Err(e) = handle_tls_connection(tcp_stream, client_addr, tls_acceptor, state_clone).await {
+                            if let Err(e) = handle_tls_connection(
+                                tcp_stream,
+                                client_addr,
+                                tls_acceptor,
+                                state_clone,
+                            )
+                            .await
+                            {
                                 error!(
                                     client_addr = %client_addr,
                                     error = %e,
@@ -459,11 +512,14 @@ async fn handle_tls_connection(
             return Ok(());
         }
     }
-    
+
     // Increment active connections counter
     update_metric!(state, active_connections, fetch_add, 1);
-    gauge!("active_connections", read_metric!(state, active_connections) as f64);
-    
+    gauge!(
+        "active_connections",
+        read_metric!(state, active_connections) as f64
+    );
+
     // Perform TLS handshake
     let tls_stream = match tls_acceptor.accept(tcp_stream).await {
         Ok(stream) => {
@@ -484,15 +540,13 @@ async fn handle_tls_connection(
 
     // Clone state for the service closure
     let state_for_service = state.clone();
-    
+
     // Create HTTP service for this connection
     let service = service_fn(move |req: Request<Body>| {
         let state = state_for_service.clone();
         let client_addr = client_addr;
-        
-        async move {
-            handle_http_request(req, client_addr, state).await
-        }
+
+        async move { handle_http_request(req, client_addr, state).await }
     });
 
     // Serve HTTP requests over TLS
@@ -506,7 +560,10 @@ async fn handle_tls_connection(
 
     // Decrement active connections counter
     update_metric!(state, active_connections, fetch_sub, 1);
-    gauge!("active_connections", read_metric!(state, active_connections) as f64);
+    gauge!(
+        "active_connections",
+        read_metric!(state, active_connections) as f64
+    );
 
     debug!(client_addr = %client_addr, "Connection closed");
     Ok(())
@@ -519,7 +576,7 @@ async fn handle_http_request(
     state: ProxyState,
 ) -> Result<Response<Body>, Infallible> {
     let start_time = std::time::Instant::now();
-    
+
     // Increment HTTPS requests counter
     update_metric!(state, https_requests_received, fetch_add, 1);
     counter!("https_requests_received", 1);
@@ -527,19 +584,21 @@ async fn handle_http_request(
     let method = req.method().clone();
     let uri = req.uri().clone();
     let _uri_path = uri.path();
-    
+
     // Extract headers before moving req
-    let user_agent = req.headers()
+    let user_agent = req
+        .headers()
         .get("user-agent")
         .and_then(|v| v.to_str().ok())
         .unwrap_or("unknown")
         .to_string();
-        
-    let host_header = req.headers()
+
+    let host_header = req
+        .headers()
         .get("host")
         .and_then(|v| v.to_str().ok())
         .map(|s| s.to_string());
-    
+
     debug!(
         client_addr = %client_addr,
         method = %method,
@@ -548,7 +607,8 @@ async fn handle_http_request(
     );
 
     // PHASE 5: WAF analysis with event publishing
-    let waf_result = analyze_request_with_waf(&state, &method, &uri, &user_agent, req.headers()).await;
+    let waf_result =
+        analyze_request_with_waf(&state, &method, &uri, &user_agent, req.headers()).await;
     let response_result = if waf_result.action == "BLOCK" {
         warn!(
             client_addr = %client_addr,
@@ -559,7 +619,7 @@ async fn handle_http_request(
         counter!("waf_requests_blocked", 1);
         update_metric!(state, blocked_requests, fetch_add, 1);
         update_metric!(state, waf_events_blocked, fetch_add, 1);
-        
+
         // Create blocked response
         let response = Response::builder()
             .status(StatusCode::FORBIDDEN)
@@ -568,7 +628,7 @@ async fn handle_http_request(
                 error!("Failed to create WAF blocked response: {}", e);
                 Response::new(Body::from("Internal Server Error"))
             });
-        
+
         // Publish security event for blocked request
         let event_data = SecurityEventData {
             source_ip: client_addr.ip(),
@@ -581,13 +641,13 @@ async fn handle_http_request(
             processing_time: start_time.elapsed(),
         };
         publish_security_event(&state, event_data).await;
-        
+
         return Ok(response);
     } else {
         // Request is allowed, proceed with proxying
         proxy_to_backend(req, &method, &uri, client_addr, &state, &user_agent).await
     };
-    
+
     // Publish security event for all requests (blocked ones already published above)
     let status_code = response_result.as_ref().map(|r| r.status().as_u16()).ok();
     let event_data = SecurityEventData {
@@ -601,7 +661,7 @@ async fn handle_http_request(
         processing_time: start_time.elapsed(),
     };
     publish_security_event(&state, event_data).await;
-    
+
     response_result
 }
 
@@ -620,7 +680,7 @@ async fn analyze_request_with_waf(
             headers_map.insert(name.as_str().to_lowercase(), value_str.to_string());
         }
     }
-    
+
     let http_request = waf::HttpRequest {
         method: method.as_str().to_string(),
         path: uri.path().to_string(),
@@ -629,7 +689,7 @@ async fn analyze_request_with_waf(
         body: None, // For GET requests, no body to inspect
         query_string: uri.query().map(|s| s.to_string()),
     };
-    
+
     // Use the WAF engine to inspect the request
     let waf_result = if let Some(ref waf_engine) = state.waf_engine {
         waf_engine.inspect_request(&http_request)
@@ -637,7 +697,7 @@ async fn analyze_request_with_waf(
         // WAF disabled, allow all requests
         waf::WafResult::Allow
     };
-    
+
     // Convert WAF result to WafEventResult
     match waf_result {
         waf::WafResult::Allow => WafEventResult {
@@ -692,7 +752,6 @@ async fn proxy_to_backend(
     state: &ProxyState,
     user_agent: &str,
 ) -> Result<Response<Body>, Infallible> {
-
     // Create backend request URI
     let backend_addr = match state.config.backend_addr() {
         Ok(addr) => addr,
@@ -732,24 +791,26 @@ async fn proxy_to_backend(
     backend_req = backend_req.header("X-Forwarded-For", client_addr.ip().to_string());
     backend_req = backend_req.header("Host", backend_addr.to_string());
 
-    let backend_request = backend_req
-        .body(req.into_body())
-        .unwrap_or_else(|e| {
-            error!("Failed to create backend request: {}", e);
-            // Return a dummy request that will be handled as an error
-            hyper::Request::builder()
-                .method("GET")
-                .uri("http://invalid")
-                .body(Body::empty())
-                .expect("Creating fallback request should never fail")
-        });
+    let backend_request = backend_req.body(req.into_body()).unwrap_or_else(|e| {
+        error!("Failed to create backend request: {}", e);
+        // Return a dummy request that will be handled as an error
+        hyper::Request::builder()
+            .method("GET")
+            .uri("http://invalid")
+            .body(Body::empty())
+            .unwrap_or_else(|builder_error| {
+                error!("Failed to create fallback request: {}", builder_error);
+                // This should never happen, but if it does, we'll create a minimal request
+                hyper::Request::new(Body::empty())
+            })
+    });
 
     // Send request to backend
     match state.http_client.request(backend_request).await {
         Ok(response) => {
             update_metric!(state, requests_proxied, fetch_add, 1);
             counter!("requests_proxied", 1);
-            
+
             info!(
                 client_addr = %client_addr,
                 backend_uri = %backend_uri,
@@ -757,20 +818,20 @@ async fn proxy_to_backend(
                 user_agent = %user_agent,
                 "Request proxied successfully"
             );
-            
+
             Ok(response)
         }
         Err(e) => {
             update_metric!(state, http_errors, fetch_add, 1);
             counter!("http_errors", 1);
-            
+
             error!(
                 client_addr = %client_addr,
                 backend_uri = %backend_uri,
                 error = %e,
                 "Failed to proxy request to backend"
             );
-            
+
             let error_response = Response::builder()
                 .status(StatusCode::BAD_GATEWAY)
                 .body(Body::from("Backend server unavailable"))
@@ -797,10 +858,7 @@ struct SecurityEventData {
 }
 
 /// Publish security event to NATS for fleet-wide analysis
-async fn publish_security_event(
-    state: &ProxyState,
-    event_data: SecurityEventData,
-) {
+async fn publish_security_event(state: &ProxyState, event_data: SecurityEventData) {
     if let Some(ref event_system) = state.event_system {
         let event = SecurityEvent {
             node_id: event_system.node_id,
@@ -815,7 +873,7 @@ async fn publish_security_event(
             response_status: event_data.response_status,
             processing_time_ms: Some(event_data.processing_time.as_millis() as u64),
         };
-        
+
         if let Err(e) = event_system.publish_security_event(event).await {
             warn!(error = %e, "Failed to publish security event to NATS");
         }
@@ -844,13 +902,13 @@ async fn load_tls_config(tls_config: &config::TlsConfig) -> Result<ServerConfig>
     let key_file = File::open(&tls_config.key_path)
         .with_context(|| format!("Failed to open private key file: {}", tls_config.key_path))?;
     let mut key_reader = BufReader::new(key_file);
-    let keys = pkcs8_private_keys(&mut key_reader)
-        .with_context(|| "Failed to parse private key file")?;
-    
+    let keys =
+        pkcs8_private_keys(&mut key_reader).with_context(|| "Failed to parse private key file")?;
+
     if keys.is_empty() {
         return Err(anyhow::anyhow!("No private keys found in key file"));
     }
-    
+
     let private_key = PrivateKey(keys[0].clone());
 
     // Build TLS configuration
@@ -887,10 +945,7 @@ fn initialize_metrics() {
         "tls_handshake_errors",
         "Total number of TLS handshake errors"
     );
-    describe_counter!(
-        "http_errors",
-        "Total number of HTTP processing errors"
-    );
+    describe_counter!("http_errors", "Total number of HTTP processing errors");
     describe_counter!(
         "waf_requests_blocked",
         "Total number of requests blocked by WAF"
@@ -911,10 +966,7 @@ fn initialize_metrics() {
         "l7_proxy_blocked_global_limit",
         "Connections blocked by global limits at L7"
     );
-    describe_gauge!(
-        "active_connections",
-        "Current number of active connections"
-    );
+    describe_gauge!("active_connections", "Current number of active connections");
 }
 
 /// Start Prometheus metrics server
@@ -940,11 +992,20 @@ async fn start_metrics_server(listen_addr: SocketAddr, metrics: ProxyMetrics) ->
     let mut interval = tokio::time::interval(Duration::from_secs(5));
     loop {
         interval.tick().await;
-        
+
         // Update gauge metrics
-        gauge!("active_connections", metrics.active_connections.load(Ordering::Relaxed) as f64);
-        gauge!("https_requests_received", metrics.https_requests_received.load(Ordering::Relaxed) as f64);
-        gauge!("tls_handshakes_completed", metrics.tls_handshakes_completed.load(Ordering::Relaxed) as f64);
+        gauge!(
+            "active_connections",
+            metrics.active_connections.load(Ordering::Relaxed) as f64
+        );
+        gauge!(
+            "https_requests_received",
+            metrics.https_requests_received.load(Ordering::Relaxed) as f64
+        );
+        gauge!(
+            "tls_handshakes_completed",
+            metrics.tls_handshakes_completed.load(Ordering::Relaxed) as f64
+        );
     }
 }
 
@@ -987,5 +1048,3 @@ async fn run_syn_proxy_mode(config: MitigationConfig) -> Result<()> {
     proxy.initialize().await?;
     proxy.run().await
 }
-
-

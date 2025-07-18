@@ -64,7 +64,7 @@ impl WafEngine {
         };
 
         waf.compile_patterns().await?;
-        
+
         info!(
             sql_patterns = waf.sql_injection_patterns.len(),
             xss_patterns = waf.xss_patterns.len(),
@@ -101,7 +101,9 @@ impl WafEngine {
             for pattern in sql_patterns {
                 match Regex::new(pattern) {
                     Ok(regex) => self.sql_injection_patterns.push(regex),
-                    Err(e) => warn!(pattern = pattern, error = %e, "Failed to compile SQL injection pattern"),
+                    Err(e) => {
+                        warn!(pattern = pattern, error = %e, "Failed to compile SQL injection pattern")
+                    }
                 }
             }
         }
@@ -155,7 +157,9 @@ impl WafEngine {
             for pattern in path_patterns {
                 match Regex::new(pattern) {
                     Ok(regex) => self.path_traversal_patterns.push(regex),
-                    Err(e) => warn!(pattern = pattern, error = %e, "Failed to compile path traversal pattern"),
+                    Err(e) => {
+                        warn!(pattern = pattern, error = %e, "Failed to compile path traversal pattern")
+                    }
                 }
             }
         }
@@ -177,13 +181,20 @@ impl WafEngine {
             for pattern in cmd_patterns {
                 match Regex::new(pattern) {
                     Ok(regex) => self.command_injection_patterns.push(regex),
-                    Err(e) => warn!(pattern = pattern, error = %e, "Failed to compile command injection pattern"),
+                    Err(e) => {
+                        warn!(pattern = pattern, error = %e, "Failed to compile command injection pattern")
+                    }
                 }
             }
         }
 
         // Custom patterns - load from file if configured
-        if self.config.attack_patterns.custom_rules_enabled.unwrap_or(false) {
+        if self
+            .config
+            .attack_patterns
+            .custom_rules_enabled
+            .unwrap_or(false)
+        {
             if let Some(ref custom_rules_path) = self.config.attack_patterns.custom_rules_path {
                 match self.load_custom_patterns(custom_rules_path).await {
                     Ok(patterns) => {
@@ -210,21 +221,22 @@ impl WafEngine {
 
     /// Load custom patterns from file
     async fn load_custom_patterns(&self, file_path: &str) -> Result<Vec<Regex>> {
-        use serde::{Deserialize};
+        use serde::Deserialize;
         use tokio::fs;
-        
+
         #[derive(Deserialize)]
         struct CustomRuleFile {
             patterns: Vec<String>,
         }
-        
-        let content = fs::read_to_string(file_path).await
+
+        let content = fs::read_to_string(file_path)
+            .await
             .context("Failed to read custom rules file")?;
-        
+
         let rules: CustomRuleFile = serde_yaml::from_str(&content)
             .or_else(|_| serde_json::from_str(&content))
             .context("Failed to parse custom rules file (expected JSON or YAML)")?;
-        
+
         let mut compiled_patterns = Vec::new();
         for pattern in rules.patterns {
             match Regex::new(&pattern) {
@@ -237,7 +249,7 @@ impl WafEngine {
                 }
             }
         }
-        
+
         Ok(compiled_patterns)
     }
 
@@ -249,16 +261,15 @@ impl WafEngine {
         self.path_traversal_patterns.clear();
         self.command_injection_patterns.clear();
         self.custom_patterns.clear();
-        
+
         // Reinitialize patterns
         self.compile_patterns().await
     }
 
     /// Add a custom pattern at runtime
     pub async fn add_custom_pattern(&mut self, pattern: &str) -> Result<()> {
-        let regex = Regex::new(pattern)
-            .context("Failed to compile custom pattern")?;
-        
+        let regex = Regex::new(pattern).context("Failed to compile custom pattern")?;
+
         self.custom_patterns.push(regex);
         info!(pattern = %pattern, "Added custom WAF pattern");
         Ok(())
@@ -267,13 +278,14 @@ impl WafEngine {
     /// Remove custom patterns matching a specific pattern
     pub async fn remove_custom_pattern(&mut self, pattern: &str) -> Result<usize> {
         let initial_count = self.custom_patterns.len();
-        self.custom_patterns.retain(|regex| regex.as_str() != pattern);
+        self.custom_patterns
+            .retain(|regex| regex.as_str() != pattern);
         let removed_count = initial_count - self.custom_patterns.len();
-        
+
         if removed_count > 0 {
             info!(pattern = %pattern, count = removed_count, "Removed custom WAF patterns");
         }
-        
+
         Ok(removed_count)
     }
 
@@ -291,10 +303,20 @@ impl WafEngine {
 
         // Check request size
         if let Some(body) = &request.body {
-            if body.len() > self.config.http_inspection.max_body_size_bytes.unwrap_or(1024 * 1024) {
+            if body.len()
+                > self
+                    .config
+                    .http_inspection
+                    .max_body_size_bytes
+                    .unwrap_or(1024 * 1024)
+            {
                 debug!(
                     body_size = body.len(),
-                    max_size = self.config.http_inspection.max_body_size_bytes.unwrap_or(1024 * 1024),
+                    max_size = self
+                        .config
+                        .http_inspection
+                        .max_body_size_bytes
+                        .unwrap_or(1024 * 1024),
                     "Request body too large"
                 );
                 counter!("waf_blocked_oversized", 1);
@@ -420,9 +442,11 @@ impl WafEngine {
         let mut lines = request_str.lines();
 
         // Parse request line
-        let request_line = lines.next().ok_or_else(|| anyhow::anyhow!("Empty request"))?;
+        let request_line = lines
+            .next()
+            .ok_or_else(|| anyhow::anyhow!("Empty request"))?;
         let parts: Vec<&str> = request_line.split_whitespace().collect();
-        
+
         if parts.len() != 3 {
             return Err(anyhow::anyhow!("Invalid request line"));
         }
@@ -459,7 +483,11 @@ impl WafEngine {
 
         // Extract body if present
         let body = if body_start > 0 {
-            let header_end = request_str.lines().take(body_start).map(|l| l.len() + 1).sum::<usize>();
+            let header_end = request_str
+                .lines()
+                .take(body_start)
+                .map(|l| l.len() + 1)
+                .sum::<usize>();
             if header_end < data.len() {
                 Some(data[header_end..].to_vec())
             } else {

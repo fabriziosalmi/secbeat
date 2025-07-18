@@ -94,12 +94,12 @@ impl DynamicRuleState {
             let mut blocked = self.blocked_ips.write().await;
             blocked.insert(ip);
         }
-        
+
         {
             let mut metadata = self.rule_metadata.write().await;
             metadata.insert(command.command_id, command);
         }
-        
+
         info!(ip = %ip, "Added IP to dynamic blocklist");
     }
 
@@ -109,12 +109,12 @@ impl DynamicRuleState {
             let mut blocked = self.blocked_ips.write().await;
             blocked.remove(ip);
         }
-        
+
         {
             let mut metadata = self.rule_metadata.write().await;
             metadata.remove(&command_id);
         }
-        
+
         info!(ip = %ip, "Removed IP from dynamic blocklist");
     }
 
@@ -166,8 +166,7 @@ impl EventSystem {
     /// Publish a security event
     #[instrument(skip(self, event))]
     pub async fn publish_security_event(&self, event: SecurityEvent) -> Result<()> {
-        let payload = serde_json::to_vec(&event)
-            .context("Failed to serialize security event")?;
+        let payload = serde_json::to_vec(&event).context("Failed to serialize security event")?;
 
         self.client
             .publish("secbeat.events.waf", payload.into())
@@ -232,11 +231,13 @@ impl EventSystem {
             "ADD_DYNAMIC_RULE" => {
                 match command.rule_type.as_str() {
                     "IP_BLOCK" => {
-                        let ip: IpAddr = command.target.parse()
+                        let ip: IpAddr = command
+                            .target
+                            .parse()
                             .context("Invalid IP address in command")?;
-                        
+
                         rule_state.add_blocked_ip(ip, command.clone()).await;
-                        
+
                         // Schedule removal if TTL is specified
                         if let Some(ttl) = command.ttl_seconds {
                             let rule_state = rule_state.clone();
@@ -252,19 +253,19 @@ impl EventSystem {
                     }
                 }
             }
-            "REMOVE_DYNAMIC_RULE" => {
-                match command.rule_type.as_str() {
-                    "IP_BLOCK" => {
-                        let ip: IpAddr = command.target.parse()
-                            .context("Invalid IP address in command")?;
-                        
-                        rule_state.remove_blocked_ip(&ip, command.command_id).await;
-                    }
-                    _ => {
-                        warn!(rule_type = %command.rule_type, "Unknown rule type");
-                    }
+            "REMOVE_DYNAMIC_RULE" => match command.rule_type.as_str() {
+                "IP_BLOCK" => {
+                    let ip: IpAddr = command
+                        .target
+                        .parse()
+                        .context("Invalid IP address in command")?;
+
+                    rule_state.remove_blocked_ip(&ip, command.command_id).await;
                 }
-            }
+                _ => {
+                    warn!(rule_type = %command.rule_type, "Unknown rule type");
+                }
+            },
             _ => {
                 warn!(action = %command.action, "Unknown command action");
             }

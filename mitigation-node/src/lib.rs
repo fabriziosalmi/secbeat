@@ -1,5 +1,5 @@
 //! SecBeat Mitigation Node Library
-//! 
+//!
 //! This library provides core functionality for DDoS mitigation, WAF protection,
 //! and traffic filtering.
 
@@ -13,16 +13,16 @@ pub mod tcp_proxy;
 pub mod waf;
 
 // Re-export commonly used types
-pub use config::{MitigationConfig, DdosConfig};
+pub use config::{DdosConfig, MitigationConfig};
 pub use ddos::DdosProtection;
 pub use events::EventSystem;
-pub use management::{ShutdownSignal, ManagementState};
+pub use management::{ManagementState, ShutdownSignal};
 pub use waf::{WafEngine, WafResult};
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_library_imports() {
         // Simple test to ensure all modules can be imported

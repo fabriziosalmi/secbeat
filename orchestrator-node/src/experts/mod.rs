@@ -1,5 +1,5 @@
-pub mod threat_intel;
 pub mod resource_manager;
+pub mod threat_intel;
 
-pub use threat_intel::ThreatIntelExpert;
 pub use resource_manager::ResourceManager;
+pub use threat_intel::ThreatIntelExpert;
