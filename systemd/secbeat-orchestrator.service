@@ -1,0 +1,58 @@
+[Unit]
+Description=SecBeat Orchestrator Node - Fleet Management and Coordination
+Documentation=https://github.com/secbeat/secbeat
+Wants=network-online.target
+After=network-online.target
+Wants=nats.service
+After=nats.service
+
+[Service]
+Type=simple
+User=secbeat
+Group=secbeat
+ExecStart=/usr/local/bin/orchestrator-node --config /etc/secbeat/orchestrator.toml
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+KillMode=process
+KillSignal=SIGTERM
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/secbeat /var/lib/secbeat /tmp
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+MemoryMax=1G
+TasksMax=2048
+
+# Environment
+Environment=RUST_LOG=info
+Environment=RUST_BACKTRACE=1
+Environment=SECBEAT_CONFIG=/etc/secbeat/orchestrator.toml
+EnvironmentFile=-/etc/default/secbeat-orchestrator
+
+# Working directory
+WorkingDirectory=/var/lib/secbeat
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=secbeat-orchestrator
+
+[Install]
+WantedBy=multi-user.target

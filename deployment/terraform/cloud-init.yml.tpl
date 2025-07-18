@@ -39,12 +39,14 @@ packages:
   - lsb-release
   - fail2ban
   - ufw
-  - fail2ban
-  - ufw
   - docker.io
   - docker-compose
   - prometheus-node-exporter
   - rsyslog
+  - libpcap-dev      # Required for raw packet processing
+  - build-essential  # Required for Rust compilation
+  - pkg-config       # Required for Rust dependencies
+  - libssl-dev       # Required for TLS support
 
 # System configuration
 timezone: UTC
@@ -131,7 +133,7 @@ write_files:
       * hard nofile 65536
     permissions: '0644'
     
-  # Kernel tuning for network performance
+  # Kernel tuning for network performance and raw packet processing
   - path: /etc/sysctl.d/99-secbeat.conf
     content: |
       # Network performance tuning for SecBeat
@@ -147,6 +149,18 @@ write_files:
       net.ipv4.ip_local_port_range = 1024 65535
       fs.file-max = 2097152
       vm.swappiness = 10
+      
+      # Raw packet processing support
+      net.ipv4.conf.all.send_redirects = 0
+      net.ipv4.conf.default.send_redirects = 0
+      net.ipv4.conf.all.accept_redirects = 0
+      net.ipv4.conf.default.accept_redirects = 0
+      net.ipv4.conf.all.secure_redirects = 0
+      net.ipv4.conf.default.secure_redirects = 0
+      net.ipv4.ip_forward = 1
+      
+      # Enable raw socket permissions for secbeat user
+      kernel.unprivileged_userns_clone = 1
     permissions: '0644'
 
 # Service configuration
@@ -182,8 +196,22 @@ runcmd:
   - mkdir -p /var/log/secbeat
   - chown secbeat:secbeat /var/log/secbeat
   
+  # Configure raw packet access permissions for secbeat user
+  - usermod -aG netdev secbeat
+  - echo "secbeat ALL=(ALL) NOPASSWD: /bin/setcap" >> /etc/sudoers.d/secbeat-caps
+  - chmod 440 /etc/sudoers.d/secbeat-caps
+  
   # Download and install Rust (for building from source if needed)
   - su - secbeat -c "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"
+  
+  # Install NATS server
+  - wget -O /tmp/nats-server.tar.gz https://github.com/nats-io/nats-server/releases/download/v2.10.4/nats-server-v2.10.4-linux-amd64.tar.gz
+  - tar -xzf /tmp/nats-server.tar.gz -C /tmp
+  - cp /tmp/nats-server-v2.10.4-linux-amd64/nats-server /usr/local/bin/
+  - chmod +x /usr/local/bin/nats-server
+  - useradd -r -s /bin/false -d /var/lib/nats nats
+  - mkdir -p /var/lib/nats /var/log/nats /etc/nats
+  - chown -R nats:nats /var/lib/nats /var/log/nats
   - su - secbeat -c "echo 'source ~/.cargo/env' >> ~/.bashrc"
   
   # Set up log rotation

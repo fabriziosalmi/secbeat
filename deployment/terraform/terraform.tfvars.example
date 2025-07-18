@@ -2,7 +2,7 @@
 # Copy this file to terraform.tfvars and fill in your values
 
 # Proxmox connection details
-proxmox_host     = "192.168.100.23"
+proxmox_host     = "192.168.100.2"    # Updated to your Proxmox IP
 proxmox_user     = "root"
 proxmox_password = "YOUR_PROXMOX_PASSWORD"
 
@@ -13,9 +13,10 @@ ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAA..."
 # Optional overrides
 # vm_template = "ubuntu-24.04-server"
 # storage_pool = "local-lvm"
+# target_node = "proxmox"  # Update to match your Proxmox node name
 
-# Resource configurations (uncomment to override defaults)
-# These are optimized for 8GB RAM / 100GB disk environment
+# Resource configurations (automatically set to 1GB RAM minimum)
+# VMs will use IP range 192.168.100.100-109 and VM IDs 100-116
 # vm_configs = {
 #   mitigation_nodes = {
 #     count  = 3

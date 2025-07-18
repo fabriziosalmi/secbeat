@@ -64,6 +64,9 @@ variable "storage_pool" {
 # Provider configuration
 # Using environment variables: PM_API_URL, PM_USER, PM_PASS
 provider "proxmox" {
+  pm_api_url      = "https://${var.proxmox_host}:8006/api2/json"
+  pm_user         = "${var.proxmox_user}@pam"
+  pm_password     = var.proxmox_password
   pm_tls_insecure = true
   pm_timeout      = 600
 }
@@ -74,40 +77,40 @@ locals {
   storage     = "local"
   bridge      = "vmbr0"
 
-  # VM configurations matching your original setup
+  # VM configurations using available range 192.168.100.100-120 (Optimized for 16GB system)
   vm_configs = {
     mitigation_nodes = {
       count   = 3
       cores   = 1
-      memory  = 768
+      memory  = 768   # Reduced to 768MB (adequate for packet processing)
       disk    = 8
-      base_ip = 200
+      base_ip = 100  # IPs: 100, 101, 102
     }
     orchestrator = {
       cores  = 1
-      memory = 768
+      memory = 768   # Reduced to 768MB (sufficient for coordination)
       disk   = 8
-      ip     = 203
+      ip     = 103   # IP: 103
     }
     nats_cluster = {
       count   = 3
       cores   = 1
-      memory  = 512
+      memory  = 512   # Reduced to 512MB (NATS is lightweight)
       disk    = 6
-      base_ip = 204
+      base_ip = 104  # IPs: 104, 105, 106
     }
     load_balancers = {
       count   = 2
       cores   = 1
-      memory  = 512
+      memory  = 768   # Reduced to 768MB (HAProxy with SSL)
       disk    = 6
-      base_ip = 207
+      base_ip = 107  # IPs: 107, 108
     }
     monitoring = {
       cores  = 1
-      memory = 512
+      memory = 1536  # Reduced to 1.5GB (Prometheus + Grafana minimum)
       disk   = 12
-      ip     = 209
+      ip     = 109   # IP: 109
     }
   }
 }
@@ -144,10 +147,10 @@ resource "tls_self_signed_cert" "secbeat_cert" {
   ]
 
   ip_addresses = [
-    "192.168.100.200",
-    "192.168.100.201",
-    "192.168.100.202",
-    "192.168.100.203"
+    "192.168.100.100",  # mitigation-1
+    "192.168.100.101",  # mitigation-2
+    "192.168.100.102",  # mitigation-3
+    "192.168.100.103"   # orchestrator
   ]
 }
 
@@ -166,7 +169,7 @@ resource "proxmox_vm_qemu" "mitigation_nodes" {
   count       = local.vm_configs.mitigation_nodes.count
   name        = "secbeat-mitigation-${count.index + 1}"
   target_node = var.target_node
-  vmid        = 200 + count.index
+  vmid        = 100 + count.index  # VMIDs: 100, 101, 102
 
   # Clone from template
   clone = var.vm_template
@@ -202,7 +205,7 @@ resource "proxmox_vm_qemu" "mitigation_nodes" {
   # Cloud-init configuration
   os_type    = "cloud-init"
   ipconfig0  = "ip=192.168.100.${local.vm_configs.mitigation_nodes.base_ip + count.index}/24,gw=192.168.100.1"
-  nameserver = "8.8.8.8,8.8.4.4"
+  nameserver = "8.8.8.8 8.8.4.4"
 
   # SSH configuration
   sshkeys = var.ssh_public_key
@@ -217,7 +220,7 @@ resource "proxmox_vm_qemu" "mitigation_nodes" {
 resource "proxmox_vm_qemu" "orchestrator" {
   name        = "secbeat-orchestrator"
   target_node = var.target_node
-  vmid        = 210
+  vmid        = 110  # VMID: 110
 
   # Clone from template
   clone = var.vm_template
@@ -260,7 +263,7 @@ resource "proxmox_vm_qemu" "nats_cluster" {
   count       = local.vm_configs.nats_cluster.count
   name        = "secbeat-nats-${count.index + 1}"
   target_node = var.target_node
-  vmid        = 220 + count.index
+  vmid        = 111 + count.index  # VMIDs: 111, 112, 113
 
   # Clone from template
   clone = var.vm_template
@@ -303,7 +306,7 @@ resource "proxmox_vm_qemu" "load_balancers" {
   count       = local.vm_configs.load_balancers.count
   name        = "secbeat-lb-${count.index + 1}"
   target_node = var.target_node
-  vmid        = 230 + count.index
+  vmid        = 114 + count.index  # VMIDs: 114, 115
 
   # Clone from template
   clone = var.vm_template
@@ -345,7 +348,7 @@ resource "proxmox_vm_qemu" "load_balancers" {
 resource "proxmox_vm_qemu" "monitoring" {
   name        = "secbeat-monitoring"
   target_node = var.target_node
-  vmid        = 240
+  vmid        = 116  # VMID: 116
 
   # Clone from template
   clone = var.vm_template

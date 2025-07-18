@@ -3,13 +3,23 @@
 
 set -e
 
-PROXMOX_HOST="192.168.100.23"
+# Read configuration from terraform.tfvars if available
+if [[ -f terraform.tfvars ]]; then
+    PROXMOX_HOST=$(grep "proxmox_host" terraform.tfvars | cut -d'"' -f2)
+    STORAGE=$(grep "storage_pool" terraform.tfvars | cut -d'"' -f2)
+else
+    echo "Warning: terraform.tfvars not found, using default values"
+    PROXMOX_HOST="192.168.100.2"
+    STORAGE="local-lvm"
+fi
+
 TEMPLATE_ID="9000"
 TEMPLATE_NAME="ubuntu-24.04-server"
 IMAGE_URL="https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
-STORAGE="local-lvm"
 
 echo "Setting up Ubuntu 24.04 cloud image template on Proxmox..."
+echo "Host: $PROXMOX_HOST"
+echo "Storage: $STORAGE"
 
 # Download the cloud image if it doesn't exist
 ssh root@${PROXMOX_HOST} "

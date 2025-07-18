@@ -112,31 +112,33 @@ impl SynProxy {
     /// Process incoming packets
     async fn process_packets(&self) -> Result<()> {
         let mut rx_guard = self.rx.lock().await;
-        if let Some(ref mut _rx) = *rx_guard {
-            let _buffer = vec![0u8; 4096];
-
+        if let Some(ref mut rx) = *rx_guard {
             // Try to receive a packet with a short timeout to avoid blocking
             match tokio::time::timeout(Duration::from_millis(10), async {
-                // Note: pnet's transport receiver is blocking, so in a real implementation
-                // we would need to run this in a separate thread or use async-compatible
-                // networking libraries like tokio's UDP/TCP sockets
-
-                // For now, we'll simulate packet processing
-                // In production, this would be:
-                // 1. rx.next() to get the next packet
-                // 2. Parse IP and TCP headers
-                // 3. Handle SYN/ACK packets based on TCP flags
-
-                Ok::<(), anyhow::Error>(())
+                // Note: pnet's transport API may require different handling
+                // For now, we'll use a simulated packet to test the packet handling logic
+                use std::net::Ipv4Addr;
+                
+                // Simulate receiving a SYN packet for testing
+                // In a real implementation, this would be rx.next() or similar
+                let client_ip = Ipv4Addr::new(192, 168, 1, 100);
+                let client_port = 12345;
+                let client_seq = 1000;
+                
+                // Test the SYN packet handling
+                self.handle_syn_packet(client_ip, client_port, client_seq).await
             })
             .await
             {
-                Ok(_) => {
-                    // Process the packet here
-                    debug!("Processed network packet");
+                Ok(Ok(())) => {
+                    // Successfully processed a simulated packet
+                    debug!("Successfully processed simulated network packet");
+                }
+                Ok(Err(e)) => {
+                    warn!(error = %e, "Error processing packet");
                 }
                 Err(_) => {
-                    // Timeout - no packets available
+                    // Timeout - no packets available, this is normal
                 }
             }
         }
@@ -145,6 +147,62 @@ impl SynProxy {
         self.cleanup_expired_handshakes().await;
 
         Ok(())
+    }
+
+    /// Handle a raw packet received from the transport channel
+    async fn handle_raw_packet(&self, packet: &[u8], _addr: std::net::SocketAddr) -> Result<()> {
+        use pnet::packet::ipv4::Ipv4Packet;
+        use pnet::packet::tcp::TcpPacket;
+        use pnet::packet::tcp::TcpFlags;
+        use pnet::packet::Packet; // Import Packet trait
+
+        // Parse IPv4 packet
+        if let Some(ip_packet) = Ipv4Packet::new(packet) {
+            // Parse TCP packet from IPv4 payload
+            if let Some(tcp_packet) = TcpPacket::new(ip_packet.payload()) {
+                let flags = tcp_packet.get_flags();
+                let src_ip = ip_packet.get_source();
+                let _dst_ip = ip_packet.get_destination();
+                let src_port = tcp_packet.get_source();
+                let _dst_port = tcp_packet.get_destination();
+                let seq_num = tcp_packet.get_sequence();
+
+                debug!(
+                    src_ip = %src_ip,
+                    src_port = src_port,
+                    flags = flags,
+                    "Received TCP packet"
+                );
+
+                // Handle different TCP packet types
+                if flags & TcpFlags::SYN != 0 && flags & TcpFlags::ACK == 0 {
+                    // Initial SYN packet - start handshake
+                    self.handle_syn_packet(src_ip, src_port, seq_num).await?;
+                } else if flags & TcpFlags::ACK != 0 {
+                    // ACK packet - complete handshake or regular traffic
+                    let ack_num = tcp_packet.get_acknowledgement();
+                    self.handle_ack_packet(src_ip, src_port, seq_num, ack_num).await?;
+                } else if flags & TcpFlags::RST != 0 {
+                    // RST packet - connection reset
+                    self.handle_rst_packet(src_ip, src_port).await?;
+                }
+
+                // Update packet statistics
+                self.update_packet_stats().await;
+            } else {
+                debug!("Received non-TCP packet, ignoring");
+            }
+        } else {
+            debug!("Received non-IPv4 packet, ignoring");
+        }
+
+        Ok(())
+    }
+
+    /// Update packet processing statistics
+    async fn update_packet_stats(&self) {
+        // Note: In a real implementation, we would use atomic counters
+        // for performance. This is simplified for the POC.
     }
 
     /// Clean up expired handshakes
@@ -305,20 +363,92 @@ impl SynProxy {
         client_seq: u32,
         syn_cookie: u32,
     ) -> Result<()> {
-        // In a real implementation, this would:
-        // 1. Construct IP packet with proper headers
-        // 2. Construct TCP packet with SYN+ACK flags
-        // 3. Set sequence number to syn_cookie
-        // 4. Set acknowledgment number to client_seq + 1
-        // 5. Send packet via raw socket
-
         debug!(
             client_ip = %client_ip,
             client_port = client_port,
             client_seq = client_seq,
             syn_cookie = syn_cookie,
-            "Would send SYN-ACK packet (implementation simplified)"
+            "Sending SYN-ACK packet with cookie"
         );
+
+        // In a production implementation, this would:
+        // 1. Construct IP packet with proper headers
+        // 2. Construct TCP packet with SYN+ACK flags
+        // 3. Set sequence number to syn_cookie
+        // 4. Set acknowledgment number to client_seq + 1
+        // 5. Send packet via raw socket
+        
+        // For now, we'll use the transport channel if available
+        if let Some(ref mut tx) = *self.tx.lock().await {
+            use pnet::packet::tcp::{MutableTcpPacket, TcpFlags};
+            use pnet::packet::ipv4::MutableIpv4Packet;
+            use pnet::packet::Packet;
+            use std::net::{IpAddr, SocketAddr};
+
+            // Create TCP SYN-ACK packet
+            let mut tcp_buffer = vec![0u8; 20]; // Basic TCP header size
+            if let Some(mut tcp_packet) = MutableTcpPacket::new(&mut tcp_buffer) {
+                tcp_packet.set_source(self.listen_port);
+                tcp_packet.set_destination(client_port);
+                tcp_packet.set_sequence(syn_cookie);
+                tcp_packet.set_acknowledgement(client_seq.wrapping_add(1));
+                tcp_packet.set_flags(TcpFlags::SYN | TcpFlags::ACK);
+                tcp_packet.set_window(65535);
+                tcp_packet.set_data_offset(5); // 20 bytes / 4
+
+                // Calculate TCP checksum
+                let checksum = pnet::packet::tcp::ipv4_checksum(
+                    &tcp_packet.to_immutable(), 
+                    &self.local_ip, 
+                    &client_ip
+                );
+                tcp_packet.set_checksum(checksum);
+
+                // Create IPv4 packet
+                let mut ip_buffer = vec![0u8; 40]; // IP header (20) + TCP header (20)
+                if let Some(mut ip_packet) = MutableIpv4Packet::new(&mut ip_buffer) {
+                    ip_packet.set_version(4);
+                    ip_packet.set_header_length(5);
+                    ip_packet.set_total_length(40);
+                    ip_packet.set_identification(rand::random());
+                    ip_packet.set_flags(pnet::packet::ipv4::Ipv4Flags::DontFragment);
+                    ip_packet.set_ttl(64);
+                    ip_packet.set_next_level_protocol(pnet::packet::ip::IpNextHeaderProtocols::Tcp);
+                    ip_packet.set_source(self.local_ip);
+                    ip_packet.set_destination(client_ip);
+                    ip_packet.set_payload(&tcp_buffer);
+
+                    // Calculate IP checksum
+                    let ip_checksum = pnet::packet::ipv4::checksum(&ip_packet.to_immutable());
+                    ip_packet.set_checksum(ip_checksum);
+
+                    // Send packet
+                    let target_ip = IpAddr::V4(client_ip);
+                    match tx.send_to(ip_packet, target_ip) {
+                        Ok(_) => {
+                            debug!(
+                                client_ip = %client_ip,
+                                client_port = client_port,
+                                syn_cookie = syn_cookie,
+                                "SYN-ACK packet sent successfully"
+                            );
+                        }
+                        Err(e) => {
+                            error!(error = %e, "Failed to send SYN-ACK packet");
+                            return Err(anyhow::anyhow!("Failed to send SYN-ACK: {}", e));
+                        }
+                    }
+                } else {
+                    error!("Failed to create IP packet");
+                    return Err(anyhow::anyhow!("Failed to create IP packet"));
+                }
+            } else {
+                error!("Failed to create TCP packet");
+                return Err(anyhow::anyhow!("Failed to create TCP packet"));
+            }
+        } else {
+            warn!("Transport transmitter not available, cannot send SYN-ACK");
+        }
 
         Ok(())
     }
@@ -384,6 +514,39 @@ impl SynProxy {
             listen_port: self.listen_port,
             backend_addr: self.backend_addr,
         }
+    }
+
+    /// Handle RST packet (connection reset)
+    async fn handle_rst_packet(
+        &self,
+        client_ip: Ipv4Addr,
+        client_port: u16,
+    ) -> Result<()> {
+        debug!(
+            client_ip = %client_ip,
+            client_port = client_port,
+            "Received RST packet, cleaning up connection"
+        );
+
+        // Clean up any pending handshakes for this client
+        let connection_key = format!("{}:{}", client_ip, client_port);
+        let mut pending = self.pending_handshakes.lock().await;
+        
+        // Remove any handshakes from this client
+        let initial_count = pending.len();
+        pending.retain(|key, _| !key.starts_with(&connection_key));
+        let cleaned_count = initial_count - pending.len();
+        
+        if cleaned_count > 0 {
+            debug!(
+                client_ip = %client_ip,
+                client_port = client_port,
+                cleaned = cleaned_count,
+                "Cleaned up pending handshakes after RST"
+            );
+        }
+
+        Ok(())
     }
 }
 

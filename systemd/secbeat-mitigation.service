@@ -1,0 +1,61 @@
+[Unit]
+Description=SecBeat Mitigation Node - DDoS Protection and WAF
+Documentation=https://github.com/secbeat/secbeat
+Wants=network-online.target
+After=network-online.target
+Wants=secbeat-orchestrator.service
+After=secbeat-orchestrator.service
+
+[Service]
+Type=simple
+User=secbeat
+Group=secbeat
+ExecStartPre=/bin/bash -c 'sudo /sbin/setcap cap_net_raw,cap_net_admin+ep /usr/local/bin/mitigation-node'
+ExecStart=/usr/local/bin/mitigation-node --config /etc/secbeat/mitigation.toml
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+KillMode=process
+KillSignal=SIGTERM
+
+# Security settings (adjusted for raw packet access)
+NoNewPrivileges=false
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/secbeat /var/lib/secbeat /tmp
+ProtectKernelTunables=false  # Need access for packet processing
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=false       # May need realtime for packet processing
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=false # JIT compilation may be needed
+SystemCallFilter=@system-service @network-io
+SystemCallErrorNumber=EPERM
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+MemoryMax=2G
+TasksMax=4096
+
+# Environment
+Environment=RUST_LOG=info
+Environment=RUST_BACKTRACE=1
+Environment=SECBEAT_CONFIG=/etc/secbeat/mitigation.toml
+EnvironmentFile=-/etc/default/secbeat-mitigation
+
+# Working directory
+WorkingDirectory=/var/lib/secbeat
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=secbeat-mitigation
+
+[Install]
+WantedBy=multi-user.target
+Also=secbeat-orchestrator.service
