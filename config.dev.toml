@@ -128,13 +128,25 @@ anomaly_scoring_enabled = false
 [waf.ai_detection]
 enabled = false  # Disabled for development
 
-# Orchestrator disabled for development
+# Orchestrator enabled for development
 [orchestrator]
-enabled = false
+enabled = true
+server_url = "http://127.0.0.1:3030"
 
-# NATS disabled for development
+[orchestrator.registration]
+max_retries = 3
+retry_interval_seconds = 5
+timeout_seconds = 10
+
+[orchestrator.heartbeat]
+interval = 30
+timeout = 10
+max_missed = 3
+
+# NATS enabled for development
 [nats]
-enabled = false
+enabled = true
+url = "nats://127.0.0.1:4222"
 
 [metrics]
 enabled = true
