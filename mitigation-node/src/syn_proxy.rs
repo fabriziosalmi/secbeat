@@ -111,35 +111,38 @@ impl SynProxy {
 
     /// Process incoming packets
     async fn process_packets(&self) -> Result<()> {
+        use std::net::IpAddr;
+        
         let mut rx_guard = self.rx.lock().await;
         if let Some(ref mut rx) = *rx_guard {
-            // Try to receive a packet with a short timeout to avoid blocking
-            match tokio::time::timeout(Duration::from_millis(10), async {
-                // Note: pnet's transport API may require different handling
-                // For now, we'll use a simulated packet to test the packet handling logic
-                use std::net::Ipv4Addr;
+            // Try to receive a packet - pnet's iter() is blocking, so we use a spawn_blocking
+            let result = tokio::task::spawn_blocking({
+                let timeout = Duration::from_millis(10);
+                let start = std::time::Instant::now();
                 
-                // Simulate receiving a SYN packet for testing
-                // In a real implementation, this would be rx.next() or similar
-                let client_ip = Ipv4Addr::new(192, 168, 1, 100);
-                let client_port = 12345;
-                let client_seq = 1000;
-                
-                // Test the SYN packet handling
-                self.handle_syn_packet(client_ip, client_port, client_seq).await
-            })
-            .await
-            {
-                Ok(Ok(())) => {
-                    // Successfully processed a simulated packet
-                    debug!("Successfully processed simulated network packet");
+                move || -> Option<(Vec<u8>, std::net::SocketAddr)> {
+                    // Note: pnet's TransportReceiver doesn't have async support
+                    // We simulate a non-blocking read by checking elapsed time
+                    while start.elapsed() < timeout {
+                        // In real pnet implementation, this would be:
+                        // match rx.next() {
+                        //     Ok((packet, addr)) => return Some((packet.to_vec(), addr)),
+                        //     Err(_) => continue,
+                        // }
+                        // For now, return None to indicate no packet available
+                        std::thread::sleep(Duration::from_micros(100));
+                    }
+                    None
                 }
-                Ok(Err(e)) => {
+            }).await;
+
+            if let Ok(Some((packet, addr))) = result {
+                // Process the received packet
+                drop(rx_guard); // Release lock before async processing
+                if let Err(e) = self.handle_raw_packet(&packet, addr).await {
                     warn!(error = %e, "Error processing packet");
                 }
-                Err(_) => {
-                    // Timeout - no packets available, this is normal
-                }
+                return Ok(());
             }
         }
 
@@ -458,7 +461,7 @@ impl SynProxy {
         &self,
         client_ip: Ipv4Addr,
         client_port: u16,
-        _client_seq: u32,
+        client_seq: u32,
     ) -> Result<()> {
         info!(
             client_ip = %client_ip,
@@ -467,15 +470,67 @@ impl SynProxy {
             "Establishing connection to backend"
         );
 
-        // In a real implementation, this would:
-        // 1. Create TCP connection to backend server
-        // 2. Set up bidirectional forwarding between client and backend
-        // 3. Handle connection lifecycle and cleanup
+        // Connect to backend server
+        let backend_stream = match tokio::net::TcpStream::connect(self.backend_addr).await {
+            Ok(stream) => stream,
+            Err(e) => {
+                error!(
+                    backend_addr = %self.backend_addr,
+                    error = %e,
+                    "Failed to connect to backend server"
+                );
+                return Err(anyhow::anyhow!("Backend connection failed: {}", e));
+            }
+        };
+
+        info!(
+            client_ip = %client_ip,
+            client_port = client_port,
+            backend_addr = %self.backend_addr,
+            "Backend connection established, setting up bidirectional forwarding"
+        );
+
+        // Remove from pending handshakes since connection is established
+        let connection_key = format!("{}:{}", client_ip, client_port);
+        {
+            let mut pending = self.pending_handshakes.lock().await;
+            pending.remove(&connection_key);
+        }
+
+        // Spawn task to handle bidirectional traffic forwarding
+        // Note: In a real implementation, we would need to:
+        // 1. Create a raw socket connection to the client using the validated SYN cookie
+        // 2. Set up bidirectional forwarding between client raw socket and backend TCP stream
+        // 3. Handle proper TCP state machine (FIN, RST, etc.)
+        // 
+        // This is complex because we need to maintain raw packet handling on client side
+        // while using normal TCP on backend side. This typically requires:
+        // - Maintaining TCP state for the client connection
+        // - Reconstructing TCP packets for client responses
+        // - Handling retransmissions and window management
+        
+        tokio::spawn(async move {
+            // Placeholder for bidirectional forwarding logic
+            // In production, this would use tokio::io::copy_bidirectional or similar
+            // with raw packet handling for client side
+            
+            // Keep backend connection alive temporarily for demonstration
+            tokio::time::sleep(Duration::from_secs(60)).await;
+            
+            debug!(
+                client_ip = %client_ip,
+                client_port = client_port,
+                "Connection forwarding task completed"
+            );
+            
+            // Gracefully close backend connection
+            drop(backend_stream);
+        });
 
         debug!(
             client_ip = %client_ip,
             client_port = client_port,
-            "Backend connection established (implementation simplified)"
+            "Backend connection forwarding task spawned"
         );
 
         Ok(())

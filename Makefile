@@ -20,8 +20,8 @@ release:
 test:
 	@echo "Running all tests..."
 	cargo test --workspace
-	@echo "Running integration tests..."
-	sudo ./test_all.sh
+	@echo "Running comprehensive integration tests..."
+	sudo ./test_comprehensive.sh
 
 # Clean build artifacts
 clean:

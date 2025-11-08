@@ -46,7 +46,7 @@ services:
       - test-origin
     ports:
       - "8443:8443"   # HTTPS proxy
-      - "9090:9090"   # Prometheus metrics
+      - "9090:9090"   # Prometheus metrics (mitigation node)
       - "9191:9191"   # Internal metrics
       - "9999:9999"   # Management API
     environment:
@@ -75,7 +75,8 @@ services:
     image: secbeat/orchestrator-node:latest
     container_name: secbeat-orchestrator
     ports:
-      - "9090:9090"   # Orchestrator API
+      - "3030:3030"   # Orchestrator API
+      - "9091:9091"   # Orchestrator metrics
     environment:
       - RUST_LOG=info
     networks:
@@ -88,7 +89,7 @@ services:
     image: prom/prometheus:latest
     container_name: secbeat-prometheus
     ports:
-      - "9090:9090"
+      - "9092:9090"   # Prometheus web UI (mapped to avoid conflict)
     volumes:
       - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     command:

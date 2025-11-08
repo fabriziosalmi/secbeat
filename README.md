@@ -15,7 +15,7 @@ The system implements a revolutionary "smart edge, intelligent orchestrator" arc
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/secbeat.git
+git clone https://github.com/fabriziosalmi/secbeat.git
 cd secbeat
 
 # Build all components (requires Rust 1.78+)
@@ -160,7 +160,7 @@ Each mode can be configured independently with specific performance and security
 
 ```bash
 # Clone repository
-git clone https://github.com/your-org/secbeat.git
+git clone https://github.com/fabriziosalmi/secbeat.git
 cd secbeat
 
 # Install system dependencies (Ubuntu/Debian)

@@ -2,7 +2,7 @@
 name = "mitigation-node"
 version = "0.1.0"
 edition = "2021"
-authors = ["Your Name <your.email@example.com>"]
+authors = ["Fabrizio Salmi <fabrizio.salmi@gmail.com>"]
 description = "High-performance TCP proxy for DDoS mitigation and traffic scrubbing"
 
 [[bin]]
