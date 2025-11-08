@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SecBeat Platform Guide - Architecture, capabilities, and features">
+    <title>Platform Guide - SecBeat</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/docs.css">
+</head>
+<body>
+    <div class="background">
+        <div class="stars"></div>
+        <div class="grid-overlay"></div>
+    </div>
+
+    <nav class="navbar">
+        <div class="container">
+            <a href="index.html" class="nav-brand">
+                <span class="logo">🛡️</span>
+                <span class="brand-name">SecBeat</span>
+                <span class="version">v1.0</span>
+            </a>
+            <div class="nav-links">
+                <a href="index.html">Home</a>
+                <a href="platform.html" class="active">Platform</a>
+                <a href="deployment.html">Deployment</a>
+                <a href="quickstart.html">Quick Start</a>
+                <a href="https://github.com/fabriziosalmi/secbeat" target="_blank" class="btn-github">
+                    <span>⭐</span>
+                    <span>GitHub</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="docs-container">
+        <aside class="docs-sidebar">
+            <div class="sidebar-content">
+                <h3>On This Page</h3>
+                <ul class="toc">
+                    <li><a href="#architecture">Architecture</a></li>
+                    <li><a href="#capabilities">Core Capabilities</a></li>
+                    <li><a href="#modes">Operation Modes</a></li>
+                    <li><a href="#features">Platform Features</a></li>
+                    <li><a href="#security">Security Features</a></li>
+                    <li><a href="#performance">Performance</a></li>
+                </ul>
+            </div>
+        </aside>
+
+        <article class="docs-content">
+            <header class="docs-header">
+                <h1>🏗️ Platform Guide</h1>
+                <p class="lead">Comprehensive overview of SecBeat architecture and capabilities</p>
+            </header>
+
+            <section id="architecture" class="doc-section">
+                <h2>Platform Architecture</h2>
+                <p>SecBeat implements a distributed "smart edge, intelligent orchestrator" architecture that provides both high-performance traffic processing and centralized intelligence.</p>
+
+                <h3>System Components</h3>
+                <div class="feature-grid">
+                    <div class="feature-item">
+                        <div class="feature-icon">🛡️</div>
+                        <h4>Mitigation Nodes</h4>
+                        <p>High-performance traffic processing engines at the edge</p>
+                        <ul>
+                            <li>Multiple operation modes</li>
+                            <li>Real-time threat detection</li>
+                            <li>Local decision-making</li>
+                            <li>Horizontal scaling</li>
+                        </ul>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">🎯</div>
+                        <h4>Orchestrator Node</h4>
+                        <p>Centralized control plane and intelligence</p>
+                        <ul>
+                            <li>Fleet management</li>
+                            <li>AI-powered decisions</li>
+                            <li>Resource optimization</li>
+                            <li>Policy distribution</li>
+                        </ul>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">📡</div>
+                        <h4>Communication Layer</h4>
+                        <p>NATS-based real-time messaging</p>
+                        <ul>
+                            <li>Real-time messaging</li>
+                            <li>RESTful APIs</li>
+                            <li>Webhook integration</li>
+                            <li>Metrics streaming</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <h3>Data Flow</h3>
+                <div class="info-box">
+                    <div class="warning-icon">💡</div>
+                    <div class="warning-content">
+                        <h4>Traffic Flow Pattern</h4>
+                        <p>Internet Traffic → Mitigation Nodes → Backend Services<br>
+                        ↕ Orchestrator Node (Control & Intelligence)</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="capabilities" class="doc-section">
+                <h2>Core Capabilities</h2>
+
+                <h3>Multi-Layer Protection</h3>
+                
+                <h4>Layer 4 (Network/Transport)</h4>
+                <ul>
+                    <li>TCP/UDP proxy with sub-millisecond latency</li>
+                    <li>SYN flood protection using kernel-level packet processing</li>
+                    <li>Connection rate limiting and state tracking</li>
+                    <li>Network-level DDoS mitigation</li>
+                </ul>
+
+                <h4>Layer 7 (Application)</h4>
+                <ul>
+                    <li>HTTPS termination with modern TLS support</li>
+                    <li>Web Application Firewall with dynamic rules</li>
+                    <li>HTTP/2 protocol support</li>
+                    <li>Request filtering and content inspection</li>
+                </ul>
+
+                <h3>AI-Powered Intelligence</h3>
+                <div class="feature-grid">
+                    <div class="feature-item">
+                        <div class="feature-icon">🤖</div>
+                        <h4>Threat Detection</h4>
+                        <ul>
+                            <li>Real-time attack pattern recognition</li>
+                            <li>Behavioral analysis</li>
+                            <li>Anomaly detection</li>
+                            <li>ML-based modeling</li>
+                        </ul>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">⚡</div>
+                        <h4>Autonomous Response</h4>
+                        <ul>
+                            <li>Dynamic rule generation</li>
+                            <li>Automated scaling</li>
+                            <li>Self-healing nodes</li>
+                            <li>Intelligent load balancing</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section id="modes" class="doc-section">
+                <h2>Operation Modes</h2>
+                <p>SecBeat mitigation nodes support three primary operation modes, each optimized for specific security and performance requirements.</p>
+
+                <div class="requirements-grid">
+                    <div class="requirement-card">
+                        <h4>⚡ TCP Mode</h4>
+                        <p><strong>Use Case:</strong> High-performance reverse proxy</p>
+                        <ul>
+                            <li>Ultra-low latency (&lt;0.5ms)</li>
+                            <li>Millions of connections/sec</li>
+                            <li>Minimal CPU overhead</li>
+                            <li>No root privileges required</li>
+                        </ul>
+                    </div>
+                    <div class="requirement-card">
+                        <h4>🛡️ SYN Mode</h4>
+                        <p><strong>Use Case:</strong> DDoS mitigation layer</p>
+                        <ul>
+                            <li>SYN flood protection</li>
+                            <li>Kernel-level packet filtering</li>
+                            <li>Challenge-response validation</li>
+                            <li>Requires CAP_NET_RAW</li>
+                        </ul>
+                    </div>
+                    <div class="requirement-card">
+                        <h4>🔒 L7 Mode</h4>
+                        <p><strong>Use Case:</strong> Complete security suite</p>
+                        <ul>
+                            <li>Full WAF capabilities</li>
+                            <li>TLS termination</li>
+                            <li>Content inspection</li>
+                            <li>Advanced threat detection</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section id="features" class="doc-section">
+                <h2>Platform Features</h2>
+
+                <h3>High Availability</h3>
+                <ul>
+                    <li>Distributed architecture with no single points of failure</li>
+                    <li>Automatic failover and recovery</li>
+                    <li>Graceful degradation under load</li>
+                    <li>Health monitoring and self-healing</li>
+                </ul>
+
+                <h3>Scalability</h3>
+                <ul>
+                    <li>Horizontal scaling of mitigation nodes</li>
+                    <li>Predictive scaling based on ML models</li>
+                    <li>Dynamic resource allocation</li>
+                    <li>Cloud-agnostic deployment</li>
+                </ul>
+
+                <h3>Observability</h3>
+                <div class="code-block">
+                    <code># Prometheus metrics
+secbeat_packets_processed_total
+secbeat_attacks_blocked_total
+secbeat_latency_seconds
+secbeat_cpu_usage_percent
+secbeat_memory_usage_bytes</code>
+                </div>
+            </section>
+
+            <section id="security" class="doc-section">
+                <h2>Security Features</h2>
+
+                <h3>DDoS Protection</h3>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <h4>🌊 Volumetric Attacks</h4>
+                        <ul>
+                            <li>UDP floods</li>
+                            <li>ICMP floods</li>
+                            <li>DNS amplification</li>
+                            <li>NTP amplification</li>
+                        </ul>
+                    </div>
+                    <div class="metric-card">
+                        <h4>🔌 Protocol Attacks</h4>
+                        <ul>
+                            <li>SYN floods</li>
+                            <li>ACK floods</li>
+                            <li>Fragment attacks</li>
+                            <li>Slowloris</li>
+                        </ul>
+                    </div>
+                    <div class="metric-card">
+                        <h4>🎯 Application Attacks</h4>
+                        <ul>
+                            <li>HTTP floods</li>
+                            <li>Slow POST</li>
+                            <li>Cache busting</li>
+                            <li>API abuse</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <h3>WAF Capabilities</h3>
+                <ul>
+                    <li>OWASP Top 10 protection</li>
+                    <li>SQL injection prevention</li>
+                    <li>XSS filtering</li>
+                    <li>Command injection blocking</li>
+                    <li>Path traversal detection</li>
+                    <li>Custom rule engine</li>
+                </ul>
+            </section>
+
+            <section id="performance" class="doc-section">
+                <h2>Performance Characteristics</h2>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">⚡</div>
+                        <div class="stat-number">2.5M+</div>
+                        <div class="stat-text">Packets/Second</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🚀</div>
+                        <div class="stat-number">0.3ms</div>
+                        <div class="stat-text">Average Latency</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">💪</div>
+                        <div class="stat-number">100K+</div>
+                        <div class="stat-text">Concurrent Connections</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📊</div>
+                        <div class="stat-number">99.99%</div>
+                        <div class="stat-text">Uptime SLA</div>
+                    </div>
+                </div>
+
+                <h3>Benchmarks</h3>
+                <div class="code-block">
+                    <code># Performance test results
+TCP Mode:    2.5M packets/sec, 0.2ms latency
+SYN Mode:    1.8M packets/sec, 0.4ms latency
+L7 Mode:     500K requests/sec, 1.2ms latency
+
+Memory:      256MB base + 10KB per connection
+CPU:         12% at 100K connections
+Threads:     Auto-scaled based on cores</code>
+                </div>
+            </section>
+
+            <footer class="docs-footer">
+                <div class="footer-nav">
+                    <a href="index.html" class="nav-prev">← Home</a>
+                    <a href="deployment.html" class="nav-next">Deployment Guide →</a>
+                </div>
+            </footer>
+        </article>
+    </main>
+
+    <script src="js/main.js"></script>
+</body>
+</html>

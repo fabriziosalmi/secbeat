@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SecBeat Quick Start Guide - Get up and running in minutes">
+    <title>Quick Start - SecBeat</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/docs.css">
+</head>
+<body>
+    <div class="background">
+        <div class="stars"></div>
+        <div class="grid-overlay"></div>
+    </div>
+
+    <nav class="navbar">
+        <div class="container">
+            <a href="index.html" class="nav-brand">
+                <span class="logo">🛡️</span>
+                <span class="brand-name">SecBeat</span>
+                <span class="version">v1.0</span>
+            </a>
+            <div class="nav-links">
+                <a href="index.html">Home</a>
+                <a href="platform.html">Platform</a>
+                <a href="deployment.html">Deployment</a>
+                <a href="quickstart.html" class="active">Quick Start</a>
+                <a href="https://github.com/fabriziosalmi/secbeat" target="_blank" class="btn-github">
+                    <span>⭐</span>
+                    <span>GitHub</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="docs-container">
+        <aside class="docs-sidebar">
+            <div class="sidebar-content">
+                <h3>On This Page</h3>
+                <ul class="toc">
+                    <li><a href="#commands">Quick Commands</a></li>
+                    <li><a href="#endpoints">Monitoring Endpoints</a></li>
+                    <li><a href="#configs">Configuration Files</a></li>
+                    <li><a href="#modes">Operation Modes</a></li>
+                    <li><a href="#security">Security Checklist</a></li>
+                    <li><a href="#performance">Performance Tuning</a></li>
+                    <li><a href="#troubleshooting">Troubleshooting</a></li>
+                </ul>
+            </div>
+        </aside>
+
+        <article class="docs-content">
+            <header class="docs-header">
+                <h1>⚡ Quick Start Guide</h1>
+                <p class="lead">Get SecBeat up and running in minutes</p>
+            </header>
+
+            <section id="commands" class="doc-section">
+                <h2>🚀 Quick Commands</h2>
+
+                <h3>Development</h3>
+                <div class="code-block">
+                    <code># Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f mitigation-node
+
+# Test the proxy
+curl -k https://localhost:8443/
+
+# Check metrics
+curl http://localhost:9191/metrics
+
+# Stop all services
+docker-compose down</code>
+                </div>
+
+                <h3>Production Build</h3>
+                <div class="code-block">
+                    <code># Build release binaries
+cargo build --release --workspace
+
+# Run tests
+cargo test --workspace
+
+# Install
+sudo cp target/release/mitigation-node /usr/local/bin/
+sudo setcap cap_net_raw,cap_net_admin+ep /usr/local/bin/mitigation-node</code>
+                </div>
+            </section>
+
+            <section id="endpoints" class="doc-section">
+                <h2>📊 Monitoring Endpoints</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Service</th>
+                            <th>Endpoint</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Mitigation Node</td>
+                            <td><code>http://localhost:9090/metrics</code></td>
+                            <td>Prometheus metrics</td>
+                        </tr>
+                        <tr>
+                            <td>Mitigation Node</td>
+                            <td><code>http://localhost:9191/metrics</code></td>
+                            <td>Internal metrics</td>
+                        </tr>
+                        <tr>
+                            <td>Mitigation Node</td>
+                            <td><code>http://localhost:9999/</code></td>
+                            <td>Management API</td>
+                        </tr>
+                        <tr>
+                            <td>Orchestrator</td>
+                            <td><code>http://localhost:3030/</code></td>
+                            <td>Control API</td>
+                        </tr>
+                        <tr>
+                            <td>Orchestrator</td>
+                            <td><code>http://localhost:9091/metrics</code></td>
+                            <td>Orchestrator metrics</td>
+                        </tr>
+                        <tr>
+                            <td>Prometheus</td>
+                            <td><code>http://localhost:9092/</code></td>
+                            <td>Metrics dashboard</td>
+                        </tr>
+                        <tr>
+                            <td>NATS</td>
+                            <td><code>http://localhost:8222/</code></td>
+                            <td>NATS monitoring</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section id="configs" class="doc-section">
+                <h2>🔧 Configuration Files</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>File</th>
+                            <th>Purpose</th>
+                            <th>Environment</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>config.dev.toml</code></td>
+                            <td>Development</td>
+                            <td>Local testing</td>
+                        </tr>
+                        <tr>
+                            <td><code>config.prod.toml</code></td>
+                            <td>Production</td>
+                            <td>Live deployment</td>
+                        </tr>
+                        <tr>
+                            <td><code>config.l7.toml</code></td>
+                            <td>L7 mode with TLS</td>
+                            <td>Full features</td>
+                        </tr>
+                        <tr>
+                            <td><code>config.l7-notls.toml</code></td>
+                            <td>L7 mode without TLS</td>
+                            <td>Testing</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section id="modes" class="doc-section">
+                <h2>🛡️ Operation Modes</h2>
+                <div class="feature-grid">
+                    <div class="feature-item">
+                        <div class="feature-icon">⚡</div>
+                        <h4>TCP Mode</h4>
+                        <p>Basic proxy with minimal overhead</p>
+                        <span class="tag">High performance</span>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">🛡️</div>
+                        <h4>SYN Mode</h4>
+                        <p>SYN flood protection (requires root)</p>
+                        <span class="tag">DDoS mitigation</span>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">🔒</div>
+                        <h4>L7 Mode</h4>
+                        <p>Full WAF + DDoS protection</p>
+                        <span class="tag">Complete security</span>
+                    </div>
+                </div>
+
+                <h3>Select Mode in Config</h3>
+                <div class="code-block">
+                    <code>[platform]
+mode = "l7"  # tcp, syn, l7, or auto</code>
+                </div>
+            </section>
+
+            <section id="security" class="doc-section">
+                <h2>🔐 Security Checklist</h2>
+                <ul class="checklist">
+                    <li>✓ Change <code>SYN_COOKIE_SECRET</code> in production</li>
+                    <li>✓ Replace default API keys</li>
+                    <li>✓ Use valid TLS certificates</li>
+                    <li>✓ Configure firewall rules</li>
+                    <li>✓ Enable rate limiting</li>
+                    <li>✓ Set up monitoring alerts</li>
+                    <li>✓ Rotate secrets regularly</li>
+                    <li>✓ Review blacklist/whitelist IPs</li>
+                </ul>
+            </section>
+
+            <section id="performance" class="doc-section">
+                <h2>📈 Performance Tuning</h2>
+
+                <h3>High Traffic (100K+ connections)</h3>
+                <div class="code-block">
+                    <code>[network]
+max_connections = 100000
+buffer_size = 65536
+
+[ddos.rate_limiting]
+global_requests_per_second = 100000</code>
+                </div>
+
+                <h3>Low Latency</h3>
+                <div class="code-block">
+                    <code>[network]
+buffer_size = 16384
+connection_timeout_seconds = 10</code>
+                </div>
+
+                <h3>Memory Constrained</h3>
+                <div class="code-block">
+                    <code>[network]
+max_connections = 10000
+buffer_size = 8192</code>
+                </div>
+            </section>
+
+            <section id="troubleshooting" class="doc-section">
+                <h2>🐛 Troubleshooting</h2>
+
+                <div class="troubleshoot-item">
+                    <h4>🔴 Service won't start</h4>
+                    <div class="code-block">
+                        <code># Check logs
+docker-compose logs mitigation-node
+
+# Verify ports aren't in use
+sudo lsof -i :8443</code>
+                    </div>
+                </div>
+
+                <div class="troubleshoot-item">
+                    <h4>🔴 High CPU usage</h4>
+                    <div class="code-block">
+                        <code># Check metrics
+curl http://localhost:9191/metrics | grep cpu
+
+# Reduce connection limits
+# Edit config: max_connections = 5000</code>
+                    </div>
+                </div>
+
+                <div class="troubleshoot-item">
+                    <h4>🔴 TLS errors</h4>
+                    <div class="code-block">
+                        <code># Verify certificates
+openssl x509 -in certs/cert.pem -text -noout
+
+# Regenerate if needed
+make setup-certs</code>
+                    </div>
+                </div>
+
+                <div class="troubleshoot-item">
+                    <h4>🔴 Permission denied (SYN mode)</h4>
+                    <div class="code-block">
+                        <code># Set capabilities
+sudo setcap cap_net_raw,cap_net_admin+ep /usr/local/bin/mitigation-node
+
+# Or run with sudo
+sudo ./target/release/mitigation-node</code>
+                    </div>
+                </div>
+            </section>
+
+            <footer class="docs-footer">
+                <div class="footer-nav">
+                    <a href="deployment.html" class="nav-prev">← Deployment Guide</a>
+                    <a href="platform.html" class="nav-next">Platform Guide →</a>
+                </div>
+            </footer>
+        </article>
+    </main>
+
+    <script src="js/main.js"></script>
+</body>
+</html>
