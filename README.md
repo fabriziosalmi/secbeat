@@ -1,11 +1,18 @@
 # SecBeat: Production-Grade DDoS Mitigation & WAF Platform
 
-![Rust Version](https://img.shields.io/badge/rust-1.78+-93450a.svg)
-![Tokio Version](https://img.shields.io/badge/tokio-1.35-blue.svg)
-![Architecture](https://img.shields.io/badge/architecture-microservices-lightgrey.svg)
-![Status](https://img.shields.io/badge/status-Production%20Ready-brightgreen.svg)
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)
+<div align="center">
+
+[![Documentation](https://img.shields.io/badge/📚_Documentation-Visit_Site-blue?style=for-the-badge)](https://fabriziosalmi.github.io/secbeat)
+[![Rust](https://img.shields.io/badge/rust-1.78+-93450a.svg?style=flat-square)](https://www.rust-lang.org)
+[![Tokio](https://img.shields.io/badge/tokio-1.35-blue.svg?style=flat-square)](https://tokio.rs)
+[![Architecture](https://img.shields.io/badge/architecture-microservices-lightgrey.svg?style=flat-square)](#-architecture)
+[![Status](https://img.shields.io/badge/status-Production%20Ready-brightgreen.svg?style=flat-square)](#-getting-started)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
+[![Build](https://img.shields.io/badge/build-passing-brightgreen.svg?style=flat-square)](#-testing)
+
+</div>
+
+> 🌐 **[View Full Documentation →](https://fabriziosalmi.github.io/secbeat)**
 
 **SecBeat** is a high-performance, memory-safe, and enterprise-grade distributed security platform built entirely in Rust. It provides comprehensive protection against sophisticated Layer 4 (TCP/UDP) and Layer 7 (HTTP/S) DDoS attacks while offering advanced Web Application Firewall (WAF) capabilities with AI-powered threat detection and autonomous scaling.
 

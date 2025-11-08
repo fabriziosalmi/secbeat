@@ -1,0 +1,527 @@
+/* ===================================
+   Documentation Pages Styles
+   =================================== */
+
+.docs-container {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: var(--spacing-lg);
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: var(--spacing-lg) var(--spacing-md);
+    min-height: calc(100vh - 80px);
+}
+
+/* ===================================
+   Sidebar
+   =================================== */
+
+.docs-sidebar {
+    position: sticky;
+    top: 100px;
+    height: fit-content;
+}
+
+.sidebar-content {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: var(--spacing-md);
+}
+
+.sidebar-content h3 {
+    margin-bottom: var(--spacing-sm);
+    font-size: 1.125rem;
+    color: var(--primary);
+}
+
+.toc {
+    list-style: none;
+}
+
+.toc li {
+    margin-bottom: 0.5rem;
+}
+
+.toc a {
+    display: block;
+    padding: 0.5rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    border-radius: 6px;
+    transition: all 0.3s;
+}
+
+.toc a:hover {
+    background: var(--bg-tertiary);
+    color: var(--primary);
+    padding-left: 1rem;
+}
+
+.toc a.active {
+    background: var(--bg-tertiary);
+    color: var(--primary);
+    font-weight: 600;
+}
+
+/* ===================================
+   Content
+   =================================== */
+
+.docs-content {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: var(--spacing-lg);
+    backdrop-filter: blur(10px);
+}
+
+.docs-header {
+    margin-bottom: var(--spacing-lg);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.docs-header h1 {
+    font-size: 3rem;
+    font-weight: 900;
+    margin-bottom: var(--spacing-sm);
+    background: var(--gradient-cyber);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.lead {
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+}
+
+/* ===================================
+   Documentation Sections
+   =================================== */
+
+.doc-section {
+    margin-bottom: var(--spacing-xl);
+}
+
+.doc-section h2 {
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.doc-section h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-top: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
+    color: var(--primary);
+}
+
+.doc-section h4 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-top: var(--spacing-sm);
+    margin-bottom: var(--spacing-xs);
+}
+
+.doc-section p {
+    margin-bottom: var(--spacing-sm);
+    line-height: 1.8;
+    color: var(--text-secondary);
+}
+
+.doc-section ul,
+.doc-section ol {
+    margin-bottom: var(--spacing-md);
+    padding-left: var(--spacing-md);
+    color: var(--text-secondary);
+}
+
+.doc-section li {
+    margin-bottom: 0.5rem;
+    line-height: 1.6;
+}
+
+/* ===================================
+   Feature Grids in Docs
+   =================================== */
+
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--spacing-md);
+    margin: var(--spacing-md) 0;
+}
+
+.feature-item {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: var(--spacing-md);
+    text-align: center;
+}
+
+.feature-item .feature-icon {
+    font-size: 2.5rem;
+    margin-bottom: var(--spacing-sm);
+}
+
+.feature-item h4 {
+    margin-bottom: var(--spacing-sm);
+    color: var(--text-primary);
+}
+
+.feature-item p {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-sm);
+}
+
+.feature-item .tag {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    background: var(--bg-primary);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-family: var(--font-mono);
+    color: var(--text-secondary);
+}
+
+/* ===================================
+   Requirements Grid
+   =================================== */
+
+.requirements-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: var(--spacing-md);
+    margin: var(--spacing-md) 0;
+}
+
+.requirement-card {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: var(--spacing-md);
+}
+
+.requirement-card h4 {
+    margin-bottom: var(--spacing-sm);
+    color: var(--text-primary);
+}
+
+.requirement-card ul {
+    list-style: none;
+    padding-left: 0;
+}
+
+.requirement-card li {
+    padding: 0.25rem 0;
+    color: var(--text-secondary);
+}
+
+/* ===================================
+   Metrics Grid
+   =================================== */
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--spacing-md);
+    margin: var(--spacing-md) 0;
+}
+
+.metric-card {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: var(--spacing-md);
+}
+
+.metric-card h4 {
+    margin-bottom: var(--spacing-sm);
+    color: var(--primary);
+}
+
+.metric-card ul {
+    list-style: none;
+    padding-left: 0;
+}
+
+.metric-card li {
+    padding: 0.5rem 0;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+}
+
+/* ===================================
+   Warning Boxes
+   =================================== */
+
+.warning-box {
+    display: flex;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    background: rgba(255, 107, 107, 0.1);
+    border: 1px solid var(--secondary);
+    border-left: 4px solid var(--secondary);
+    border-radius: 8px;
+    margin: var(--spacing-md) 0;
+}
+
+.warning-icon {
+    font-size: 2rem;
+    flex-shrink: 0;
+}
+
+.warning-content h4 {
+    margin-bottom: var(--spacing-xs);
+    color: var(--secondary);
+}
+
+.warning-content p {
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.info-box {
+    display: flex;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    background: rgba(0, 212, 255, 0.1);
+    border: 1px solid var(--primary);
+    border-left: 4px solid var(--primary);
+    border-radius: 8px;
+    margin: var(--spacing-md) 0;
+}
+
+.success-box {
+    display: flex;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    background: rgba(81, 207, 102, 0.1);
+    border: 1px solid var(--success);
+    border-left: 4px solid var(--success);
+    border-radius: 8px;
+    margin: var(--spacing-md) 0;
+}
+
+/* ===================================
+   Checklist
+   =================================== */
+
+.checklist {
+    list-style: none;
+    padding-left: 0;
+}
+
+.checklist li {
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    transition: all 0.3s;
+}
+
+.checklist li:hover {
+    border-color: var(--success);
+    transform: translateX(4px);
+}
+
+/* ===================================
+   Troubleshooting Items
+   =================================== */
+
+.troubleshoot-item {
+    margin: var(--spacing-md) 0;
+    padding: var(--spacing-md);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.troubleshoot-item h4 {
+    margin-bottom: var(--spacing-sm);
+}
+
+.troubleshoot-item p {
+    margin: var(--spacing-xs) 0;
+}
+
+.troubleshoot-item strong {
+    color: var(--primary);
+}
+
+/* ===================================
+   Documentation Footer
+   =================================== */
+
+.docs-footer {
+    margin-top: var(--spacing-xl);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--border-color);
+}
+
+.footer-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.nav-prev,
+.nav-next {
+    padding: 1rem 2rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--text-primary);
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.nav-prev:hover,
+.nav-next:hover {
+    background: var(--bg-secondary);
+    border-color: var(--primary);
+    transform: translateY(-2px);
+}
+
+/* ===================================
+   Active Navigation
+   =================================== */
+
+.nav-links a.active {
+    color: var(--primary);
+    position: relative;
+}
+
+.nav-links a.active::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--primary);
+}
+
+/* ===================================
+   Responsive Design for Docs
+   =================================== */
+
+@media (max-width: 968px) {
+    .docs-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .docs-sidebar {
+        position: relative;
+        top: 0;
+        margin-bottom: var(--spacing-md);
+    }
+    
+    .docs-header h1 {
+        font-size: 2rem;
+    }
+    
+    .doc-section h2 {
+        font-size: 1.5rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .docs-content {
+        padding: var(--spacing-md);
+    }
+    
+    .footer-nav {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+    
+    .nav-prev,
+    .nav-next {
+        width: 100%;
+        text-align: center;
+    }
+}
+
+/* ===================================
+   Table Styles
+   =================================== */
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: var(--spacing-md) 0;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+thead {
+    background: var(--bg-primary);
+}
+
+th {
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: var(--primary);
+    border-bottom: 2px solid var(--border-color);
+}
+
+td {
+    padding: 1rem;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+tr:hover {
+    background: var(--bg-secondary);
+}
+
+/* ===================================
+   Inline Code
+   =================================== */
+
+code {
+    font-family: var(--font-mono);
+    background: var(--bg-tertiary);
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.875em;
+    color: var(--primary);
+}
+
+.code-block code {
+    background: transparent;
+    padding: 0;
+}
+
+/* ===================================
+   Keyboard Shortcuts
+   =================================== */
+
+kbd {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    box-shadow: 0 2px 0 var(--border-color);
+}

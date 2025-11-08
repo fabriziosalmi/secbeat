@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SecBeat Deployment Guide - Docker, Kubernetes, and Production deployment instructions">
+    <title>Deployment Guide - SecBeat</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/docs.css">
+</head>
+<body>
+    <div class="background">
+        <div class="stars"></div>
+        <div class="grid-overlay"></div>
+    </div>
+
+    <nav class="navbar">
+        <div class="container">
+            <a href="../index.html" class="nav-brand">
+                <span class="logo">🛡️</span>
+                <span class="brand-name">SecBeat</span>
+                <span class="version">v1.0</span>
+            </a>
+            <div class="nav-links">
+                <a href="../index.html">Home</a>
+                <a href="platform.html">Platform</a>
+                <a href="deployment.html" class="active">Deployment</a>
+                <a href="quickstart.html">Quick Start</a>
+                <a href="https://github.com/fabriziosalmi/secbeat" target="_blank" class="btn-github">
+                    <span>⭐</span>
+                    <span>GitHub</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="docs-container">
+        <aside class="docs-sidebar">
+            <div class="sidebar-content">
+                <h3>On This Page</h3>
+                <ul class="toc">
+                    <li><a href="#docker">Docker Deployment</a></li>
+                    <li><a href="#docker-compose">Docker Compose</a></li>
+                    <li><a href="#kubernetes">Kubernetes</a></li>
+                    <li><a href="#bare-metal">Bare Metal / VM</a></li>
+                    <li><a href="#production">Production Considerations</a></li>
+                    <li><a href="#security">Security Best Practices</a></li>
+                    <li><a href="#monitoring">Monitoring Setup</a></li>
+                    <li><a href="#troubleshooting">Troubleshooting</a></li>
+                </ul>
+            </div>
+        </aside>
+
+        <article class="docs-content">
+            <header class="docs-header">
+                <h1>🚀 Deployment Guide</h1>
+                <p class="lead">Complete guide for deploying SecBeat across different environments</p>
+            </header>
+
+            <section id="docker" class="doc-section">
+                <h2>Docker Deployment</h2>
+                <p>Deploy SecBeat using Docker for quick testing and development environments.</p>
+                
+                <h3>Single Mitigation Node</h3>
+                <div class="code-block">
+                    <code># Build the image
+docker build -t secbeat/mitigation-node:latest .
+
+# Run with auto-generated certificates (development)
+docker run -d \
+  --name secbeat-mitigation \
+  -p 8443:8443 \
+  -p 9090:9090 \
+  -e SECBEAT_CONFIG=config.dev \
+  -e RUST_LOG=info \
+  -e SECBEAT_AUTO_GENERATE_CERTS=true \
+  secbeat/mitigation-node:latest</code>
+                </div>
+
+                <h3>Production Mode</h3>
+                <div class="code-block">
+                    <code># Run with custom certificates
+docker run -d \
+  --name secbeat-mitigation \
+  -p 8443:8443 \
+  -p 9090:9090 \
+  -v /path/to/certs:/app/certs:ro \
+  -v /path/to/config.prod.toml:/app/config.prod.toml:ro \
+  -e SECBEAT_CONFIG=config.prod \
+  -e RUST_LOG=info \
+  -e SYN_COOKIE_SECRET=$(openssl rand -hex 32) \
+  secbeat/mitigation-node:latest</code>
+                </div>
+            </section>
+
+            <section id="docker-compose" class="doc-section">
+                <h2>Docker Compose Deployment</h2>
+                <p>Full-stack deployment with all services orchestrated together.</p>
+
+                <h3>Quick Start</h3>
+                <div class="code-block">
+                    <code># Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f mitigation-node
+
+# Check status
+docker-compose ps
+
+# Stop services
+docker-compose down</code>
+                </div>
+
+                <h3>Services Included</h3>
+                <div class="feature-grid">
+                    <div class="feature-item">
+                        <div class="feature-icon">🛡️</div>
+                        <h4>Mitigation Node</h4>
+                        <p>Main proxy service with DDoS protection</p>
+                        <span class="tag">Ports: 8443, 9090, 9191, 9999</span>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">🎯</div>
+                        <h4>Orchestrator</h4>
+                        <p>Fleet management and control plane</p>
+                        <span class="tag">Ports: 3030, 9091</span>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">📡</div>
+                        <h4>NATS</h4>
+                        <p>High-performance message broker</p>
+                        <span class="tag">Ports: 4222, 8222</span>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">📊</div>
+                        <h4>Prometheus</h4>
+                        <p>Metrics collection and monitoring</p>
+                        <span class="tag">Port: 9092</span>
+                    </div>
+                </div>
+
+                <h3>Environment Configuration</h3>
+                <div class="code-block">
+                    <code># .env file
+SECBEAT_CONFIG=config.dev
+RUST_LOG=info
+
+# Security
+SYN_COOKIE_SECRET=your-secret-here
+MANAGEMENT_API_KEY=your-api-key-here
+ORCHESTRATOR_API_KEY=your-orchestrator-key-here
+
+# TLS
+SECBEAT_AUTO_GENERATE_CERTS=true
+SECBEAT_HOSTNAME=localhost</code>
+                </div>
+            </section>
+
+            <section id="kubernetes" class="doc-section">
+                <h2>Kubernetes Deployment</h2>
+                <p>Production-grade deployment with high availability and auto-scaling.</p>
+
+                <h3>Prerequisites</h3>
+                <ul>
+                    <li>Kubernetes cluster 1.20+</li>
+                    <li>kubectl configured</li>
+                    <li>Helm 3.x (optional)</li>
+                    <li>Ingress controller</li>
+                </ul>
+
+                <h3>Deploy Mitigation Nodes</h3>
+                <div class="code-block">
+                    <code>apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: secbeat-mitigation
+  namespace: secbeat
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: secbeat-mitigation
+  template:
+    metadata:
+      labels:
+        app: secbeat-mitigation
+    spec:
+      containers:
+      - name: mitigation-node
+        image: secbeat/mitigation-node:latest
+        ports:
+        - containerPort: 8443
+        - containerPort: 9090
+        env:
+        - name: SECBEAT_CONFIG
+          value: "config.prod"
+        - name: RUST_LOG
+          value: "info"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "2000m"</code>
+                </div>
+
+                <h3>Horizontal Pod Autoscaler</h3>
+                <div class="code-block">
+                    <code>apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: secbeat-mitigation-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: secbeat-mitigation
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70</code>
+                </div>
+            </section>
+
+            <section id="bare-metal" class="doc-section">
+                <h2>Bare Metal / VM Deployment</h2>
+                <p>Direct installation on Linux servers for maximum performance.</p>
+
+                <h3>System Requirements</h3>
+                <div class="requirements-grid">
+                    <div class="requirement-card">
+                        <h4>🖥️ Hardware</h4>
+                        <ul>
+                            <li>CPU: 4+ cores</li>
+                            <li>RAM: 4GB minimum, 8GB recommended</li>
+                            <li>Storage: 20GB SSD</li>
+                            <li>Network: 1Gbps+ NIC</li>
+                        </ul>
+                    </div>
+                    <div class="requirement-card">
+                        <h4>💿 Software</h4>
+                        <ul>
+                            <li>OS: Ubuntu 22.04+ / RHEL 8+</li>
+                            <li>Rust: 1.78+</li>
+                            <li>OpenSSL: 1.1.1+</li>
+                            <li>systemd</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <h3>Installation Steps</h3>
+                <div class="code-block">
+                    <code># 1. Build release binary
+cargo build --release --workspace
+
+# 2. Install binary
+sudo cp target/release/mitigation-node /usr/local/bin/
+sudo chmod +x /usr/local/bin/mitigation-node
+
+# 3. Set capabilities (for SYN proxy)
+sudo setcap cap_net_raw,cap_net_admin+ep /usr/local/bin/mitigation-node
+
+# 4. Create configuration directory
+sudo mkdir -p /etc/secbeat
+sudo cp config.prod.toml /etc/secbeat/
+
+# 5. Install systemd service
+sudo cp systemd/secbeat-mitigation.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable secbeat-mitigation
+sudo systemctl start secbeat-mitigation</code>
+                </div>
+            </section>
+
+            <section id="production" class="doc-section">
+                <h2>Production Considerations</h2>
+                
+                <div class="warning-box">
+                    <div class="warning-icon">⚠️</div>
+                    <div class="warning-content">
+                        <h4>Important Production Requirements</h4>
+                        <p>Before deploying to production, ensure all security measures are in place.</p>
+                    </div>
+                </div>
+
+                <h3>Security Hardening</h3>
+                <ul class="checklist">
+                    <li>✓ Generate strong SYN cookie secrets</li>
+                    <li>✓ Use valid TLS certificates (Let's Encrypt or commercial)</li>
+                    <li>✓ Change all default API keys</li>
+                    <li>✓ Configure firewall rules</li>
+                    <li>✓ Enable rate limiting</li>
+                    <li>✓ Set up log aggregation</li>
+                    <li>✓ Configure backup and disaster recovery</li>
+                    <li>✓ Implement secret rotation policy</li>
+                </ul>
+
+                <h3>Performance Tuning</h3>
+                <div class="code-block">
+                    <code># High traffic configuration
+[network]
+max_connections = 100000
+buffer_size = 65536
+tcp_nodelay = true
+
+[ddos.rate_limiting]
+global_requests_per_second = 100000
+per_ip_requests_per_second = 1000
+
+[performance]
+worker_threads = 8
+io_uring_enabled = true</code>
+                </div>
+            </section>
+
+            <section id="security" class="doc-section">
+                <h2>Security Best Practices</h2>
+
+                <h3>TLS Configuration</h3>
+                <div class="code-block">
+                    <code>[tls]
+enabled = true
+cert_path = "/etc/secbeat/certs/cert.pem"
+key_path = "/etc/secbeat/certs/key.pem"
+
+# Strong cipher suites only
+cipher_suites = [
+    "TLS_AES_256_GCM_SHA384",
+    "TLS_AES_128_GCM_SHA256",
+    "TLS_CHACHA20_POLY1305_SHA256"
+]
+
+# TLS 1.3 only
+min_tls_version = "1.3"</code>
+                </div>
+
+                <h3>API Security</h3>
+                <div class="code-block">
+                    <code>[management_api]
+enabled = true
+bind_address = "127.0.0.1:9999"
+api_key_header = "X-SecBeat-API-Key"
+require_https = true
+rate_limit_per_minute = 100</code>
+                </div>
+            </section>
+
+            <section id="monitoring" class="doc-section">
+                <h2>Monitoring Setup</h2>
+
+                <h3>Prometheus Configuration</h3>
+                <div class="code-block">
+                    <code># prometheus.yml
+scrape_configs:
+  - job_name: 'secbeat-mitigation'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 15s
+    
+  - job_name: 'secbeat-orchestrator'
+    static_configs:
+      - targets: ['localhost:9091']
+    scrape_interval: 30s</code>
+                </div>
+
+                <h3>Key Metrics to Monitor</h3>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <h4>🔢 Traffic Metrics</h4>
+                        <ul>
+                            <li>secbeat_packets_processed_total</li>
+                            <li>secbeat_requests_per_second</li>
+                            <li>secbeat_bandwidth_bytes</li>
+                        </ul>
+                    </div>
+                    <div class="metric-card">
+                        <h4>🛡️ Security Metrics</h4>
+                        <ul>
+                            <li>secbeat_attacks_blocked_total</li>
+                            <li>secbeat_waf_rules_triggered</li>
+                            <li>secbeat_rate_limit_exceeded</li>
+                        </ul>
+                    </div>
+                    <div class="metric-card">
+                        <h4>⚡ Performance Metrics</h4>
+                        <ul>
+                            <li>secbeat_latency_seconds</li>
+                            <li>secbeat_cpu_usage_percent</li>
+                            <li>secbeat_memory_usage_bytes</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section id="troubleshooting" class="doc-section">
+                <h2>Troubleshooting</h2>
+
+                <h3>Common Issues</h3>
+                
+                <div class="troubleshoot-item">
+                    <h4>🔴 Issue: Permission denied for raw sockets</h4>
+                    <p><strong>Solution:</strong></p>
+                    <div class="code-block">
+                        <code>sudo setcap cap_net_raw,cap_net_admin+ep /usr/local/bin/mitigation-node</code>
+                    </div>
+                </div>
+
+                <div class="troubleshoot-item">
+                    <h4>🔴 Issue: TLS handshake failures</h4>
+                    <p><strong>Solution:</strong> Check certificate validity and permissions:</p>
+                    <div class="code-block">
+                        <code>openssl x509 -in cert.pem -text -noout
+ls -l /path/to/certs/</code>
+                    </div>
+                </div>
+
+                <div class="troubleshoot-item">
+                    <h4>🔴 Issue: High memory usage</h4>
+                    <p><strong>Solution:</strong> Adjust connection limits:</p>
+                    <div class="code-block">
+                        <code>[network]
+max_connections = 10000  # Reduce if needed
+buffer_size = 32768      # Smaller buffers</code>
+                    </div>
+                </div>
+
+                <h3>Debug Mode</h3>
+                <div class="code-block">
+                    <code># Enable debug logging
+RUST_LOG=debug cargo run --release
+
+# Trace specific modules
+RUST_LOG=mitigation_node::syn_proxy=trace cargo run</code>
+                </div>
+            </section>
+
+            <footer class="docs-footer">
+                <div class="footer-nav">
+                    <a href="platform.html" class="nav-prev">← Platform Guide</a>
+                    <a href="quickstart.html" class="nav-next">Quick Start →</a>
+                </div>
+            </footer>
+        </article>
+    </main>
+
+    <script src="../js/main.js"></script>
+</body>
+</html>

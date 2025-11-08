@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SecBeat - Production-Grade DDoS Mitigation & WAF Platform built in Rust. Enterprise security with AI-powered threat detection.">
+    <meta name="keywords" content="DDoS Protection, WAF, Web Application Firewall, Rust, Security, Cybersecurity, AI Security">
+    <meta name="author" content="Fabrizio Salmi">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="SecBeat - Next-Gen Security Platform">
+    <meta property="og:description" content="Production-grade DDoS mitigation and WAF platform with AI-powered threat detection">
+    <meta property="og:type" content="website">
+    
+    <title>SecBeat - Production-Grade DDoS Mitigation & WAF Platform</title>
+    
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="background">
+        <div class="stars"></div>
+        <div class="grid-overlay"></div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <span class="logo">⚡</span>
+                <span class="brand-name">SecBeat</span>
+                <span class="version">v1.0</span>
+            </div>
+            <div class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#architecture">Architecture</a>
+                <a href="#deployment">Deployment</a>
+                <a href="#docs">Documentation</a>
+                <a href="https://github.com/fabriziosalmi/secbeat" class="btn-github" target="_blank">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                    </svg>
+                    GitHub
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-badge">
+                    <span class="badge-icon">🛡️</span>
+                    <span>Production-Ready Security</span>
+                </div>
+                <h1 class="hero-title">
+                    <span class="gradient-text">Next-Generation</span>
+                    <br>DDoS Mitigation & WAF
+                </h1>
+                <p class="hero-subtitle">
+                    Enterprise-grade security platform built in <span class="rust-badge">Rust</span>
+                    <br>
+                    AI-powered threat detection • Sub-millisecond latency • Infinite scalability
+                </p>
+                <div class="hero-stats">
+                    <div class="stat-item">
+                        <div class="stat-value">100K+</div>
+                        <div class="stat-label">Requests/sec</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">&lt;1ms</div>
+                        <div class="stat-label">Latency</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">99.99%</div>
+                        <div class="stat-label">Uptime</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">0</div>
+                        <div class="stat-label">Memory Leaks</div>
+                    </div>
+                </div>
+                <div class="hero-cta">
+                    <a href="#quickstart" class="btn btn-primary">
+                        <span>Get Started</span>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                    </a>
+                    <a href="documentation.html" class="btn btn-secondary">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                        </svg>
+                        <span>Documentation</span>
+                    </a>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="terminal-window">
+                    <div class="terminal-header">
+                        <div class="terminal-buttons">
+                            <span class="btn-close"></span>
+                            <span class="btn-minimize"></span>
+                            <span class="btn-maximize"></span>
+                        </div>
+                        <div class="terminal-title">secbeat@production</div>
+                    </div>
+                    <div class="terminal-body">
+                        <div class="terminal-line">
+                            <span class="prompt">$</span>
+                            <span class="command">docker-compose up -d</span>
+                        </div>
+                        <div class="terminal-output">
+Creating secbeat-mitigation ... <span class="success">done</span>
+Creating secbeat-orchestrator ... <span class="success">done</span>
+Creating secbeat-nats ... <span class="success">done</span>
+                        </div>
+                        <div class="terminal-line">
+                            <span class="prompt">$</span>
+                            <span class="command">curl https://localhost:8443/metrics</span>
+                        </div>
+                        <div class="terminal-output">
+<span class="metric">secbeat_requests_total</span> <span class="value">1234567</span>
+<span class="metric">secbeat_ddos_blocks_total</span> <span class="value">42</span>
+<span class="metric">secbeat_waf_blocks_total</span> <span class="value">128</span>
+<span class="metric">secbeat_active_connections</span> <span class="value">15234</span>
+                        </div>
+                        <div class="terminal-line">
+                            <span class="prompt">$</span>
+                            <span class="cursor">█</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Built for <span class="gradient-text">Production</span></h2>
+                <p class="section-subtitle">Enterprise-grade features that scale with your needs</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🚀</div>
+                    <h3>Blazing Fast</h3>
+                    <p>Sub-millisecond latency with Rust's zero-cost abstractions. Handle 100K+ requests per second per node.</p>
+                    <ul class="feature-list">
+                        <li>Async I/O with Tokio</li>
+                        <li>Zero-copy networking</li>
+                        <li>Lock-free data structures</li>
+                    </ul>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🤖</div>
+                    <h3>AI-Powered Detection</h3>
+                    <p>Machine learning models detect and mitigate threats in real-time with behavioral analysis.</p>
+                    <ul class="feature-list">
+                        <li>Anomaly detection</li>
+                        <li>Pattern recognition</li>
+                        <li>Predictive scaling</li>
+                    </ul>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🛡️</div>
+                    <h3>Multi-Layer Protection</h3>
+                    <p>Defense in depth with Layer 4 and Layer 7 protection including SYN proxy and WAF.</p>
+                    <ul class="feature-list">
+                        <li>SYN flood mitigation</li>
+                        <li>HTTP/S WAF</li>
+                        <li>Rate limiting</li>
+                    </ul>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Real-Time Analytics</h3>
+                    <p>Comprehensive metrics and monitoring with Prometheus integration and custom dashboards.</p>
+                    <ul class="feature-list">
+                        <li>Prometheus metrics</li>
+                        <li>Custom dashboards</li>
+                        <li>Real-time alerts</li>
+                    </ul>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔄</div>
+                    <h3>Auto-Scaling</h3>
+                    <p>Intelligent resource management with predictive scaling and self-healing capabilities.</p>
+                    <ul class="feature-list">
+                        <li>Horizontal scaling</li>
+                        <li>Self-healing nodes</li>
+                        <li>Resource optimization</li>
+                    </ul>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔐</div>
+                    <h3>Zero Trust Security</h3>
+                    <p>Memory-safe implementation with no runtime overhead. Built-in TLS 1.3 support.</p>
+                    <ul class="feature-list">
+                        <li>Memory safety</li>
+                        <li>TLS 1.3</li>
+                        <li>Certificate management</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Architecture Section -->
+    <section id="architecture" class="architecture">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Distributed <span class="gradient-text">Architecture</span></h2>
+                <p class="section-subtitle">Smart edge, intelligent orchestrator</p>
+            </div>
+            <div class="architecture-diagram">
+                <div class="arch-layer">
+                    <div class="arch-title">Orchestrator Layer</div>
+                    <div class="arch-components">
+                        <div class="arch-component orchestrator">
+                            <div class="component-icon">🎯</div>
+                            <div class="component-name">Orchestrator</div>
+                            <div class="component-desc">Fleet Management • AI Engine • Policy Distribution</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="arch-connector">
+                    <div class="connector-line"></div>
+                    <div class="connector-label">NATS Messaging</div>
+                </div>
+                <div class="arch-layer">
+                    <div class="arch-title">Edge Layer (Mitigation Nodes)</div>
+                    <div class="arch-components">
+                        <div class="arch-component mitigation">
+                            <div class="component-icon">⚡</div>
+                            <div class="component-name">Node 1</div>
+                            <div class="component-tags">
+                                <span class="tag">TCP</span>
+                                <span class="tag">SYN</span>
+                                <span class="tag">WAF</span>
+                            </div>
+                        </div>
+                        <div class="arch-component mitigation">
+                            <div class="component-icon">⚡</div>
+                            <div class="component-name">Node 2</div>
+                            <div class="component-tags">
+                                <span class="tag">TCP</span>
+                                <span class="tag">SYN</span>
+                                <span class="tag">WAF</span>
+                            </div>
+                        </div>
+                        <div class="arch-component mitigation">
+                            <div class="component-icon">⚡</div>
+                            <div class="component-name">Node N</div>
+                            <div class="component-tags">
+                                <span class="tag">TCP</span>
+                                <span class="tag">SYN</span>
+                                <span class="tag">WAF</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quick Start Section -->
+    <section id="quickstart" class="quickstart">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Get Started in <span class="gradient-text">60 Seconds</span></h2>
+                <p class="section-subtitle">From zero to production-ready security</p>
+            </div>
+            <div class="quickstart-steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>Clone & Build</h3>
+                        <div class="code-block">
+                            <code>git clone https://github.com/fabriziosalmi/secbeat.git
+cd secbeat
+make build</code>
+                        </div>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>Configure</h3>
+                        <div class="code-block">
+                            <code>cp .env.example .env
+# Edit .env with your settings
+nano .env</code>
+                        </div>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>Deploy</h3>
+                        <div class="code-block">
+                            <code>docker-compose up -d
+# Your security platform is now running!
+curl https://localhost:8443/</code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Deployment Options -->
+    <section id="deployment" class="deployment">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Deploy <span class="gradient-text">Anywhere</span></h2>
+                <p class="section-subtitle">Cloud, on-premises, or hybrid</p>
+            </div>
+            <div class="deployment-grid">
+                <div class="deployment-card">
+                    <div class="deploy-icon">🐳</div>
+                    <h3>Docker</h3>
+                    <p>Single-command deployment with Docker Compose</p>
+                    <a href="deployment.html#docker" class="deploy-link">Learn more →</a>
+                </div>
+                <div class="deployment-card">
+                    <div class="deploy-icon">☸️</div>
+                    <h3>Kubernetes</h3>
+                    <p>Cloud-native deployment with auto-scaling</p>
+                    <a href="deployment.html#kubernetes" class="deploy-link">Learn more →</a>
+                </div>
+                <div class="deployment-card">
+                    <div class="deploy-icon">🖥️</div>
+                    <h3>Bare Metal</h3>
+                    <p>Maximum performance on dedicated hardware</p>
+                    <a href="deployment.html#bare-metal" class="deploy-link">Learn more →</a>
+                </div>
+                <div class="deployment-card">
+                    <div class="deploy-icon">☁️</div>
+                    <h3>Cloud Providers</h3>
+                    <p>AWS, Azure, GCP, and more</p>
+                    <a href="deployment.html#cloud" class="deploy-link">Learn more →</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="stats-section">
+        <div class="container">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">⚡</div>
+                    <div class="stat-number" data-target="100000">0</div>
+                    <div class="stat-text">Requests/sec per node</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🛡️</div>
+                    <div class="stat-number" data-target="99.99">0</div>
+                    <div class="stat-text">% Attack mitigation</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🚀</div>
+                    <div class="stat-number" data-target="0.8">0</div>
+                    <div class="stat-text">ms Average latency</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">💾</div>
+                    <div class="stat-number" data-target="100">0</div>
+                    <div class="stat-text">% Memory safe</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Documentation Section -->
+    <section id="docs" class="documentation">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Comprehensive <span class="gradient-text">Documentation</span></h2>
+                <p class="section-subtitle">Everything you need to master SecBeat</p>
+            </div>
+            <div class="docs-grid">
+                <a href="documentation.html" class="doc-card">
+                    <div class="doc-icon">📖</div>
+                    <h3>Platform Guide</h3>
+                    <p>Complete platform architecture and capabilities reference</p>
+                </a>
+                <a href="deployment.html" class="doc-card">
+                    <div class="doc-icon">🚀</div>
+                    <h3>Deployment Guide</h3>
+                    <p>Step-by-step deployment instructions for all environments</p>
+                </a>
+                <a href="quickstart.html" class="doc-card">
+                    <div class="doc-icon">⚡</div>
+                    <h3>Quick Start</h3>
+                    <p>Get up and running in minutes with our quick start guide</p>
+                </a>
+                <a href="api.html" class="doc-card">
+                    <div class="doc-icon">🔌</div>
+                    <h3>API Reference</h3>
+                    <p>Complete API documentation and integration examples</p>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="container">
+            <div class="cta-content">
+                <h2>Ready to secure your infrastructure?</h2>
+                <p>Join the next generation of security platforms built on Rust</p>
+                <div class="cta-buttons">
+                    <a href="https://github.com/fabriziosalmi/secbeat" class="btn btn-primary btn-large" target="_blank">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                        </svg>
+                        Star on GitHub
+                    </a>
+                    <a href="documentation.html" class="btn btn-secondary btn-large">
+                        Read the Docs
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <div class="footer-logo">
+                        <span class="logo">⚡</span>
+                        <span class="brand-name">SecBeat</span>
+                    </div>
+                    <p>Production-grade DDoS mitigation and WAF platform built in Rust</p>
+                    <div class="footer-social">
+                        <a href="https://github.com/fabriziosalmi/secbeat" target="_blank" aria-label="GitHub">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+                <div class="footer-links">
+                    <div class="footer-column">
+                        <h4>Documentation</h4>
+                        <ul>
+                            <li><a href="documentation.html">Platform Guide</a></li>
+                            <li><a href="deployment.html">Deployment</a></li>
+                            <li><a href="quickstart.html">Quick Start</a></li>
+                            <li><a href="api.html">API Reference</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Resources</h4>
+                        <ul>
+                            <li><a href="https://github.com/fabriziosalmi/secbeat">GitHub Repository</a></li>
+                            <li><a href="https://github.com/fabriziosalmi/secbeat/issues">Issue Tracker</a></li>
+                            <li><a href="https://github.com/fabriziosalmi/secbeat/releases">Releases</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Project</h4>
+                        <ul>
+                            <li><a href="https://github.com/fabriziosalmi/secbeat/blob/main/README.md">About</a></li>
+                            <li><a href="https://github.com/fabriziosalmi/secbeat/blob/main/LICENSE">License</a></li>
+                            <li><a href="https://github.com/fabriziosalmi">Author</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 SecBeat. Built with ❤️ in Rust. Licensed under MIT.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+</body>
+</html>
