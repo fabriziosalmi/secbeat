@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initSmoothScroll();
     initCardHoverEffects();
     initParallaxEffect();
+    initNodeResilience();
 });
 
 // ===================================
@@ -458,6 +459,45 @@ document.querySelectorAll('.code-block').forEach(block => {
         });
     });
 });
+
+// ===================================
+// Node Resilience Simulation
+// ===================================
+
+function initNodeResilience() {
+    const nodes = document.querySelectorAll('.node-resilient');
+    if (nodes.length === 0) return;
+    
+    const statuses = [
+        { status: 'healthy', icon: '🟢', text: 'Active', duration: 5000 },
+        { status: 'under-attack', icon: '🛡️', text: 'Defending', duration: 4000 },
+        { status: 'recovering', icon: '🔄', text: 'Auto-healing', duration: 3000 }
+    ];
+    
+    nodes.forEach((node, index) => {
+        // Start each node with a different initial delay
+        let currentStatusIndex = index % statuses.length;
+        
+        function updateNodeStatus() {
+            const status = statuses[currentStatusIndex];
+            node.setAttribute('data-status', status.status);
+            
+            const statusElement = node.querySelector('.component-status');
+            if (statusElement) {
+                statusElement.textContent = `${status.icon} ${status.text}`;
+            }
+            
+            // Move to next status
+            currentStatusIndex = (currentStatusIndex + 1) % statuses.length;
+            
+            // Schedule next update with status-specific duration
+            setTimeout(updateNodeStatus, status.duration);
+        }
+        
+        // Start with initial delay based on node index
+        setTimeout(updateNodeStatus, index * 1500);
+    });
+}
 
 // Log ASCII art on console
 console.log(`

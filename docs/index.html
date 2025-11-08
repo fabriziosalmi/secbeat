@@ -32,7 +32,7 @@
             <div class="nav-brand">
                 <span class="logo">⚡</span>
                 <span class="brand-name">SecBeat</span>
-                <span class="version">v1.0</span>
+                <span class="version">v0.9.1</span>
             </div>
             <div class="nav-links">
                 <a href="#features">Features</a>
@@ -66,24 +66,6 @@
                     <br>
                     AI-powered threat detection • Sub-millisecond latency • Infinite scalability
                 </p>
-                <div class="hero-stats">
-                    <div class="stat-item">
-                        <div class="stat-value">100K+</div>
-                        <div class="stat-label">Requests/sec</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value">&lt;1ms</div>
-                        <div class="stat-label">Latency</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value">99.99%</div>
-                        <div class="stat-label">Uptime</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value">0</div>
-                        <div class="stat-label">Memory Leaks</div>
-                    </div>
-                </div>
                 <div class="hero-cta">
                     <a href="#quickstart" class="btn btn-primary">
                         <span>Get Started</span>
@@ -230,34 +212,38 @@ Creating secbeat-nats ... <span class="success">done</span>
                         </div>
                     </div>
                 </div>
-                <div class="arch-connector">
-                    <div class="connector-line"></div>
-                    <div class="connector-label">NATS Messaging</div>
+                <div class="arch-connector bidirectional">
+                    <div class="connector-line up-pulse"></div>
+                    <div class="connector-line down-pulse"></div>
+                    <div class="connector-label">⇅ NATS Messaging (Bidirectional)</div>
                 </div>
                 <div class="arch-layer">
                     <div class="arch-title">Edge Layer (Mitigation Nodes)</div>
                     <div class="arch-components">
-                        <div class="arch-component mitigation">
+                        <div class="arch-component mitigation node-resilient" data-status="healthy">
                             <div class="component-icon">⚡</div>
                             <div class="component-name">Node 1</div>
+                            <div class="component-status">🟢 Active</div>
                             <div class="component-tags">
                                 <span class="tag">TCP</span>
                                 <span class="tag">SYN</span>
                                 <span class="tag">WAF</span>
                             </div>
                         </div>
-                        <div class="arch-component mitigation">
+                        <div class="arch-component mitigation node-resilient" data-status="under-attack">
                             <div class="component-icon">⚡</div>
                             <div class="component-name">Node 2</div>
+                            <div class="component-status">🛡️ Defending</div>
                             <div class="component-tags">
                                 <span class="tag">TCP</span>
                                 <span class="tag">SYN</span>
                                 <span class="tag">WAF</span>
                             </div>
                         </div>
-                        <div class="arch-component mitigation">
+                        <div class="arch-component mitigation node-resilient" data-status="recovering">
                             <div class="component-icon">⚡</div>
-                            <div class="component-name">Node N</div>
+                            <div class="component-name">Node 3</div>
+                            <div class="component-status">🔄 Auto-healing</div>
                             <div class="component-tags">
                                 <span class="tag">TCP</span>
                                 <span class="tag">SYN</span>
