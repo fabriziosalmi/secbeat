@@ -11,7 +11,67 @@ use tokio::sync::Mutex;
 use tracing::{debug, error, info, warn};
 
 /// SYN Proxy implementation for Layer 4 DDoS protection
-/// Provides stateless SYN cookie validation to defeat SYN flood attacks
+/// 
+/// Provides stateless SYN cookie validation to defeat SYN flood attacks.
+/// 
+/// # Implementation Status
+/// 
+/// **CURRENT STATUS**: Functional prototype with limitations
+/// 
+/// ## Working Features
+/// - SYN cookie generation and validation
+/// - Raw packet reception from network (via pnet)
+/// - TCP handshake tracking
+/// - Backend connection establishment
+/// - Automatic cleanup of expired handshakes
+/// 
+/// ## Production Limitations
+/// 
+/// This implementation provides a functional SYN proxy foundation but requires
+/// additional work for production deployment:
+/// 
+/// 1. **Raw Socket Client Handling**: Currently establishes backend TCP connection
+///    but lacks complete raw socket handling for client-side communication. 
+///    Production requires:
+///    - Custom TCP state machine implementation
+///    - Raw packet construction for client responses
+///    - Proper sequence number tracking
+///    - Window management and flow control
+///    - Retransmission handling
+/// 
+/// 2. **Bidirectional Forwarding**: The forwarding task is spawned but needs
+///    implementation of actual packet forwarding between:
+///    - Client (raw packets) ↔ Backend (TCP stream)
+///    - Proper TCP segment reassembly
+///    - Connection state synchronization
+/// 
+/// 3. **Kernel Integration**: For optimal performance, consider:
+///    - eBPF/XDP for packet filtering
+///    - Netfilter integration for seamless forwarding
+///    - TC (traffic control) hooks
+/// 
+/// 4. **Performance Optimization**:
+///    - Lock-free data structures for handshake tracking
+///    - Packet batching
+///    - Multi-threaded packet processing
+///    - Zero-copy packet handling
+/// 
+/// ## Recommended Deployment
+/// 
+/// For development/testing:
+/// - Use TCP mode or L7 mode which are fully functional
+/// - SYN proxy demonstrates core SYN cookie validation
+/// 
+/// For production DDoS protection:
+/// - Use dedicated hardware/software solutions (e.g., iptables SYNPROXY)
+/// - Implement complete TCP state machine
+/// - Consider cloud-based DDoS protection services
+/// - Deploy in front of proven solutions
+/// 
+/// ## References
+/// - RFC 4987: TCP SYN Flooding Attacks and Common Mitigations
+/// - Linux SYNPROXY: netfilter implementation
+/// - SYN Cookies: https://cr.yp.to/syncookies.html
 pub struct SynProxy {
     /// Secret key for SYN cookie generation
     secret_key: [u8; 32],

@@ -52,7 +52,13 @@ services:
     environment:
       - SECBEAT_CONFIG=config.dev
       - RUST_LOG=info
-      - SYN_COOKIE_SECRET=${SYN_COOKIE_SECRET:-$(openssl rand -hex 32)}
+      - RUST_BACKTRACE=1
+      - SYN_COOKIE_SECRET=${SYN_COOKIE_SECRET:-default-secret-change-in-production}
+      - SECBEAT_AUTO_GENERATE_CERTS=${SECBEAT_AUTO_GENERATE_CERTS:-true}
+      - SECBEAT_HOSTNAME=${SECBEAT_HOSTNAME:-localhost}
+      - SECBEAT_TLS_ENABLED=${SECBEAT_TLS_ENABLED:-false}
+      - MANAGEMENT_API_KEY=${MANAGEMENT_API_KEY:-dev-api-key-change-in-production}
+      - ORCHESTRATOR_API_KEY=${ORCHESTRATOR_API_KEY:-dev-orchestrator-key}
     volumes:
       - ./config.dev.toml:/app/config.dev.toml:ro
       - ./mitigation-node/config:/app/config:ro
@@ -79,6 +85,10 @@ services:
       - "9091:9091"   # Orchestrator metrics
     environment:
       - RUST_LOG=info
+      - RUST_BACKTRACE=1
+      - NATS_URL=nats://nats:4222
+      - ORCHESTRATOR_LISTEN_ADDR=0.0.0.0:3030
+      - ORCHESTRATOR_METRICS_ADDR=0.0.0.0:9091
     networks:
       - secbeat-network
     depends_on:

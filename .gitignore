@@ -226,3 +226,10 @@ jmeter/
 # Ignore webhook test servers
 webhook_test_server.py
 webhook_server/
+# SecBeat - Keep .env files private
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+.env.development

@@ -42,10 +42,16 @@ make start-mitigation    # Starts mitigation node (requires sudo)
 - [🚀 Deployment](#-deployment)
 - [📊 Monitoring](#-monitoring)
 - [🔒 Security Features](#-security-features)
-- [🛠️ API Reference](#️-api-reference)
-- [📖 Operations Guide](#-operations-guide)
+- [� Documentation](#-documentation)
 - [🤝 Contributing](#-contributing)
 - [📄 License](#-license)
+
+## 📖 Documentation
+
+- **[QUICKSTART.md](QUICKSTART.md)** - Quick reference and common commands
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Comprehensive deployment guide
+- **[PLATFORM.md](PLATFORM.md)** - Platform architecture and capabilities
+- **[KERNEL_OPERATIONS.md](KERNEL_OPERATIONS.md)** - Kernel-level operations guide
 
 ## 🎯 Platform Overview
 

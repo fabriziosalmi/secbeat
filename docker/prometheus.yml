@@ -1,0 +1,81 @@
+# Prometheus Configuration for SecBeat Platform
+# Scrapes metrics from mitigation nodes and orchestrator
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'secbeat-production'
+    environment: 'docker-compose'
+
+# Alertmanager configuration (optional)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093
+
+# Load rules once and periodically evaluate them
+rule_files:
+  # - "alerts/*.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          component: 'prometheus'
+
+  # SecBeat Mitigation Node metrics
+  - job_name: 'secbeat-mitigation-node'
+    scrape_interval: 10s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['mitigation-node:9090']
+        labels:
+          component: 'mitigation-node'
+          service: 'secbeat'
+          
+  # SecBeat Mitigation Node internal metrics
+  - job_name: 'secbeat-mitigation-internal'
+    scrape_interval: 10s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['mitigation-node:9191']
+        labels:
+          component: 'mitigation-node-internal'
+          service: 'secbeat'
+
+  # SecBeat Orchestrator metrics
+  - job_name: 'secbeat-orchestrator'
+    scrape_interval: 15s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['orchestrator:9091']
+        labels:
+          component: 'orchestrator'
+          service: 'secbeat'
+
+  # NATS monitoring
+  - job_name: 'nats'
+    scrape_interval: 15s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['nats:8222']
+        labels:
+          component: 'nats'
+          service: 'messaging'
+
+# Remote write configuration (optional - for long-term storage)
+# remote_write:
+#   - url: "http://prometheus-remote-storage:9009/api/v1/write"
+#     queue_config:
+#       capacity: 10000
+#       max_shards: 200
+#       min_shards: 1
+#       max_samples_per_send: 5000
+#       batch_send_deadline: 5s
+#       min_backoff: 30ms
+#       max_backoff: 100ms
