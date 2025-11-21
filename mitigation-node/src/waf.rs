@@ -82,6 +82,7 @@ impl WafEngine {
         // SQL Injection patterns
         if self.config.attack_patterns.sql_injection {
             let sql_patterns = vec![
+                // Basic SQL injection
                 "(?i)(union\\s+select)",
                 "(?i)(select\\s+.*\\s+from)",
                 "(?i)(insert\\s+into)",
@@ -90,12 +91,35 @@ impl WafEngine {
                 "(?i)('\\s*or\\s+\\d+\\s*=\\s*\\d+)",
                 "(?i)(or\\s+1\\s*=\\s*1)",
                 "(?i)(and\\s+1\\s*=\\s*1)",
+                // Advanced SQL injection
                 "(?i)(exec\\s*\\()",
                 "(?i)(sp_executesql)",
                 "(?i)(xp_cmdshell)",
                 "(?i)(benchmark\\s*\\()",
                 "(?i)(sleep\\s*\\()",
                 "(?i)(waitfor\\s+delay)",
+                // Blind SQL injection
+                "(?i)(substring\\s*\\()",
+                "(?i)(ascii\\s*\\()",
+                "(?i)(char\\s*\\()",
+                "(?i)(concat\\s*\\()",
+                // Time-based blind SQL injection
+                "(?i)(pg_sleep\\s*\\()",
+                "(?i)(dbms_pipe\\.receive_message)",
+                // Union-based injection
+                "(?i)(union\\s+all\\s+select)",
+                "(?i)(null,\\s*null)",
+                // Comment-based injection
+                "(?i)(--\\s*$)",
+                "(?i)(/\\*.*\\*/)",
+                "(?i)(#.*$)",
+                // Stacked queries
+                "(?i)(;\\s*drop)",
+                "(?i)(;\\s*exec)",
+                "(?i)(;\\s*shutdown)",
+                // Boolean-based blind injection
+                "(?i)(extractvalue\\s*\\()",
+                "(?i)(updatexml\\s*\\()",
             ];
 
             for pattern in sql_patterns {
@@ -111,6 +135,7 @@ impl WafEngine {
         // XSS patterns
         if self.config.attack_patterns.xss_detection {
             let xss_patterns = vec![
+                // Basic XSS
                 "(?i)<script[^>]*>",
                 "(?i)</script>",
                 "(?i)<iframe[^>]*>",
@@ -119,6 +144,7 @@ impl WafEngine {
                 "(?i)<form[^>]*>",
                 "(?i)javascript:",
                 "(?i)vbscript:",
+                // Event handlers
                 "(?i)onload\\s*=",
                 "(?i)onerror\\s*=",
                 "(?i)onclick\\s*=",
@@ -127,10 +153,31 @@ impl WafEngine {
                 "(?i)onblur\\s*=",
                 "(?i)onchange\\s*=",
                 "(?i)onsubmit\\s*=",
+                // Advanced XSS
                 "(?i)expression\\s*\\(",
                 "(?i)url\\s*\\(",
                 "(?i)@import",
                 "(?i)<img[^>]*src\\s*=\\s*['\"]?javascript:",
+                // DOM-based XSS
+                "(?i)document\\.cookie",
+                "(?i)document\\.write",
+                "(?i)document\\.location",
+                "(?i)window\\.location",
+                "(?i)eval\\s*\\(",
+                // SVG-based XSS
+                "(?i)<svg[^>]*onload",
+                "(?i)<svg[^>]*>.*<script",
+                // Data URI XSS
+                "(?i)data:text/html",
+                "(?i)data:image/svg\\+xml",
+                // Encoded XSS
+                "(?i)&#x?[0-9a-f]{2,4};",
+                "(?i)%3Cscript",
+                "(?i)%3C/script",
+                // Attribute-based XSS
+                "(?i)autofocus\\s*=",
+                "(?i)onanimationstart\\s*=",
+                "(?i)onanimationend\\s*=",
             ];
 
             for pattern in xss_patterns {
@@ -144,6 +191,7 @@ impl WafEngine {
         // Path traversal patterns
         if self.config.attack_patterns.path_traversal {
             let path_patterns = vec![
+                // Basic path traversal
                 "\\.\\./",
                 "\\.\\.\\\\/",
                 "(?i)/etc/passwd",
@@ -152,6 +200,23 @@ impl WafEngine {
                 "(?i)/proc/",
                 "(?i)/sys/",
                 "(?i)c:\\\\windows",
+                // Advanced path traversal
+                "(?i)/var/log/",
+                "(?i)/var/www/",
+                "(?i)/usr/local/",
+                "(?i)\\.\\./\\.\\./",
+                "(?i)%2e%2e/",
+                "(?i)%2e%2e\\\\",
+                // Windows-specific
+                "(?i)c:\\\\boot\\.ini",
+                "(?i)c:\\\\windows\\\\system32",
+                "(?i)\\\\\\\\",
+                // Unicode encoding
+                "(?i)%c0%ae",
+                "(?i)%c1%1c",
+                // Null byte injection
+                "(?i)%00",
+                "(?i)\\x00",
             ];
 
             for pattern in path_patterns {
@@ -167,6 +232,7 @@ impl WafEngine {
         // Command injection patterns
         if self.config.attack_patterns.command_injection {
             let cmd_patterns = vec![
+                // Basic command injection
                 "(?i)(;|\\||&&)\\s*(cat|ls|dir|type|more|less)",
                 "(?i)(;|\\||&&)\\s*(wget|curl|nc|netcat)",
                 "(?i)(;|\\||&&)\\s*(rm|del|rmdir|rd)",
@@ -176,6 +242,22 @@ impl WafEngine {
                 "(?i)/bin/(sh|bash|csh|tcsh|zsh)",
                 "(?i)cmd\\.exe",
                 "(?i)powershell",
+                // Advanced command injection
+                "(?i)(;|\\||&&)\\s*(echo|printf)",
+                "(?i)(;|\\||&&)\\s*(ping|traceroute)",
+                "(?i)(;|\\||&&)\\s*(nmap|nikto)",
+                "(?i)(;|\\||&&)\\s*(python|perl|ruby|php)",
+                // Backtick and command substitution
+                "(?i)`.*`",
+                "(?i)\\$\\(.*\\)",
+                // Process substitution
+                "(?i)<\\(.*\\)",
+                "(?i)>\\(.*\\)",
+                // File redirection
+                "(?i)>\\s*/dev/",
+                "(?i)>>\\s*/var/",
+                // Environment variable manipulation
+                "(?i)(export|set)\\s+\\w+=",
             ];
 
             for pattern in cmd_patterns {

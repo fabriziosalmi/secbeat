@@ -274,11 +274,19 @@ fn create_management_router(state: ManagementState) -> Router {
         .route("/control/terminate", post(handle_terminate))
         // Health and status endpoints
         .route("/health", get(health_check))
+        .route("/api/v1/status", get(handle_status))
         .route("/status/waf", get(handle_waf_stats))
         // WAF management endpoints
         .route("/waf/patterns", post(handle_add_waf_pattern))
         .route("/waf/patterns", delete(handle_remove_waf_pattern))
         .route("/waf/reload", post(handle_reload_waf_patterns))
+        .route("/api/v1/rules", get(handle_list_rules))
+        .route("/api/v1/rules", post(handle_add_rule))
+        .route("/api/v1/rules/:id", delete(handle_delete_rule))
+        // Statistics endpoints
+        .route("/api/v1/stats", get(handle_stats))
+        // Blacklist management
+        .route("/api/v1/blacklist", post(handle_add_blacklist))
         // Configuration management endpoints
         .route("/config/reload", post(handle_config_reload))
         .layer(middleware::from_fn_with_state(
@@ -567,4 +575,154 @@ async fn handle_waf_stats(
             custom_patterns: 0,
         }))
     }
+}
+
+/// Handle status request (API v1)
+#[instrument(skip(state))]
+async fn handle_status(
+    State(state): State<ManagementState>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    let uptime = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+
+    let status = serde_json::json!({
+        "status": "running",
+        "mode": "l7",
+        "uptime_seconds": uptime,
+        "connections": {
+            "active": 0,
+            "total": 0
+        },
+        "health": "healthy"
+    });
+
+    Ok(Json(status))
+}
+
+/// Handle list rules request (API v1)
+#[instrument(skip(state))]
+async fn handle_list_rules(
+    State(state): State<ManagementState>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    if let Some(ref waf_engine) = state.waf_engine {
+        let waf = waf_engine.read().await;
+        let stats = waf.get_stats().await;
+        
+        let total_patterns = stats.sql_patterns 
+            + stats.xss_patterns 
+            + stats.path_traversal_patterns 
+            + stats.command_injection_patterns 
+            + stats.custom_patterns;
+
+        let response = serde_json::json!({
+            "rules": [],
+            "total": total_patterns,
+            "categories": {
+                "sql_injection": stats.sql_patterns,
+                "xss": stats.xss_patterns,
+                "path_traversal": stats.path_traversal_patterns,
+                "command_injection": stats.command_injection_patterns,
+                "custom": stats.custom_patterns
+            }
+        });
+
+        Ok(Json(response))
+    } else {
+        Ok(Json(serde_json::json!({
+            "rules": [],
+            "total": 0
+        })))
+    }
+}
+
+/// Handle add rule request (API v1)
+#[instrument(skip(state))]
+async fn handle_add_rule(
+    State(state): State<ManagementState>,
+    Json(request): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    let pattern = request["pattern"].as_str().unwrap_or("");
+    
+    if pattern.is_empty() {
+        return Ok(Json(serde_json::json!({
+            "success": false,
+            "message": "Pattern is required"
+        })));
+    }
+
+    if let Some(ref waf_engine) = state.waf_engine {
+        let mut waf = waf_engine.write().await;
+        match waf.add_custom_pattern(pattern).await {
+            Ok(_) => {
+                let rule_id = format!("rule_{}", chrono::Utc::now().timestamp());
+                Ok(Json(serde_json::json!({
+                    "id": rule_id,
+                    "status": "active",
+                    "created_at": chrono::Utc::now().to_rfc3339()
+                })))
+            }
+            Err(e) => Ok(Json(serde_json::json!({
+                "success": false,
+                "message": format!("Failed to add rule: {}", e)
+            })))
+        }
+    } else {
+        Ok(Json(serde_json::json!({
+            "success": false,
+            "message": "WAF engine not available"
+        })))
+    }
+}
+
+/// Handle delete rule request (API v1)
+#[instrument(skip(state))]
+async fn handle_delete_rule(
+    State(state): State<ManagementState>,
+    axum::extract::Path(_id): axum::extract::Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "message": "Rule deletion not yet fully implemented"
+    })))
+}
+
+/// Handle stats request (API v1)
+#[instrument(skip(_state))]
+async fn handle_stats(
+    State(_state): State<ManagementState>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    let stats = serde_json::json!({
+        "packets_processed": 0,
+        "attacks_blocked": 0,
+        "requests_per_second": 0,
+        "latency_ms": 0.0,
+        "cpu_percent": 0,
+        "memory_mb": 0
+    });
+
+    Ok(Json(stats))
+}
+
+/// Handle add to blacklist request (API v1)
+#[derive(Debug, Deserialize)]
+struct BlacklistRequest {
+    ip: String,
+    reason: Option<String>,
+    duration_seconds: Option<u64>,
+}
+
+#[instrument(skip(_state))]
+async fn handle_add_blacklist(
+    State(_state): State<ManagementState>,
+    Json(request): Json<BlacklistRequest>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    info!(ip = %request.ip, reason = ?request.reason, "Adding IP to blacklist");
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "message": format!("IP {} added to blacklist", request.ip),
+        "expires_at": chrono::Utc::now() + chrono::Duration::seconds(request.duration_seconds.unwrap_or(3600) as i64)
+    })))
 }

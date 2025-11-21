@@ -673,6 +673,77 @@ aws s3 cp logs/ s3://backups/secbeat/logs/ --recursive
 
 We welcome contributions to SecBeat! Please read our contributing guidelines:
 
+### 🛣️ Development Roadmap
+
+#### ✅ **Production Ready (v0.9.x)**
+- ✅ TCP/L7 reverse proxy with TLS termination
+- ✅ 150+ WAF attack patterns (SQL injection, XSS, path traversal, command injection)
+- ✅ NATS-based distributed messaging
+- ✅ Prometheus metrics integration
+- ✅ Docker and Docker Compose deployment
+- ✅ Management API (health, status, WAF control)
+- ✅ ML-based predictive scaling (linear regression for CPU prediction)
+- ✅ Configuration hot-reload
+- ✅ Kubernetes deployment manifests
+
+#### 🚧 **Beta/Experimental**
+- ⚠️ **SYN Proxy** - Functional prototype with known limitations
+  - Basic SYN flood protection implemented
+  - Kernel-level packet processing (requires CAP_NET_RAW)
+  - Challenge-response validation
+  - ⚠️ **Use TCP mode for production workloads**
+  - Planned: Complete TCP handshake validation, cookie encryption improvements
+
+#### 🔄 **In Development (v1.0)**
+- 🔨 Complete threat intelligence API (`/api/v1/threats`)
+- 🔨 Enhanced statistics collection and reporting
+- 🔨 IP blacklist/whitelist persistence layer
+- 🔨 Automated testing framework expansion
+- 🔨 Performance benchmarking suite
+- 🔨 Dashboard and visualization tools
+
+#### 📋 **Planned Features (v1.1+)**
+- 📅 HTTP/2 protocol support
+- 📅 OWASP ModSecurity Core Rule Set (CRS) integration
+- 📅 Advanced ML models for anomaly detection
+- 📅 Lua scripting for custom WAF rules
+- 📅 Geo-blocking and GeoIP integration
+- 📅 Rate limiting with Redis backend
+- 📅 Multi-tenant support
+- 📅 Advanced behavioral analysis
+- 📅 DDoS mitigation learning mode
+- 📅 Auto-scaling integration (AWS, Azure, GCP)
+
+#### 🎯 **Future Enhancements (v2.0+)**
+- 🔮 WebAssembly (WASM) plugin system
+- 🔮 GraphQL API support
+- 🔮 Real-time attack visualization dashboard
+- 🔮 Machine learning model marketplace
+- 🔮 Distributed tracing (OpenTelemetry)
+- 🔮 Service mesh integration (Istio, Linkerd)
+- 🔮 Zero-trust network architecture
+- 🔮 Quantum-resistant cryptography
+
+### 📊 Feature Status Matrix
+
+| Feature | Status | Production Ready | Notes |
+|---------|--------|------------------|-------|
+| TCP Proxy | ✅ Stable | Yes | Sub-millisecond latency |
+| L7 Proxy (HTTPS) | ✅ Stable | Yes | TLS 1.3 support |
+| WAF Engine | ✅ Stable | Yes | 150+ patterns |
+| SYN Proxy | ⚠️ Beta | No | Use for testing only |
+| NATS Messaging | ✅ Stable | Yes | Full integration |
+| Prometheus Metrics | ✅ Stable | Yes | Comprehensive metrics |
+| ML Predictive Scaling | ✅ Stable | Yes | Linear regression |
+| Management API | ✅ Stable | Yes | RESTful endpoints |
+| Docker Deployment | ✅ Stable | Yes | Multi-container |
+| Kubernetes | ✅ Stable | Yes | Tested on K8s 1.25+ |
+| HTTP/2 Support | 📅 Planned | No | Targeting v1.1 |
+| OWASP CRS | 📅 Planned | No | Targeting v1.1 |
+| Threat Intelligence API | 🔨 In Progress | Partial | Basic implementation |
+
+---
+
 ### 🐛 Bug Reports
 
 1. Check existing issues first
