@@ -6,10 +6,13 @@ use std::collections::HashSet;
 use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::RwLock;
+use tokio::sync::{Mutex, RwLock};
 use tokio_stream::StreamExt;
 use tracing::{debug, error, info, instrument, warn};
 use uuid::Uuid;
+
+#[cfg(target_os = "linux")]
+use crate::bpf_loader::BpfHandle;
 
 /// WAF analysis result for event reporting
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -167,7 +170,7 @@ impl DynamicRuleState {
 }
 
 /// NATS event publisher and command consumer
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct EventSystem {
     /// NATS client
     client: Client,
@@ -175,6 +178,9 @@ pub struct EventSystem {
     pub node_id: Uuid,
     /// Dynamic rule state
     rule_state: DynamicRuleState,
+    /// BPF/XDP handle for kernel-level blocking (Linux only)
+    #[cfg(target_os = "linux")]
+    bpf_handle: Arc<Mutex<Option<BpfHandle>>>,
 }
 
 impl EventSystem {
@@ -202,7 +208,17 @@ impl EventSystem {
             client,
             node_id,
             rule_state: DynamicRuleState::new(),
+            #[cfg(target_os = "linux")]
+            bpf_handle: Arc::new(Mutex::new(None)),
         })
+    }
+
+    /// Attach a BPF/XDP handle for kernel-level blocking (Linux only)
+    #[cfg(target_os = "linux")]
+    pub async fn attach_bpf_handle(&self, handle: BpfHandle) {
+        let mut bpf = self.bpf_handle.lock().await;
+        *bpf = Some(handle);
+        info!("✅ BPF/XDP handle attached to event system");
     }
 
     /// Publish a security event
@@ -251,6 +267,8 @@ impl EventSystem {
     pub async fn start_command_consumer(self: Arc<Self>) -> Result<()> {
         let client = self.client.clone();
         let rule_state = self.rule_state.clone();
+        #[cfg(target_os = "linux")]
+        let bpf_handle = Arc::clone(&self.bpf_handle);
 
         let mut subscriber = client
             .subscribe("secbeat.control.commands")
@@ -263,7 +281,12 @@ impl EventSystem {
             while let Some(message) = subscriber.next().await {
                 match serde_json::from_slice::<ControlCommand>(&message.payload) {
                     Ok(command) => {
-                        if let Err(e) = Self::process_control_command(&rule_state, command).await {
+                        #[cfg(target_os = "linux")]
+                        let result = Self::process_control_command(&rule_state, &bpf_handle, command).await;
+                        #[cfg(not(target_os = "linux"))]
+                        let result = Self::process_control_command(&rule_state, command).await;
+                        
+                        if let Err(e) = result {
                             error!(error = %e, "Failed to process control command");
                         }
                     }
@@ -281,6 +304,8 @@ impl EventSystem {
     pub async fn start_behavioral_command_consumer(self: Arc<Self>) -> Result<()> {
         let client = self.client.clone();
         let rule_state = self.rule_state.clone();
+        #[cfg(target_os = "linux")]
+        let bpf_handle = Arc::clone(&self.bpf_handle);
 
         let mut subscriber = client
             .subscribe("secbeat.commands.block")
@@ -312,7 +337,12 @@ impl EventSystem {
                             parameters: None,
                         };
 
-                        if let Err(e) = Self::process_control_command(&rule_state, control_cmd).await {
+                        #[cfg(target_os = "linux")]
+                        let result = Self::process_control_command(&rule_state, &bpf_handle, control_cmd).await;
+                        #[cfg(not(target_os = "linux"))]
+                        let result = Self::process_control_command(&rule_state, control_cmd).await;
+                        
+                        if let Err(e) = result {
                             error!(error = %e, "Failed to process behavioral block command");
                         }
                     }
@@ -329,6 +359,8 @@ impl EventSystem {
     /// Process a control command
     async fn process_control_command(
         rule_state: &DynamicRuleState,
+        #[cfg(target_os = "linux")]
+        bpf_handle: &Arc<Mutex<Option<BpfHandle>>>,
         command: ControlCommand,
     ) -> Result<()> {
         info!(
@@ -350,13 +382,42 @@ impl EventSystem {
 
                         rule_state.add_blocked_ip(ip, command.clone()).await;
 
+                        // Offload to kernel/XDP if available (Linux only)
+                        #[cfg(target_os = "linux")]
+                        {
+                            if let IpAddr::V4(ipv4) = ip {
+                                let mut bpf_guard = bpf_handle.lock().await;
+                                if let Some(ref mut bpf) = *bpf_guard {
+                                    if let Err(e) = bpf.block_ip(ipv4) {
+                                        warn!(error = %e, ip = %ip, "Failed to offload IP block to kernel");
+                                    }
+                                } else {
+                                    debug!("BPF/XDP not available, using userspace filtering only");
+                                }
+                            }
+                        }
+
                         // Schedule removal if TTL is specified
                         if let Some(ttl) = command.ttl_seconds {
                             let rule_state = rule_state.clone();
                             let command_id = command.command_id;
+                            #[cfg(target_os = "linux")]
+                            let bpf_handle_clone = Arc::clone(bpf_handle);
+                            
                             tokio::spawn(async move {
                                 tokio::time::sleep(Duration::from_secs(ttl)).await;
                                 rule_state.remove_blocked_ip(&ip, command_id).await;
+                                
+                                // Remove from kernel blocklist too
+                                #[cfg(target_os = "linux")]
+                                {
+                                    if let IpAddr::V4(ipv4) = ip {
+                                        let mut bpf_guard = bpf_handle_clone.lock().await;
+                                        if let Some(ref mut bpf) = *bpf_guard {
+                                            let _ = bpf.unblock_ip(ipv4);
+                                        }
+                                    }
+                                }
                             });
                         }
                     }

@@ -12,12 +12,18 @@ pub mod syn_proxy;
 pub mod tcp_proxy;
 pub mod waf;
 
+#[cfg(target_os = "linux")]
+pub mod bpf_loader;
+
 // Re-export commonly used types
 pub use config::{DdosConfig, MitigationConfig};
 pub use ddos::DdosProtection;
 pub use events::EventSystem;
 pub use management::{ManagementState, ShutdownSignal};
 pub use waf::{WafEngine, WafResult};
+
+#[cfg(target_os = "linux")]
+pub use bpf_loader::BpfHandle;
 
 #[cfg(test)]
 mod tests {

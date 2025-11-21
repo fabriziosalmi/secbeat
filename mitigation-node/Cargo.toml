@@ -28,6 +28,10 @@ serde_json = { workspace = true }
 serde_yaml = "0.9"
 axum = { workspace = true }
 httparse = { workspace = true }
+
+# eBPF/XDP support
+aya = { version = "0.13", features = ["async_tokio"] }
+secbeat-common = { path = "../secbeat-common" }
 regex = { workspace = true }
 governor = { workspace = true }
 dashmap = { workspace = true }
