@@ -43,7 +43,6 @@ COPY --from=builder /app/target/release/test-origin /usr/local/bin/
 
 # Copy configuration files
 COPY --chown=secbeat:secbeat config.prod.toml ./config.prod.toml
-COPY --chown=secbeat:secbeat config.dev.toml ./config.dev.toml
 COPY --chown=secbeat:secbeat config.l7.toml ./config.l7.toml
 COPY --chown=secbeat:secbeat config.l7-notls.toml ./config.l7-notls.toml
 COPY --chown=secbeat:secbeat mitigation-node/config/ ./config/

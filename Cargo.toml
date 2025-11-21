@@ -2,7 +2,7 @@
 members = [
     "mitigation-node",
     "orchestrator-node"
-]
+, "secbeat-common", "secbeat-ebpf"]
 resolver = "2"
 
 [workspace.dependencies]

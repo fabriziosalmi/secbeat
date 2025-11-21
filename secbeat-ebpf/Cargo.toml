@@ -1,0 +1,22 @@
+[package]
+name = "secbeat-ebpf"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+aya-ebpf = "0.1"
+aya-log-ebpf = "0.1"
+secbeat-common = { path = "../secbeat-common" }
+
+[profile.dev]
+panic = "abort"
+opt-level = 3
+
+[profile.release]
+lto = true
+panic = "abort"
+opt-level = 3
+
+[[bin]]
+name = "secbeat-ebpf"
+path = "src/main.rs"

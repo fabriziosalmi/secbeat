@@ -1,0 +1,12 @@
+[package]
+name = "secbeat-common"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# No std support for kernel compatibility
+# All dependencies must be no_std compatible
+
+[features]
+default = []
+std = []
