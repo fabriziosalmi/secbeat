@@ -1,0 +1,12 @@
+[package]
+name = "test-xdp-load"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "test_xdp_load"
+path = "test_xdp_load.rs"
+
+[dependencies]
+aya = { version = "0.13", features = ["async_tokio"] }
+anyhow = "1.0"
