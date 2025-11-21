@@ -298,7 +298,24 @@ async fn run_l7_proxy_mode(
         match EventSystem::new(nats_url, node_id).await {
             Ok(system) => {
                 info!("Event system initialized with NATS connection");
-                Some(Arc::new(system))
+                let arc_system = Arc::new(system);
+                
+                // Start command consumers
+                let control_consumer = Arc::clone(&arc_system);
+                tokio::spawn(async move {
+                    if let Err(e) = control_consumer.start_command_consumer().await {
+                        error!(error = %e, "Control command consumer failed");
+                    }
+                });
+
+                let behavioral_consumer = Arc::clone(&arc_system);
+                tokio::spawn(async move {
+                    if let Err(e) = behavioral_consumer.start_behavioral_command_consumer().await {
+                        error!(error = %e, "Behavioral command consumer failed");
+                    }
+                });
+
+                Some(arc_system)
             }
             Err(e) => {
                 warn!(
@@ -642,6 +659,9 @@ async fn handle_http_request(
         };
         publish_security_event(&state, event_data).await;
 
+        // Publish telemetry event for behavioral analysis (errors trigger analysis)
+        publish_telemetry_event(&state, client_addr.ip(), method.to_string(), uri.to_string(), 403, user_agent.clone());
+
         return Ok(response);
     } else {
         // Request is allowed, proceed with proxying
@@ -661,6 +681,14 @@ async fn handle_http_request(
         processing_time: start_time.elapsed(),
     };
     publish_security_event(&state, event_data).await;
+
+    // Publish telemetry event for behavioral analysis (all requests, especially errors)
+    if let Some(status) = status_code {
+        if status >= 400 {
+            // Only publish telemetry for errors to reduce NATS load
+            publish_telemetry_event(&state, client_addr.ip(), method.to_string(), uri.to_string(), status, user_agent.clone());
+        }
+    }
 
     response_result
 }
@@ -877,6 +905,32 @@ async fn publish_security_event(state: &ProxyState, event_data: SecurityEventDat
         if let Err(e) = event_system.publish_security_event(event).await {
             warn!(error = %e, "Failed to publish security event to NATS");
         }
+    }
+}
+
+/// Publish telemetry event to NATS for behavioral analysis (non-blocking)
+fn publish_telemetry_event(
+    state: &ProxyState,
+    source_ip: std::net::IpAddr,
+    method: String,
+    uri: String,
+    status_code: u16,
+    user_agent: String,
+) {
+    if let Some(ref event_system) = state.event_system {
+        use crate::events::TelemetryEvent;
+
+        let event = TelemetryEvent {
+            node_id: event_system.node_id,
+            source_ip,
+            request_uri: uri,
+            status_code,
+            timestamp: chrono::Utc::now(),
+            method: Some(method),
+            user_agent: Some(user_agent),
+        };
+
+        event_system.publish_telemetry_event(event);
     }
 }
 

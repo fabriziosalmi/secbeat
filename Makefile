@@ -92,19 +92,30 @@ test-phase6:
 test-phase7:
 	sudo ./test_phase7.sh
 
+# Behavioral analysis tests
+test-behavioral:
+	@echo "Running behavioral analysis end-to-end test..."
+	./test_behavioral_ban.sh
+
+test-behavioral-quick:
+	@echo "Running quick behavioral ban test..."
+	./test_behavioral_quick.sh
+
 # Help target
 help:
 	@echo "Available targets:"
-	@echo "  build        - Build all components (debug)"
-	@echo "  release      - Build all components (release)"
-	@echo "  test         - Run all tests"
-	@echo "  clean        - Clean build artifacts"
-	@echo "  check        - Check code without building"
-	@echo "  fmt          - Format code"
-	@echo "  clippy       - Run clippy linter"
-	@echo "  doc          - Generate documentation"
-	@echo "  setup-certs  - Setup TLS certificates for testing"
-	@echo "  deps-ubuntu  - Install dependencies (Ubuntu/Debian)"
-	@echo "  deps-macos   - Install dependencies (macOS)"
-	@echo "  test-phase*  - Run individual phase tests"
-	@echo "  help         - Show this help"
+	@echo "  build              - Build all components (debug)"
+	@echo "  release            - Build all components (release)"
+	@echo "  test               - Run all tests"
+	@echo "  clean              - Clean build artifacts"
+	@echo "  check              - Check code without building"
+	@echo "  fmt                - Format code"
+	@echo "  clippy             - Run clippy linter"
+	@echo "  doc                - Generate documentation"
+	@echo "  setup-certs        - Setup TLS certificates for testing"
+	@echo "  deps-ubuntu        - Install dependencies (Ubuntu/Debian)"
+	@echo "  deps-macos         - Install dependencies (macOS)"
+	@echo "  test-phase*        - Run individual phase tests"
+	@echo "  test-behavioral    - Run behavioral analysis E2E test"
+	@echo "  test-behavioral-quick - Run quick behavioral ban test"
+	@echo "  help               - Show this help"

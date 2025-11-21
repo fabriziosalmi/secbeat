@@ -21,7 +21,7 @@ use tracing::{debug, error, info, instrument, warn};
 use uuid::Uuid;
 
 mod experts;
-use experts::{ResourceManager, ThreatIntelExpert};
+use experts::{BehavioralConfig, BehavioralExpert, ResourceManager, ThreatIntelExpert};
 
 /// Node information stored in the registry
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -240,6 +240,37 @@ async fn main() -> Result<()> {
             error!(error = %e, "Threat intelligence event consumer failed");
         }
     });
+
+    // Initialize behavioral analysis expert
+    info!(nats_url = %config.nats_url, "Initializing behavioral analysis expert");
+    let behavioral_config = BehavioralConfig {
+        window_size_seconds: 60,
+        error_threshold: 50,           // 50 errors in 60 seconds triggers block
+        request_threshold: 1000,       // 1000 requests in 60 seconds triggers block
+        block_duration_seconds: 300,   // Block for 5 minutes
+        cleanup_interval_seconds: 300, // Cleanup every 5 minutes
+    };
+    let behavioral_expert = match BehavioralExpert::new(&config.nats_url, behavioral_config).await {
+        Ok(expert) => {
+            info!("Successfully initialized behavioral analysis expert");
+            Arc::new(expert)
+        }
+        Err(e) => {
+            error!(error = %e, "Failed to initialize behavioral analysis expert");
+            return Err(e);
+        }
+    };
+
+    // Start behavioral analysis telemetry consumer
+    let behavioral_consumer = Arc::clone(&behavioral_expert);
+    tokio::spawn(async move {
+        if let Err(e) = behavioral_consumer.start_telemetry_consumer().await {
+            error!(error = %e, "Behavioral analysis telemetry consumer failed");
+        }
+    });
+
+    // Start behavioral analysis cleanup task
+    Arc::clone(&behavioral_expert).spawn_cleanup_task();
 
     // Initialize orchestrator state
     let state = OrchestratorState {

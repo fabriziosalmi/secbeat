@@ -362,6 +362,49 @@ make test-cluster
 make test-failover
 ```
 
+### 🎯 Behavioral Analysis Testing
+
+Test the complete behavioral analysis pipeline (Mitigation Node → NATS → Orchestrator → Ban):
+
+```bash
+# Run the end-to-end behavioral analysis test
+./test_behavioral_ban.sh
+```
+
+**What this test does:**
+1. **Baseline Check**: Verifies normal traffic passes through (HTTP 200/404)
+2. **Attack Simulation**: Sends 60 sequential 404 errors to trigger anomaly detection
+3. **Analysis Window**: Waits for orchestrator's sliding window algorithm to detect the pattern
+4. **Ban Verification**: Confirms IP is blocked with HTTP 403 or connection refused
+
+**Expected Flow:**
+```
+Mitigation Node → publishes telemetry → secbeat.telemetry.{node_id}
+     ↓
+Orchestrator → BehavioralExpert analyzes sliding window
+     ↓
+Threshold exceeded (50+ errors in 60s) → BlockCommand issued
+     ↓
+Orchestrator → publishes ban → secbeat.commands.block
+     ↓
+Mitigation Node → receives command → updates DynamicRuleState
+     ↓
+Future requests from IP → blocked for 5 minutes (TTL: 300s)
+```
+
+**Success Indicators:**
+- ✅ `🎉 TEST PASSED!` - Ban was successfully enforced
+- ✅ HTTP 403 Forbidden or connection timeout
+- ✅ NATS message propagation working
+- ✅ Dynamic IP blocking active
+
+**Troubleshooting:**
+If the test fails, check:
+- NATS connectivity: `docker-compose logs nats`
+- Orchestrator logs: `docker-compose logs orchestrator | grep behavioral`
+- Mitigation node logs: `docker-compose logs mitigation-node | grep block`
+- Threshold config: Error threshold is 50, test sends 60 errors
+
 ## 🚀 Deployment
 
 SecBeat supports multiple deployment scenarios from development testing to enterprise production environments.

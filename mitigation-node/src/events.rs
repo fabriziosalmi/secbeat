@@ -49,6 +49,28 @@ pub struct SecurityEvent {
     pub processing_time_ms: Option<u64>,
 }
 
+/// Behavioral analysis telemetry event (lighter-weight than SecurityEvent)
+/// Published to secbeat.telemetry.{node_id} for real-time behavioral analysis
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TelemetryEvent {
+    /// Node that sent this event
+    pub node_id: Uuid,
+    /// Source IP address making the request
+    pub source_ip: IpAddr,
+    /// Request URI path
+    pub request_uri: String,
+    /// HTTP status code returned
+    pub status_code: u16,
+    /// Timestamp of the event (ISO 8601)
+    pub timestamp: DateTime<Utc>,
+    /// HTTP method (GET, POST, etc.)
+    #[serde(default)]
+    pub method: Option<String>,
+    /// User agent string
+    #[serde(default)]
+    pub user_agent: Option<String>,
+}
+
 /// Control command received from orchestrator
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ControlCommand {
@@ -64,6 +86,26 @@ pub struct ControlCommand {
     pub ttl_seconds: Option<u64>,
     /// Additional parameters
     pub parameters: Option<serde_json::Value>,
+}
+
+/// Block command from behavioral analysis expert
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BlockCommand {
+    /// Unique command identifier for tracking
+    pub command_id: Uuid,
+    /// IP address to block
+    pub ip: IpAddr,
+    /// Human-readable reason for blocking
+    pub reason: String,
+    /// Duration to block in seconds
+    pub duration_seconds: u64,
+    /// Action type (always "block" for now)
+    pub action: String,
+    /// Timestamp when command was issued
+    pub issued_at: DateTime<Utc>,
+    /// Which expert generated this command
+    #[serde(default)]
+    pub source: String,
 }
 
 /// Dynamic rule state management
@@ -184,6 +226,27 @@ impl EventSystem {
         Ok(())
     }
 
+    /// Publish a telemetry event for behavioral analysis (non-blocking)
+    /// Uses spawn to avoid slowing down request processing
+    pub fn publish_telemetry_event(&self, event: TelemetryEvent) {
+        let client = self.client.clone();
+        let node_id = self.node_id;
+
+        tokio::spawn(async move {
+            match serde_json::to_vec(&event) {
+                Ok(payload) => {
+                    let topic = format!("secbeat.telemetry.{}", node_id);
+                    if let Err(e) = client.publish(topic, payload.into()).await {
+                        debug!(error = %e, "Failed to publish telemetry event");
+                    }
+                }
+                Err(e) => {
+                    debug!(error = %e, "Failed to serialize telemetry event");
+                }
+            }
+        });
+    }
+
     /// Start consuming control commands
     pub async fn start_command_consumer(self: Arc<Self>) -> Result<()> {
         let client = self.client.clone();
@@ -206,6 +269,55 @@ impl EventSystem {
                     }
                     Err(e) => {
                         warn!(error = %e, "Failed to parse control command");
+                    }
+                }
+            }
+        });
+
+        Ok(())
+    }
+
+    /// Start consuming block commands from behavioral analysis expert
+    pub async fn start_behavioral_command_consumer(self: Arc<Self>) -> Result<()> {
+        let client = self.client.clone();
+        let rule_state = self.rule_state.clone();
+
+        let mut subscriber = client
+            .subscribe("secbeat.commands.block")
+            .await
+            .context("Failed to subscribe to behavioral block commands")?;
+
+        info!("Started consuming behavioral block commands from secbeat.commands.block");
+
+        tokio::spawn(async move {
+            while let Some(message) = subscriber.next().await {
+                match serde_json::from_slice::<BlockCommand>(&message.payload) {
+                    Ok(block_cmd) => {
+                        info!(
+                            command_id = %block_cmd.command_id,
+                            ip = %block_cmd.ip,
+                            reason = %block_cmd.reason,
+                            duration = block_cmd.duration_seconds,
+                            source = %block_cmd.source,
+                            "Received behavioral block command"
+                        );
+
+                        // Convert to ControlCommand format
+                        let control_cmd = ControlCommand {
+                            command_id: block_cmd.command_id,
+                            action: "ADD_DYNAMIC_RULE".to_string(),
+                            rule_type: "IP_BLOCK".to_string(),
+                            target: block_cmd.ip.to_string(),
+                            ttl_seconds: Some(block_cmd.duration_seconds),
+                            parameters: None,
+                        };
+
+                        if let Err(e) = Self::process_control_command(&rule_state, control_cmd).await {
+                            error!(error = %e, "Failed to process behavioral block command");
+                        }
+                    }
+                    Err(e) => {
+                        warn!(error = %e, "Failed to parse behavioral block command");
                     }
                 }
             }
