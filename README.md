@@ -694,7 +694,7 @@ We welcome contributions to SecBeat! Please read our contributing guidelines:
   - ⚠️ **Use TCP mode for production workloads**
   - Planned: Complete TCP handshake validation, cookie encryption improvements
 
-#### 🔄 **In Development (v1.0)**
+#### 🔄 **In Development (v1.0 - Q1 2025)**
 - 🔨 Complete threat intelligence API (`/api/v1/threats`)
 - 🔨 Enhanced statistics collection and reporting
 - 🔨 IP blacklist/whitelist persistence layer
@@ -702,23 +702,31 @@ We welcome contributions to SecBeat! Please read our contributing guidelines:
 - 🔨 Performance benchmarking suite
 - 🔨 Dashboard and visualization tools
 
-#### 📋 **Planned Features (v1.1+)**
+#### 📋 **Planned Features (v1.1 - Q2 2025: "Kernel" Update)**
+- 📅 **eBPF/XDP Integration** - Move packet filtering to kernel space for 10x performance during volumetric attacks
+- 📅 **Zero-Copy Networking** - Optimize TCP proxy using `sendfile` and `splice` for reduced CPU overhead
 - 📅 HTTP/2 protocol support
 - 📅 OWASP ModSecurity Core Rule Set (CRS) integration
-- 📅 Advanced ML models for anomaly detection
-- 📅 Lua scripting for custom WAF rules
 - 📅 Geo-blocking and GeoIP integration
 - 📅 Rate limiting with Redis backend
 - 📅 Multi-tenant support
-- 📅 Advanced behavioral analysis
-- 📅 DDoS mitigation learning mode
-- 📅 Auto-scaling integration (AWS, Azure, GCP)
 
-#### 🎯 **Future Enhancements (v2.0+)**
-- 🔮 WebAssembly (WASM) plugin system
+#### 🧠 **Intelligence Update (v1.2 - Q3 2025)**
+- 🔮 **WASM WAF Runtime** - Replace regex engine with WebAssembly (Wasmtime) for complex, programmable logic rules hot-loaded at runtime
+- 🔮 **Advanced ML Models** - Upgrade from Linear Regression to LSTM or Isolation Forest for traffic anomaly detection and pattern recognition
+- 🔮 Advanced behavioral analysis
+- 🔮 DDoS mitigation learning mode
+- 🔮 Lua scripting for custom WAF rules (alternative to WASM)
+
+#### 🏢 **Enterprise Update (v2.0 - Q4 2025)**
+- 🌐 **Distributed State (CRDTs)** - Instant global ban-list synchronization across the fleet without consensus overhead
+- 📊 **React Dashboard UI** - Real-time attack visualization, fleet management, and analytics (beyond CLI/API)
+- 🔧 **Terraform Provider** - Official provider for managing SecBeat infrastructure as code
 - 🔮 GraphQL API support
-- 🔮 Real-time attack visualization dashboard
 - 🔮 Machine learning model marketplace
+- 🔮 Auto-scaling integration (AWS, Azure, GCP)
+
+#### 🎯 **Future Enhancements (v2.1+)**
 - 🔮 Distributed tracing (OpenTelemetry)
 - 🔮 Service mesh integration (Istio, Linkerd)
 - 🔮 Zero-trust network architecture
@@ -738,9 +746,25 @@ We welcome contributions to SecBeat! Please read our contributing guidelines:
 | Management API | ✅ Stable | Yes | RESTful endpoints |
 | Docker Deployment | ✅ Stable | Yes | Multi-container |
 | Kubernetes | ✅ Stable | Yes | Tested on K8s 1.25+ |
-| HTTP/2 Support | 📅 Planned | No | Targeting v1.1 |
-| OWASP CRS | 📅 Planned | No | Targeting v1.1 |
-| Threat Intelligence API | 🔨 In Progress | Partial | Basic implementation |
+| eBPF/XDP Integration | 📅 Q2 2025 | No | Kernel-space filtering |
+| WASM WAF Runtime | 📅 Q3 2025 | No | Programmable rules |
+| Advanced ML (LSTM) | 📅 Q3 2025 | No | Anomaly detection |
+| CRDT State Sync | 📅 Q4 2025 | No | Global ban-list |
+| React Dashboard | 📅 Q4 2025 | No | Visual management |
+| Terraform Provider | 📅 Q4 2025 | No | Infrastructure as code |
+| HTTP/2 Support | 📅 Q2 2025 | No | Protocol upgrade |
+| OWASP CRS | 📅 Q2 2025 | No | Rule set integration |
+| Threat Intelligence API | 🔨 Q1 2025 | Partial | Basic implementation |
+
+### 🎯 Why This Roadmap Matters
+
+**Q2 2025 - Performance**: eBPF/XDP moves packet filtering to kernel space, achieving **10x performance** during volumetric attacks while maintaining sub-millisecond latency.
+
+**Q3 2025 - Intelligence**: WASM runtime enables complex, programmable WAF logic that can be hot-loaded without restarts. LSTM models provide true anomaly detection beyond simple regression.
+
+**Q4 2025 - Scale**: CRDTs enable instant global state synchronization across distributed fleets without consensus overhead. The React dashboard brings enterprise-grade visibility.
+
+This roadmap demonstrates SecBeat's evolution from a **production-ready security platform** to a **next-generation intelligent defense system**.
 
 ---
 
