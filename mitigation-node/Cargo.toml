@@ -31,7 +31,7 @@ httparse = { workspace = true }
 
 # eBPF/XDP support
 aya = { version = "0.13", features = ["async_tokio"] }
-secbeat-common = { path = "../secbeat-common" }
+secbeat-common = { path = "../secbeat-common", features = ["user"] }
 regex = { workspace = true }
 governor = { workspace = true }
 dashmap = { workspace = true }

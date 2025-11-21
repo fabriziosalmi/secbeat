@@ -28,6 +28,10 @@ pub struct BlockEntry {
     pub flags: u32,
 }
 
+// Implement Pod for userspace Aya
+#[cfg(feature = "user")]
+unsafe impl aya::Pod for BlockEntry {}
+
 /// Statistics structure shared between eBPF and userspace
 #[repr(C)]
 #[derive(Clone, Copy)]

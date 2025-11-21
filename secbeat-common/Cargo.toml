@@ -4,9 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-# No std support for kernel compatibility
-# All dependencies must be no_std compatible
+# eBPF kernel-side (always available as it's no_std)
+aya-ebpf = { version = "0.1", optional = true }
+# User-side (for Pod trait)
+aya = { version = "0.13", optional = true }
 
 [features]
 default = []
 std = []
+user = ["aya"]
