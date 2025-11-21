@@ -1,98 +1,185 @@
-# SecBeat Development Configuration
-# Lightweight configuration for local development and testing
+# SecBeat Production Configuration
+# This is the unified configuration file for the entire SecBeat platform
+# It supports feature toggles and modular deployment scenarios
+
+#===============================================================================
+# PLATFORM CONFIGURATION
+#===============================================================================
 
 [platform]
+# Deployment environment: development, staging, development
 environment = "development"
-deployment_id = "secbeat-dev-local"
-region = "local"
 
-# Minimal feature set for development
+# Unique identifier for this deployment instance
+deployment_id = "secbeat-dev-001"
+
+# Regional identifier (useful for multi-region deployments)
+region = "us-east-1"
+
+# Platform features (global toggles)
 features = [
-    "ddos_protection",
-    "waf_protection", 
-    "tls_termination",
-    "metrics",
-    "management_api"
+    "ddos_protection",    # Enable DDoS protection across all nodes
+    "waf_protection",     # Enable WAF protection
+    "syn_proxy",          # Enable SYN proxy for Layer 4 protection
+    "tls_termination",    # Enable TLS termination
+    "orchestrator",       # Enable orchestrator integration
+    "nats_messaging",     # Enable NATS messaging
+    "ai_detection",       # Enable AI-powered threat detection
+    "auto_scaling",       # Enable automatic scaling
+    "geo_blocking",       # Enable geographic blocking
+    "rate_limiting",      # Enable advanced rate limiting
+    "circuit_breaker",    # Enable circuit breaker patterns
+    "health_checks",      # Enable health check endpoints
+    "metrics",            # Enable metrics collection
+    "tracing",            # Enable distributed tracing
+    "management_api"      # Enable management API
 ]
 
+#===============================================================================
+# NETWORK CONFIGURATION
+#===============================================================================
+
 [network]
-public_interface = "127.0.0.1"
-public_port = 8443
+# Primary network interface (public-facing)
+public_interface = "0.0.0.0"
+public_port = 443
+
+# Backend network configuration
 backend_interface = "127.0.0.1"
 backend_port = 8080
-max_connections = 1000
+
+# Connection settings
+max_connections = 100000
 connection_timeout_seconds = 30
 keep_alive_timeout_seconds = 60
-buffer_size = 8192
+buffer_size = 65536
 
+# Load balancing mode: round_robin, least_connections, ip_hash
+load_balance_mode = "least_connections"
+
+# Backend servers (for load balancing)
 backend_servers = [
-    { address = "127.0.0.1:8080", weight = 100, health_check = true }
+    { address = "127.0.0.1:8080", weight = 100, health_check = true },
+    { address = "127.0.0.1:8081", weight = 100, health_check = true }
 ]
 
 [network.tls]
+# TLS configuration
 enabled = true
-cert_path = "certs/cert.pem"
-key_path = "certs/key.pem"
+cert_path = "/etc/secbeat/tls/cert.pem"
+key_path = "/etc/secbeat/tls/key.pem"
+ca_path = "/etc/secbeat/tls/ca.pem"
+
+# TLS versions and ciphers
 min_version = "1.2"
 max_version = "1.3"
+cipher_suites = [
+    "TLS_AES_256_GCM_SHA384",
+    "TLS_CHACHA20_POLY1305_SHA256",
+    "TLS_AES_128_GCM_SHA256"
+]
+
+# ALPN protocols
 alpn_protocols = ["h2", "http/1.1"]
+
+# Client certificate verification
 client_cert_required = false
-ocsp_stapling = false
+client_cert_ca_path = ""
+
+# OCSP stapling
+ocsp_stapling = true
+
+#===============================================================================
+# DDOS PROTECTION
+#===============================================================================
 
 [ddos]
 enabled = true
-detection_threshold_multiplier = 2.0
-mitigation_duration_seconds = 60
-learning_period_seconds = 300
+
+# Global DDoS settings
+detection_threshold_multiplier = 3.0
+mitigation_duration_seconds = 300
+learning_period_seconds = 3600
 
 [ddos.rate_limiting]
-requests_per_second = 100
-burst_size = 200
+# Per-IP rate limiting
+requests_per_second = 1000
+burst_size = 2000
 window_seconds = 60
-penalty_duration_seconds = 60
-global_requests_per_second = 5000
-global_burst_size = 10000
+penalty_duration_seconds = 300
+
+# Global rate limiting
+global_requests_per_second = 50000
+global_burst_size = 100000
+
+# Rate limiting by path patterns
+path_limits = [
+    { pattern = "/api/login", requests_per_second = 5, burst_size = 10 },
+    { pattern = "/api/register", requests_per_second = 2, burst_size = 5 },
+    { pattern = "/api/*", requests_per_second = 100, burst_size = 200 }
+]
 
 [ddos.connection_limits]
-max_connections_per_ip = 10
-max_total_connections = 1000
-max_new_connections_per_second = 100
-max_concurrent_handshakes = 1000
+max_connections_per_ip = 50
+max_total_connections = 100000
+max_new_connections_per_second = 1000
+max_concurrent_handshakes = 10000
+
+# Connection tracking
+track_connection_state = true
+connection_timeout_seconds = 30
+idle_timeout_seconds = 300
 
 [ddos.syn_proxy]
 enabled = true
-cookie_secret = "dev-cookie-secret-not-for-production-use-only"
-listen_port = 8443
+cookie_secret = "${SYN_COOKIE_SECRET}"  # Environment variable
+listen_port = 443
 handshake_timeout_ms = 5000
-max_pending_handshakes = 5000
-syn_flood_threshold = 100
+max_pending_handshakes = 50000
+syn_flood_threshold = 1000
 
 [ddos.blacklist]
 enabled = true
+
+# Automatic blacklisting
 auto_blacklist_enabled = true
-violation_threshold = 5
-blacklist_duration_seconds = 300
-escalation_multiplier = 1.5
-max_blacklist_duration_seconds = 3600
+violation_threshold = 20
+blacklist_duration_seconds = 3600
+escalation_multiplier = 2.0
+max_blacklist_duration_seconds = 86400
+
+# Static lists (CIDR notation)
+static_blacklist = [
+    # Add known malicious IP ranges here
+]
 
 static_whitelist = [
-    "127.0.0.0/8",
-    "10.0.0.0/8",
+    "127.0.0.0/8",          # Localhost
+    "10.0.0.0/8",           # Private networks
     "172.16.0.0/12",
     "192.168.0.0/16"
 ]
 
-geo_blocking_enabled = false
-blocked_countries = []
-allowed_countries = []
+# Geographic blocking
+geo_blocking_enabled = true
+blocked_countries = ["CN", "RU", "KP"]  # ISO 3166-1 alpha-2 codes
+allowed_countries = []  # Empty means allow all except blocked
+
+#===============================================================================
+# WAF CONFIGURATION
+#===============================================================================
 
 [waf]
 enabled = true
-mode = "monitor"  # Less aggressive for development
-max_request_size_bytes = 1048576  # 1MB
-max_header_size_bytes = 8192
-max_url_length = 2048
-max_query_params = 50
+
+# WAF operation mode: monitor, block, challenge
+mode = "block"
+
+# Request inspection
+max_request_size_bytes = 10485760  # 10MB
+max_header_size_bytes = 32768      # 32KB
+max_url_length = 8192
+max_query_params = 100
 
 [waf.http_inspection]
 inspect_headers = true
@@ -100,128 +187,284 @@ inspect_body = true
 inspect_url = true
 inspect_cookies = true
 inspect_user_agent = true
-max_body_size_bytes = 524288  # 512KB
-body_inspection_timeout_ms = 500
 
+# Body inspection limits
+max_body_size_bytes = 5242880  # 5MB
+body_inspection_timeout_ms = 1000
+
+# Content type restrictions
 allowed_content_types = [
     "application/json",
     "application/x-www-form-urlencoded",
     "multipart/form-data",
-    "text/plain"
+    "text/plain",
+    "text/html",
+    "text/xml",
+    "application/xml"
 ]
 
 [waf.attack_patterns]
+# Core OWASP protections
 sql_injection = true
 xss_detection = true
 path_traversal = true
 command_injection = true
-ldap_injection = false
-xml_injection = false
-xxe_protection = false
-csrf_protection = false
-session_fixation_protection = false
-clickjacking_protection = false
+ldap_injection = true
+xml_injection = true
+xxe_protection = true
 
-custom_rules_enabled = false
-anomaly_scoring_enabled = false
+# Additional protections
+csrf_protection = true
+session_fixation_protection = true
+clickjacking_protection = true
+
+# Custom rule sets
+custom_rules_enabled = true
+custom_rules_path = "/etc/secbeat/waf/custom_rules.yaml"
+
+# Anomaly scoring
+anomaly_scoring_enabled = true
+anomaly_threshold = 5
+inbound_anomaly_threshold = 5
+outbound_anomaly_threshold = 4
 
 [waf.ai_detection]
-enabled = false  # Disabled for development
+enabled = true
+model_path = "/etc/secbeat/ai/threat_detection.onnx"
+confidence_threshold = 0.85
+batch_size = 32
+inference_timeout_ms = 100
 
-# Orchestrator enabled for development
+# ML model features
+feature_extraction = [
+    "request_size",
+    "header_count",
+    "param_count",
+    "entropy_analysis",
+    "character_distribution",
+    "request_frequency"
+]
+
+#===============================================================================
+# ORCHESTRATOR CONFIGURATION
+#===============================================================================
+
 [orchestrator]
 enabled = true
-server_url = "http://127.0.0.1:3030"
+server_url = "https://orchestrator.secbeat.local:3030"
+node_type = "mitigation"
+node_id = "${NODE_ID}"  # Environment variable or auto-generate
+
+# Authentication
+auth_method = "token"  # token, mtls, jwt
+auth_token = "${ORCHESTRATOR_TOKEN}"
+client_cert_path = "/etc/secbeat/orchestrator/client.pem"
+client_key_path = "/etc/secbeat/orchestrator/client-key.pem"
 
 [orchestrator.registration]
-max_retries = 3
-retry_interval_seconds = 5
-timeout_seconds = 10
+auto_register = true
+retry_interval_seconds = 30
+max_retries = 10
+timeout_seconds = 60
+registration_data = { version = "1.0.0", capabilities = ["ddos", "waf", "syn_proxy"] }
 
 [orchestrator.heartbeat]
-interval = 30
-timeout = 10
+interval_seconds = 30
+timeout_seconds = 15
 max_missed = 3
+include_metrics = true
 
-# NATS enabled for development
+[orchestrator.commands]
+enabled = true
+command_timeout_seconds = 60
+max_concurrent_commands = 10
+
+[orchestrator.circuit_breaker]
+enabled = true
+failure_threshold = 5
+recovery_timeout_seconds = 60
+half_open_max_requests = 3
+
+#===============================================================================
+# NATS MESSAGING
+#===============================================================================
+
 [nats]
 enabled = true
-url = "nats://127.0.0.1:4222"
+servers = [
+    "nats://nats-1.secbeat.local:4222",
+    "nats://nats-2.secbeat.local:4222",
+    "nats://nats-3.secbeat.local:4222"
+]
+
+# Connection settings
+name = "secbeat-mitigation-node"
+connect_timeout_seconds = 10
+reconnect_wait_seconds = 2
+max_reconnects = 100
+ping_interval_seconds = 30
+max_outstanding_pings = 3
+
+# Authentication
+auth_method = "token"  # none, token, nkey, jwt, creds
+auth_token = "${NATS_TOKEN}"
+nkey_seed = "${NATS_NKEY_SEED}"
+credentials_file = "/etc/secbeat/nats/nats.creds"
+
+# TLS for NATS
+tls_enabled = true
+tls_cert_path = "/etc/secbeat/nats/client.pem"
+tls_key_path = "/etc/secbeat/nats/client-key.pem"
+tls_ca_path = "/etc/secbeat/nats/ca.pem"
+
+[nats.subjects]
+# Event publishing
+events_subject = "secbeat.events.mitigation"
+metrics_subject = "secbeat.metrics.mitigation"
+alerts_subject = "secbeat.alerts"
+
+# Command subscription
+commands_subject = "secbeat.commands.mitigation.>"
+config_updates_subject = "secbeat.config.mitigation"
+
+# JetStream settings
+jetstream_enabled = true
+stream_name = "secbeat-events"
+max_age_seconds = 86400  # 24 hours
+max_msgs = 1000000
+
+#===============================================================================
+# METRICS & MONITORING
+#===============================================================================
 
 [metrics]
 enabled = true
-listen_addr = "127.0.0.1:9090"
-collection_interval_seconds = 10
-aggregation_interval_seconds = 60
-retention_hours = 2
+listen_addr = "0.0.0.0:9090"
 
+# Metrics collection intervals
+collection_interval_seconds = 5
+aggregation_interval_seconds = 60
+retention_hours = 24
+
+# Prometheus integration
 prometheus_enabled = true
 prometheus_path = "/metrics"
-prometheus_namespace = "secbeat_dev"
+prometheus_namespace = "secbeat"
+
+# Custom metrics
 custom_metrics_enabled = true
-high_cardinality_metrics = true
+high_cardinality_metrics = false
 
 [metrics.exporters]
+# Multiple exporters can be enabled
 prometheus = { enabled = true, endpoint = "/metrics" }
+influxdb = { enabled = false, url = "http://influxdb:8086", database = "secbeat" }
+elasticsearch = { enabled = false, url = "http://elasticsearch:9200", index = "secbeat-metrics" }
+
+#===============================================================================
+# LOGGING CONFIGURATION
+#===============================================================================
 
 [logging]
-level = "debug"
-format = "text"  # More readable for development
-outputs = ["stdout"]
+# Log level: trace, debug, info, warn, error
+level = "info"
+format = "json"  # json, text
 
+# Output destinations
+outputs = ["stdout", "file"]
+file_path = "/var/log/secbeat/mitigation.log"
+max_file_size_mb = 100
+max_files = 10
+
+# Structured logging
 include_timestamp = true
 include_level = true
 include_target = true
-include_thread_id = false
-include_line_number = true
+include_thread_id = true
+include_line_number = false
 
-sampling_enabled = false
+# Log sampling (to reduce volume in high-traffic scenarios)
+sampling_enabled = true
+sampling_rate = 0.1  # Sample 10% of debug logs
 
 [logging.audit]
-enabled = false
+enabled = true
+file_path = "/var/log/secbeat/audit.log"
+include_events = ["security_violation", "config_change", "admin_action"]
+
+#===============================================================================
+# MANAGEMENT API
+#===============================================================================
 
 [management]
 enabled = true
 listen_addr = "127.0.0.1:9999"
 tls_enabled = false
-auth_method = "none"  # No auth for development
 
+# Authentication
+auth_method = "token"  # none, token, basic, jwt
+auth_token = "${MANAGEMENT_TOKEN}"
+basic_auth_user = "admin"
+basic_auth_password = "${MANAGEMENT_PASSWORD}"
+
+# API endpoints
 enable_status = true
 enable_metrics = true
 enable_config = true
 enable_health = true
-enable_debug = true
+enable_debug = false
 
+# Security
 cors_enabled = true
-cors_origins = ["*"]
-rate_limiting_enabled = false
+cors_origins = ["https://admin.secbeat.local"]
+rate_limiting_enabled = true
+rate_limit_requests_per_minute = 60
 
-shutdown_grace_period_seconds = 10
-force_shutdown_timeout_seconds = 5
+# Graceful shutdown
+shutdown_grace_period_seconds = 60
+force_shutdown_timeout_seconds = 30
+
+#===============================================================================
+# HEALTH CHECKS
+#===============================================================================
 
 [health]
 enabled = true
-listen_addr = "127.0.0.1:8081"
+listen_addr = "0.0.0.0:8080"
 path = "/health"
-check_interval_seconds = 30
+
+# Health check intervals
+check_interval_seconds = 10
 timeout_seconds = 5
 
+# Dependencies to check
 check_backend = true
-check_nats = false
-check_orchestrator = false
+check_nats = true
+check_orchestrator = true
 
+# Readiness vs liveness
 readiness_path = "/ready"
 liveness_path = "/live"
 
+#===============================================================================
+# DEVELOPMENT & DEBUGGING
+#===============================================================================
+
 [debug]
-enabled = true
-pprof_enabled = true
+enabled = false
+pprof_enabled = false
 pprof_addr = "127.0.0.1:6060"
 
+# Performance profiling
 cpu_profiling = false
 memory_profiling = false
-request_tracing_enabled = true
-trace_sampling_rate = 1.0  # Trace all requests in development
+block_profiling = false
+mutex_profiling = false
 
-debug_endpoints_enabled = true
-debug_auth_required = false
+# Request tracing
+request_tracing_enabled = false
+trace_sampling_rate = 0.01  # 1% of requests
+
+# Debug endpoints
+debug_endpoints_enabled = false
+debug_auth_required = true
