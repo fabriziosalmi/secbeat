@@ -71,17 +71,17 @@ fn try_secbeat_xdp(ctx: XdpContext) -> Result<u32, ()> {
         *saddr_ptr // Already in network byte order
     };
 
-    // Debug: log packet IP in both decimal notation and hex for byte order analysis
-    info!(&ctx, "PKT from {:i} | raw=0x{:x}", src_ip, src_ip);
+    // DEBUG: Temporarily drop ALL IPv4 packets to verify XDP works
+    info!(&ctx, "🔴 TEST MODE: Dropping ALL IPv4 packets | from {:i} (0x{:x})", src_ip, src_ip);
+    return Ok(xdp_action::XDP_DROP);
 
-    // Check if source IP is in blocklist
-    if let Some(_entry) = unsafe { BLOCKLIST.get(&src_ip) } {
-        info!(&ctx, "🚫 DROPPED packet from {:i} (0x{:x})", src_ip, src_ip);
-        return Ok(xdp_action::XDP_DROP);
-    }
-
-    // IP not blocked, allow packet
-    Ok(xdp_action::XDP_PASS)
+    // ORIGINAL CODE (commented out for testing):
+    // info!(&ctx, "PKT from {:i} | raw=0x{:x}", src_ip, src_ip);
+    // if let Some(_entry) = unsafe { BLOCKLIST.get(&src_ip) } {
+    //     info!(&ctx, "🚫 DROPPED packet from {:i} (0x{:x})", src_ip, src_ip);
+    //     return Ok(xdp_action::XDP_DROP);
+    // }
+    // Ok(xdp_action::XDP_PASS)
 }
 
 #[panic_handler]
