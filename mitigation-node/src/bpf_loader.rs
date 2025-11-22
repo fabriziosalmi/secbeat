@@ -81,8 +81,25 @@ impl BpfHandle {
     /// # Returns
     /// Ok(()) if successfully blocked, Err if map update failed
     pub fn block_ip(&mut self, ip: Ipv4Addr) -> Result<()> {
-        // Convert IP to u32 (network byte order for kernel compatibility)
-        let ip_u32 = u32::from_be_bytes(ip.octets());
+        // CRITICAL: The kernel reads IP directly from packet memory (network byte order).
+        // We need to store the IP in the SAME byte representation.
+        // 
+        // For IP 192.168.100.12:
+        // - Packet bytes: [192, 168, 100, 12] = 0xc0a8640c in network order
+        // - We need the u32 to have the SAME bytes when cast to [u8; 4]
+        //
+        // from_be_bytes() interprets bytes AS big-endian and converts to host order.
+        // On little-endian (x86_64): from_be_bytes([192,168,100,12]) = 0xc0a8640c (correct!)
+        // But when written to memory as u32, it becomes: 0x0c 0x64 0xa8 0xc0 (reversed!)
+        //
+        // Solution: Use the "network byte order" representation directly.
+        // Since BPF maps store raw bytes, we want: u32::from_ne_bytes(ip.octets())
+        // Or better: just read as big-endian on LE arch, which from_be_bytes does!
+        let ip_bytes = ip.octets(); // [192, 168, 100, 12]
+        
+        // The kernel sees: *(u32*)&packet[ip_offset] which on LE reads 0x0c64a8c0
+        // So we need to store 0x0c64a8c0 (little-endian representation of the bytes)
+        let ip_u32 = u32::from_ne_bytes(ip_bytes); // Native endian = what kernel sees
         
         // Create block entry with metadata
         let entry = BlockEntry {
@@ -99,7 +116,7 @@ impl BpfHandle {
             .insert(ip_u32, entry, 0)
             .context(format!("Failed to insert IP {} into blocklist", ip))?;
 
-        info!("🚫 Offloaded IP block to kernel/XDP: {}", ip);
+        info!("🚫 Offloaded IP block to kernel/XDP: {} (key: 0x{:08x})", ip, ip_u32);
         Ok(())
     }
 
@@ -111,7 +128,7 @@ impl BpfHandle {
     /// # Returns
     /// Ok(()) if successfully unblocked or not found, Err if map operation failed
     pub fn unblock_ip(&mut self, ip: Ipv4Addr) -> Result<()> {
-        let ip_u32 = u32::from_be_bytes(ip.octets());
+        let ip_u32 = u32::from_ne_bytes(ip.octets()); // Match block_ip() encoding
         
         match self.blocklist.remove(&ip_u32) {
             Ok(_) => {

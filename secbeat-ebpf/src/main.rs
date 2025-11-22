@@ -68,20 +68,18 @@ fn try_secbeat_xdp(ctx: XdpContext) -> Result<u32, ()> {
     let src_ip = unsafe {
         let ip_hdr = data + ETH_HLEN;
         let saddr_ptr = (ip_hdr + IP_SADDR_OFFSET) as *const u32;
-        *saddr_ptr // Already in network byte order
+        *saddr_ptr // This is in network byte order (big-endian)
     };
 
-    // DEBUG: Temporarily drop ALL IPv4 packets to verify XDP works
-    info!(&ctx, "🔴 TEST MODE: Dropping ALL IPv4 packets | from {:i} (0x{:x})", src_ip, src_ip);
-    return Ok(xdp_action::XDP_DROP);
+    // Check if source IP is in blocklist
+    // NOTE: The map key should match the byte order we're using here (network/big-endian)
+    if let Some(_entry) = unsafe { BLOCKLIST.get(&src_ip) } {
+        info!(&ctx, "🚫 DROP {:i}", src_ip);
+        return Ok(xdp_action::XDP_DROP);
+    }
 
-    // ORIGINAL CODE (commented out for testing):
-    // info!(&ctx, "PKT from {:i} | raw=0x{:x}", src_ip, src_ip);
-    // if let Some(_entry) = unsafe { BLOCKLIST.get(&src_ip) } {
-    //     info!(&ctx, "🚫 DROPPED packet from {:i} (0x{:x})", src_ip, src_ip);
-    //     return Ok(xdp_action::XDP_DROP);
-    // }
-    // Ok(xdp_action::XDP_PASS)
+    // IP not blocked, allow packet
+    Ok(xdp_action::XDP_PASS)
 }
 
 #[panic_handler]
