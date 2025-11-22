@@ -136,7 +136,7 @@ test_ping "After blocking $MY_IP" "no"
 echo ""
 echo -e "${BLUE}═══ Phase 5: Remove XDP & Test Recovery ═══${NC}"
 cleanup
-sleep 1
+sleep 3  # Give more time for network stack to recover
 test_ping "After removing XDP" "yes"
 
 echo ""
