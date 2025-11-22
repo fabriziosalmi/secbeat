@@ -71,10 +71,12 @@ fn try_secbeat_xdp(ctx: XdpContext) -> Result<u32, ()> {
         *saddr_ptr // Already in network byte order
     };
 
+    // Debug: log packet IP in both decimal notation and hex for byte order analysis
+    info!(&ctx, "PKT from {:i} | raw=0x{:x}", src_ip, src_ip);
+
     // Check if source IP is in blocklist
-    if let Some(entry) = unsafe { BLOCKLIST.get(&src_ip) } {
-        // Increment hit count (note: this is a read-only copy, we'd need to update the map)
-        info!(&ctx, "DROPPED packet from {:i}", src_ip);
+    if let Some(_entry) = unsafe { BLOCKLIST.get(&src_ip) } {
+        info!(&ctx, "🚫 DROPPED packet from {:i} (0x{:x})", src_ip, src_ip);
         return Ok(xdp_action::XDP_DROP);
     }
 
