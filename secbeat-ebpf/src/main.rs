@@ -4,12 +4,12 @@
 use aya_ebpf::{
     bindings::xdp_action,
     macros::{map, xdp},
-    maps::HashMap,
+    maps::{HashMap, PerCpuArray},
     programs::XdpContext,
 };
 use aya_log_ebpf::info;
 use core::mem;
-use secbeat_common::{BlockEntry, MAX_BLOCKLIST_ENTRIES};
+use secbeat_common::{BlockEntry, MAX_BLOCKLIST_ENTRIES, STAT_PASS, STAT_DROP};
 
 // Ethernet header constants
 const ETH_P_IP: u16 = 0x0800; // IPv4 protocol (big-endian)
@@ -22,6 +22,12 @@ const IP_SADDR_OFFSET: usize = 12; // Source address offset in IPv4 header
 /// Userspace populates this map, kernel reads it for O(1) lookups
 #[map]
 static BLOCKLIST: HashMap<u32, BlockEntry> = HashMap::with_max_entries(MAX_BLOCKLIST_ENTRIES, 0);
+
+/// Statistics map: Per-CPU counters for PASS and DROP actions
+/// Index 0: Packets passed (XDP_PASS)
+/// Index 1: Packets dropped (XDP_DROP)
+#[map]
+static STATS: PerCpuArray<u64> = PerCpuArray::with_max_entries(2, 0);
 
 /// SecBeat XDP Program - Phase 2.2: The Bouncer
 /// High-performance packet filtering using eBPF/XDP
@@ -75,7 +81,18 @@ fn try_secbeat_xdp(ctx: XdpContext) -> Result<u32, ()> {
     // NOTE: The map key should match the byte order we're using here (network/big-endian)
     if let Some(_entry) = unsafe { BLOCKLIST.get(&src_ip) } {
         info!(&ctx, "🚫 DROP {:i}", src_ip);
+        
+        // Increment drop counter
+        if let Some(counter) = unsafe { STATS.get_ptr_mut(STAT_DROP) } {
+            unsafe { *counter += 1; }
+        }
+        
         return Ok(xdp_action::XDP_DROP);
+    }
+
+    // Increment pass counter
+    if let Some(counter) = unsafe { STATS.get_ptr_mut(STAT_PASS) } {
+        unsafe { *counter += 1; }
     }
 
     // IP not blocked, allow packet

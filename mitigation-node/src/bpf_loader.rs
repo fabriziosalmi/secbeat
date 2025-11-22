@@ -2,12 +2,12 @@
 // Handles loading, attaching, and controlling eBPF programs
 
 use aya::{
-    maps::HashMap as AyaHashMap,
+    maps::{HashMap as AyaHashMap, PerCpuArray},
     programs::{Xdp, XdpFlags},
     Ebpf,
 };
 use anyhow::{Context, Result};
-use secbeat_common::BlockEntry;
+use secbeat_common::{BlockEntry, STAT_PASS, STAT_DROP};
 use std::net::Ipv4Addr;
 use std::path::Path;
 use tracing::{info, warn};
@@ -19,6 +19,8 @@ pub struct BpfHandle {
     _ebpf: Ebpf,
     /// Blocklist map handle for inserting/removing IPs
     blocklist: AyaHashMap<std::sync::Arc<aya::maps::MapData>, u32, BlockEntry>,
+    /// Statistics map handle for reading packet counters
+    stats: PerCpuArray<std::sync::Arc<aya::maps::MapData>, u64>,
 }
 
 impl BpfHandle {
@@ -67,9 +69,19 @@ impl BpfHandle {
         info!("✅ Blocklist map initialized (capacity: {} entries)", 
               secbeat_common::MAX_BLOCKLIST_ENTRIES);
 
+        // Get handle to the statistics map
+        let stats: PerCpuArray<_, u64> = ebpf
+            .take_map("STATS")
+            .context("Failed to find STATS map")?
+            .try_into()
+            .context("Map is not a PerCpuArray")?;
+
+        info!("✅ Statistics map initialized");
+
         Ok(Self {
             _ebpf: ebpf,
             blocklist,
+            stats,
         })
     }
 
@@ -147,5 +159,28 @@ impl BpfHandle {
         // Note: Aya doesn't provide a direct count, we'd need to iterate
         // For now, return 0 as placeholder
         Ok(0)
+    }
+
+    /// Get XDP packet statistics: (pass_count, drop_count)
+    ///
+    /// Reads the PerCpuArray and sums counters across all CPUs
+    ///
+    /// # Returns
+    /// (pass_count, drop_count) tuple or error if map read fails
+    pub fn get_stats(&self) -> Result<(u64, u64)> {
+        let mut pass_total = 0u64;
+        let mut drop_total = 0u64;
+
+        // Read PASS counter (index 0)
+        if let Ok(pass_percpu) = self.stats.get(&(STAT_PASS as u32), 0) {
+            pass_total = pass_percpu.iter().sum();
+        }
+
+        // Read DROP counter (index 1)
+        if let Ok(drop_percpu) = self.stats.get(&(STAT_DROP as u32), 0) {
+            drop_total = drop_percpu.iter().sum();
+        }
+
+        Ok((pass_total, drop_total))
     }
 }

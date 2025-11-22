@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use axum::{
-    extract::{Request, State},
+    extract::{Path, Request, State},
     http::{header::AUTHORIZATION, StatusCode},
     middleware::{self, Next},
     response::{Json, Response},
@@ -285,8 +285,10 @@ fn create_management_router(state: ManagementState) -> Router {
         .route("/api/v1/rules/:id", delete(handle_delete_rule))
         // Statistics endpoints
         .route("/api/v1/stats", get(handle_stats))
+        .route("/metrics", get(handle_metrics))
         // Blacklist management
         .route("/api/v1/blacklist", post(handle_add_blacklist))
+        .route("/api/v1/blacklist/:ip", delete(handle_delete_blacklist))
         // Configuration management endpoints
         .route("/config/reload", post(handle_config_reload))
         .layer(middleware::from_fn_with_state(
@@ -689,13 +691,22 @@ async fn handle_delete_rule(
 }
 
 /// Handle stats request (API v1)
-#[instrument(skip(_state))]
+#[instrument(skip(state))]
 async fn handle_stats(
-    State(_state): State<ManagementState>,
+    State(state): State<ManagementState>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
+    // Try to get XDP stats from event system
+    let (xdp_pass, xdp_drop) = if let Some(ref event_system) = state.event_system {
+        event_system.get_xdp_stats().await.unwrap_or((0, 0))
+    } else {
+        (0, 0)
+    };
+
     let stats = serde_json::json!({
-        "packets_processed": 0,
-        "attacks_blocked": 0,
+        "packets_processed": xdp_pass + xdp_drop,
+        "packets_passed": xdp_pass,
+        "packets_dropped": xdp_drop,
+        "attacks_blocked": xdp_drop,
         "requests_per_second": 0,
         "latency_ms": 0.0,
         "cpu_percent": 0,
@@ -725,4 +736,65 @@ async fn handle_add_blacklist(
         "message": format!("IP {} added to blacklist", request.ip),
         "expires_at": chrono::Utc::now() + chrono::Duration::seconds(request.duration_seconds.unwrap_or(3600) as i64)
     })))
+}
+
+/// Handle delete from blacklist request (API v1)
+#[instrument(skip(state))]
+async fn handle_delete_blacklist(
+    State(state): State<ManagementState>,
+    Path(ip): Path<String>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    info!(ip = %ip, "Removing IP from blacklist");
+
+    // Parse IP address
+    let ip_addr: std::net::Ipv4Addr = ip
+        .parse()
+        .map_err(|_| StatusCode::BAD_REQUEST)?;
+
+    // Unblock via event system (if available)
+    if let Some(ref event_system) = state.event_system {
+        match event_system.unblock_ip(ip_addr).await {
+            Ok(_) => {
+                info!(ip = %ip, "Successfully removed IP from kernel blocklist");
+                Ok(Json(serde_json::json!({
+                    "success": true,
+                    "message": format!("IP {} removed from blacklist", ip)
+                })))
+            }
+            Err(e) => {
+                error!(ip = %ip, error = ?e, "Failed to remove IP from blocklist");
+                Err(StatusCode::INTERNAL_SERVER_ERROR)
+            }
+        }
+    } else {
+        warn!("Event system not available, cannot remove IP from kernel blocklist");
+        Ok(Json(serde_json::json!({
+            "success": false,
+            "message": "Event system not available"
+        })))
+    }
+}
+
+/// Handle Prometheus metrics request
+#[instrument(skip(state))]
+async fn handle_metrics(
+    State(state): State<ManagementState>,
+) -> Result<String, StatusCode> {
+    // Get XDP stats from event system
+    let (xdp_pass, xdp_drop) = if let Some(ref event_system) = state.event_system {
+        event_system.get_xdp_stats().await.unwrap_or((0, 0))
+    } else {
+        (0, 0)
+    };
+
+    // Build Prometheus-formatted metrics
+    let metrics = format!(
+        "# HELP secbeat_xdp_packets_total Total packets processed by XDP\n\
+         # TYPE secbeat_xdp_packets_total counter\n\
+         secbeat_xdp_packets_total{{action=\"pass\"}} {}\n\
+         secbeat_xdp_packets_total{{action=\"drop\"}} {}\n",
+        xdp_pass, xdp_drop
+    );
+
+    Ok(metrics)
 }

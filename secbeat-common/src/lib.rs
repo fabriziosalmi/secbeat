@@ -7,6 +7,12 @@
 /// This limits memory usage in the kernel (10240 * 8 bytes = ~80KB)
 pub const MAX_BLOCKLIST_ENTRIES: u32 = 10240;
 
+/// Statistics indices for the STATS map
+/// Using constants for array indexing in eBPF
+pub const STAT_PASS: u32 = 0;
+pub const STAT_DROP: u32 = 1;
+pub const STAT_ARRAY_SIZE: u32 = 2;
+
 /// IP address representation for eBPF programs
 /// Using u32 for IPv4 (network byte order)
 #[repr(C)]

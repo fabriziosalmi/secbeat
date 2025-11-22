@@ -462,4 +462,39 @@ impl EventSystem {
         let blocked_ips = self.rule_state.blocked_ips.read().await;
         blocked_ips.contains(&ip)
     }
+
+    /// Unblock an IP address from the kernel blocklist (Linux only)
+    #[cfg(target_os = "linux")]
+    pub async fn unblock_ip(&self, ip: std::net::Ipv4Addr) -> anyhow::Result<()> {
+        let mut bpf_guard = self.bpf_handle.lock().await;
+        if let Some(ref mut bpf) = *bpf_guard {
+            bpf.unblock_ip(ip)?;
+            Ok(())
+        } else {
+            anyhow::bail!("BPF handle not attached")
+        }
+    }
+
+    /// Get XDP packet statistics (Linux only)
+    #[cfg(target_os = "linux")]
+    pub async fn get_xdp_stats(&self) -> anyhow::Result<(u64, u64)> {
+        let bpf_guard = self.bpf_handle.lock().await;
+        if let Some(ref bpf) = *bpf_guard {
+            bpf.get_stats()
+        } else {
+            anyhow::bail!("BPF handle not attached")
+        }
+    }
+
+    /// Unblock an IP address (stub for non-Linux platforms)
+    #[cfg(not(target_os = "linux"))]
+    pub async fn unblock_ip(&self, _ip: std::net::Ipv4Addr) -> anyhow::Result<()> {
+        anyhow::bail!("XDP blocking not supported on this platform")
+    }
+
+    /// Get XDP packet statistics (stub for non-Linux platforms)
+    #[cfg(not(target_os = "linux"))]
+    pub async fn get_xdp_stats(&self) -> anyhow::Result<(u64, u64)> {
+        Ok((0, 0))
+    }
 }
