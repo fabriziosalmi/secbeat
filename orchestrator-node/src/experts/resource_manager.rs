@@ -16,7 +16,7 @@ use linfa::prelude::*;
 use linfa_linear::LinearRegression;
 use ndarray::{Array1, Array2};
 
-use crate::{NodeInfo, NodeStatus, OrchestratorConfig};
+use crate::types::{NodeInfo, NodeStatus, OrchestratorConfig};
 
 /// Time-series data point for CPU usage history
 #[derive(Debug, Clone)]
@@ -139,7 +139,7 @@ impl ResourceManager {
         info!(
             interval_seconds = self.config.scaling_check_interval_seconds,
             min_fleet_size = self.config.min_fleet_size,
-            scale_up_threshold = self.config.scale_up_cpu_threshold,
+            scale_up_threshold = self.config.cpu_scale_up_threshold,
             scale_down_threshold = self.config.scale_down_cpu_threshold,
             "Starting resource manager"
         );
@@ -194,7 +194,7 @@ impl ResourceManager {
                     checks = self.scale_up_checks,
                     predicted_cpu = predicted_cpu,
                     current_cpu = metrics.avg_cpu_usage,
-                    threshold = self.config.scale_up_cpu_threshold,
+                    threshold = self.config.cpu_scale_up_threshold,
                     "Triggering predictive scale-up action"
                 );
 
@@ -274,15 +274,13 @@ impl ResourceManager {
         let mut lowest_node_id = None;
 
         for node in &active_nodes {
-            if let Some(metrics) = &node.metrics {
-                total_cpu += metrics.cpu_usage;
-                total_memory += metrics.memory_usage;
-                total_connections += metrics.active_connections;
+            total_cpu += node.cpu_usage as f64;
+            total_memory += node.memory_usage as f64;
+            total_connections += node.active_connections;
 
-                if metrics.active_connections < lowest_connections {
-                    lowest_connections = metrics.active_connections;
-                    lowest_node_id = Some(node.node_id);
-                }
+            if node.active_connections < lowest_connections {
+                lowest_connections = node.active_connections;
+                lowest_node_id = Some(node.node_id);
             }
         }
 
@@ -388,13 +386,13 @@ impl ResourceManager {
 
     /// Check if the fleet should scale up based on predicted CPU
     fn should_scale_up_predictive(&self, predicted_cpu: f32, metrics: &FleetMetrics) -> bool {
-        metrics.active_node_count > 0 && predicted_cpu > self.config.scale_up_cpu_threshold
+        metrics.active_node_count > 0 && predicted_cpu > self.config.cpu_scale_up_threshold
     }
 
     /// Check if the fleet should scale down
     fn should_scale_down(&self, metrics: &FleetMetrics) -> bool {
         metrics.active_node_count > self.config.min_fleet_size as usize
-            && metrics.avg_cpu_usage < self.config.scale_down_cpu_threshold
+            && metrics.avg_cpu_usage < self.config.cpu_scale_down_threshold
             && metrics.lowest_connection_node.is_some()
     }
 

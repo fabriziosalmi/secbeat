@@ -5,6 +5,14 @@ edition = "2021"
 authors = ["Fabrizio Salmi <fabrizio.salmi@gmail.com>"]
 description = "Central orchestrator for SecBeat mitigation node fleet management"
 
+[lib]
+name = "orchestrator_node"
+path = "src/lib.rs"
+
+[[bin]]
+name = "orchestrator-node"
+path = "src/main.rs"
+
 [dependencies]
 # Use workspace dependencies
 tokio = { workspace = true }
@@ -19,6 +27,10 @@ uuid = { workspace = true }
 linfa = { workspace = true }
 linfa-linear = { workspace = true }
 ndarray = { workspace = true }
+
+# Machine Learning for Anomaly Detection
+smartcore = { version = "0.3", features = ["serde"] }
+
 chrono = { workspace = true }
 reqwest = { workspace = true }
 metrics = { workspace = true }
