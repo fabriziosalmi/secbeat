@@ -81,6 +81,7 @@ impl Default for AnomalyConfig {
 }
 
 /// Anomaly detection result
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct AnomalyScore {
     pub ip: String,
@@ -89,6 +90,9 @@ pub struct AnomalyScore {
     pub features: TrafficFeatures,
     pub timestamp: DateTime<Utc>,
 }
+
+/// Type alias for Random Forest classifier to reduce type complexity
+type RFModel = RandomForestClassifier<f64, i32, DenseMatrix<f64>, Vec<i32>>;
 
 /// ML-based Anomaly Detection Expert
 pub struct AnomalyExpert {
@@ -106,15 +110,17 @@ pub struct AnomalyExpert {
     feature_buffer: Arc<RwLock<HashMap<String, VecDeque<TrafficFeatures>>>>,
     
     /// Request metadata buffer (IP -> requests)
+    #[allow(dead_code)]
     request_buffer: Arc<RwLock<HashMap<String, VecDeque<RequestMetadata>>>>,
     
     /// Trained Random Forest model
-    model: Arc<RwLock<Option<RandomForestClassifier<f64, i32, DenseMatrix<f64>, Vec<i32>>>>>,
+    model: Arc<RwLock<Option<RFModel>>>,
     
     /// Last training timestamp
     last_training: Arc<RwLock<DateTime<Utc>>>,
     
     /// NATS client for publishing ban commands
+    #[allow(dead_code)]
     nats_client: Client,
     
     /// Statistics
@@ -173,6 +179,7 @@ impl AnomalyExpert {
     }
 
     /// Add a request to the buffer for feature extraction
+    #[allow(dead_code)]
     pub async fn observe_request(&self, ip: String, metadata: RequestMetadata) {
         let mut buffer = self.request_buffer.write().await;
         let requests = buffer.entry(ip.clone()).or_insert_with(VecDeque::new);
@@ -190,6 +197,7 @@ impl AnomalyExpert {
     }
 
     /// Extract features and score for anomaly detection
+    #[allow(dead_code)]
     pub async fn check_anomaly(&self, ip: String) -> Option<AnomalyScore> {
         // Extract features from request buffer
         let features = {
@@ -256,7 +264,7 @@ impl AnomalyExpert {
                     Ok(predictions) => {
                         // Random Forest returns class probabilities
                         // We interpret class 1 (anomaly) probability as score
-                        let anomaly_class = predictions.get(0).copied().unwrap_or(0);
+                        let anomaly_class = predictions.first().copied().unwrap_or(0);
                         if anomaly_class == 1 {
                             1.0 // Classified as anomaly
                         } else {
@@ -451,16 +459,19 @@ impl AnomalyExpert {
     }
 
     /// Get current operating mode
+    #[allow(dead_code)]
     pub async fn get_mode(&self) -> OperatingMode {
         *self.mode.read().await
     }
 
     /// Get current statistics
+    #[allow(dead_code)]
     pub async fn get_stats(&self) -> AnomalyStats {
         self.stats.read().await.clone()
     }
 
     /// Force mode switch (for testing)
+    #[allow(dead_code)]
     pub async fn set_mode(&self, mode: OperatingMode) {
         *self.mode.write().await = mode;
         info!("Mode manually set to: {:?}", mode);

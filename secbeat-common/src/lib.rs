@@ -79,6 +79,12 @@ impl PacketStats {
     }
 }
 
+impl Default for PacketStats {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// TCP Header structure (simplified for eBPF use)
 /// All multi-byte fields are in network byte order (big-endian)
 #[repr(C, packed)]

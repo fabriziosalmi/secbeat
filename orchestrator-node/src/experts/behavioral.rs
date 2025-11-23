@@ -392,6 +392,7 @@ impl BehavioralExpert {
     }
 
     /// Get current statistics for monitoring
+    #[allow(dead_code)]
     pub async fn get_stats(&self) -> BehavioralStats {
         let behaviors = self.ip_behaviors.read().await;
         let blocked = self.recently_blocked.read().await;
@@ -427,6 +428,7 @@ impl BehavioralExpert {
 }
 
 /// Statistics snapshot from the behavioral expert
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
 pub struct BehavioralStats {
     /// Number of IPs currently being tracked

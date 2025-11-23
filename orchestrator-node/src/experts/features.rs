@@ -58,6 +58,7 @@ pub struct TrafficFeatures {
 
 impl TrafficFeatures {
     /// Create features from raw telemetry data
+    #[allow(dead_code)]
     pub fn from_telemetry(
         ip: String,
         requests: &[RequestMetadata],
@@ -153,6 +154,7 @@ impl TrafficFeatures {
     }
 
     /// Get feature names (for debugging/logging)
+    #[allow(dead_code)]
     pub fn feature_names() -> Vec<&'static str> {
         vec![
             "request_count",
@@ -167,9 +169,11 @@ impl TrafficFeatures {
     }
 
     /// Number of features in the vector
+    #[allow(dead_code)]
     pub const FEATURE_COUNT: usize = 8;
 
     /// Create a "zero" feature vector (for initialization)
+    #[allow(dead_code)]
     pub fn zero(ip: String) -> Self {
         Self {
             ip,
@@ -189,9 +193,13 @@ impl TrafficFeatures {
 /// Metadata for a single request (extracted from telemetry)
 #[derive(Debug, Clone)]
 pub struct RequestMetadata {
+    #[allow(dead_code)]
     pub uri: String,
+    #[allow(dead_code)]
     pub status_code: u16,
+    #[allow(dead_code)]
     pub latency_ms: f64,
+    #[allow(dead_code)]
     pub user_agent: String,
 }
 
