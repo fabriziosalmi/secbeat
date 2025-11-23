@@ -2,7 +2,7 @@
 FROM rust:1.88-slim AS builder
 
 # Install system dependencies for building
-RUN apt-get update && apt-get install -y \
+RUN apt-get update --allow-insecure-repositories && apt-get install -y --allow-unauthenticated \
     pkg-config \
     libssl-dev \
     ca-certificates \

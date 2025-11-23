@@ -18,9 +18,9 @@ pub struct BpfHandle {
     /// The loaded eBPF program (must stay alive)
     _ebpf: Ebpf,
     /// Blocklist map handle for inserting/removing IPs
-    blocklist: AyaHashMap<std::sync::Arc<aya::maps::MapData>, u32, BlockEntry>,
+    blocklist: AyaHashMap<aya::maps::MapData, u32, BlockEntry>,
     /// Statistics map handle for reading packet counters
-    stats: PerCpuArray<std::sync::Arc<aya::maps::MapData>, u64>,
+    stats: PerCpuArray<aya::maps::MapData, u64>,
 }
 
 impl BpfHandle {
@@ -60,8 +60,8 @@ impl BpfHandle {
         info!("✅ XDP program attached to interface: {}", interface);
 
         // Get handle to the blocklist map
-        let blocklist = AyaHashMap::<_, u32, BlockEntry>::try_from(
-            ebpf.map_mut("BLOCKLIST")
+        let blocklist = AyaHashMap::try_from(
+            ebpf.take_map("BLOCKLIST")
                 .context("Failed to find BLOCKLIST map")?
         )
         .context("Map is not a HashMap")?;
@@ -70,8 +70,8 @@ impl BpfHandle {
               secbeat_common::MAX_BLOCKLIST_ENTRIES);
 
         // Get handle to the statistics map
-        let stats = PerCpuArray::<_, u64>::try_from(
-            ebpf.map_mut("STATS")
+        let stats = PerCpuArray::try_from(
+            ebpf.take_map("STATS")
                 .context("Failed to find STATS map")?
         )
         .context("Map is not a PerCpuArray")?;

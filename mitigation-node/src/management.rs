@@ -67,7 +67,7 @@ impl ShutdownSignal {
 }
 
 /// Management API state
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ManagementState {
     /// Configuration
     pub config: ManagementApiConfig,

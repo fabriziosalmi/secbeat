@@ -92,7 +92,7 @@ impl ProxyMetrics {
 }
 
 /// L7 TLS/HTTP Proxy state management
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 struct ProxyState {
     /// Configuration
     config: MitigationConfig,
