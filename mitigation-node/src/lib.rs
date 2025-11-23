@@ -5,6 +5,7 @@
 
 pub mod config;
 pub mod ddos;
+pub mod distributed;
 pub mod events;
 pub mod management;
 pub mod orchestrator;
@@ -19,6 +20,7 @@ pub mod bpf_loader;
 // Re-export commonly used types
 pub use config::{DdosConfig, MitigationConfig};
 pub use ddos::DdosProtection;
+pub use distributed::{GCounter, NodeId, PNCounter, StateManager, StateSyncConfig};
 pub use events::EventSystem;
 pub use management::{ManagementState, ShutdownSignal};
 pub use waf::{WafEngine, WafResult};
