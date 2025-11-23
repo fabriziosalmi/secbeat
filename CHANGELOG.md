@@ -7,27 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.2] - 2025-11-24
+
 ### Added
-- L7 plain HTTP mode support (TLS-optional configuration)
-- Comprehensive deployment documentation for Linux environments
-- Docker-in-LXC deployment guidelines and limitations
-- Integration test suite for behavioral analysis
-- Native LXC execution support for eBPF/XDP features
+- MIT License with 2025 copyright
+- Core documentation files for website (overview, observability, syn-flood)
+- Explicit slugs in Starlight content collection
+- GitHub Pages deployment configuration (site and base URL)
+- Comprehensive website README with build and deployment instructions
 
 ### Changed
-- Fixed Aya 0.13 API migration (MapData ownership model)
-- Resolved module import architecture (library namespace usage)
-- Improved Docker build caching strategy
-- Updated configuration file structure for multiple deployment scenarios
+- Expanded all acronyms on first use per documentation standards (Rule #7)
+  - DDoS, WAF, TLS, XSS, SQL in README.md
+  - eBPF, XDP, NATS, WASM in README.md
+  - CVSS, PGP in SECURITY.md
+  - TCP, ML, CPU in CONTRIBUTING.md
+- Updated .gitignore to allow website/src/content/docs/core/ folder
+- Fixed Astro config for proper GitHub Pages deployment
 
 ### Fixed
-- Debug trait cascade removal for eBPF-incompatible types
-- Borrow-after-move errors in distributed state synchronization
-- GPG signature errors in Debian package installation
-- Docker layer caching issues during rapid iteration
-
-### Removed
-- Hardcoded TLS requirement in L7 proxy mode
+- Starlight build error: slug 'core/overview' not found
+- GitHub Pages deployment workflow
+- Sitemap integration warning (missing site URL)
 
 ## [0.1.0] - 2025-11-23
 
