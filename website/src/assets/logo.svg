@@ -1,0 +1,19 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Shield outline -->
+  <path d="M64 10L20 30V60C20 85 35 105 64 118C93 105 108 85 108 60V30L64 10Z"
+        stroke="#00f0ff"
+        stroke-width="3"
+        fill="none"/>
+
+  <!-- Heartbeat line -->
+  <path d="M30 64H45L52 52L60 76L68 40L76 64H98"
+        stroke="#dea584"
+        stroke-width="3"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        fill="none"/>
+
+  <!-- Center glow effect -->
+  <circle cx="64" cy="64" r="3" fill="#00f0ff" opacity="0.8"/>
+  <circle cx="64" cy="64" r="6" fill="#00f0ff" opacity="0.3"/>
+</svg>
