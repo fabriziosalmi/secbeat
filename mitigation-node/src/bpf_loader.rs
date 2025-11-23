@@ -60,9 +60,9 @@ impl BpfHandle {
         info!("✅ XDP program attached to interface: {}", interface);
 
         // Get handle to the blocklist map
-        let blocklist = AyaHashMap::try_from(
-            std::sync::Arc::new(ebpf.take_map("BLOCKLIST")
-                .context("Failed to find BLOCKLIST map")?)
+        let blocklist = AyaHashMap::<_, u32, BlockEntry>::try_from(
+            ebpf.map_mut("BLOCKLIST")
+                .context("Failed to find BLOCKLIST map")?
         )
         .context("Map is not a HashMap")?;
 
@@ -70,9 +70,9 @@ impl BpfHandle {
               secbeat_common::MAX_BLOCKLIST_ENTRIES);
 
         // Get handle to the statistics map
-        let stats = PerCpuArray::try_from(
-            std::sync::Arc::new(ebpf.take_map("STATS")
-                .context("Failed to find STATS map")?)
+        let stats = PerCpuArray::<_, u64>::try_from(
+            ebpf.map_mut("STATS")
+                .context("Failed to find STATS map")?
         )
         .context("Map is not a PerCpuArray")?;
 
