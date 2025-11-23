@@ -14,6 +14,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time;
+use tokio_stream::StreamExt;
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
@@ -304,6 +305,7 @@ impl StateManager {
 
         // Merge remote state
         let mut state = self.state.write().await;
+        let counters_len = update.counters.len();
         for (key, remote_counter) in update.counters {
             let local_counter = state.entry(key).or_insert_with(GCounter::new);
             local_counter.merge(&remote_counter);
@@ -311,7 +313,7 @@ impl StateManager {
 
         let mut stats = self.stats.write().await;
         stats.updates_received += 1;
-        stats.remote_merges += update.counters.len() as u64;
+        stats.remote_merges += counters_len as u64;
 
         Ok(())
     }

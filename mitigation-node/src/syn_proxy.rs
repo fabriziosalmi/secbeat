@@ -171,10 +171,8 @@ impl SynProxy {
 
     /// Process incoming packets
     async fn process_packets(&self) -> Result<()> {
-        use std::net::IpAddr;
-        
         let mut rx_guard = self.rx.lock().await;
-        if let Some(ref mut rx) = *rx_guard {
+        if let Some(ref mut _rx) = *rx_guard {
             // Try to receive a packet - pnet's iter() is blocking, so we use a spawn_blocking
             let result = tokio::task::spawn_blocking({
                 let timeout = Duration::from_millis(10);
@@ -445,8 +443,6 @@ impl SynProxy {
         if let Some(ref mut tx) = *self.tx.lock().await {
             use pnet::packet::tcp::{MutableTcpPacket, TcpFlags};
             use pnet::packet::ipv4::MutableIpv4Packet;
-            use pnet::packet::Packet;
-            use std::net::{IpAddr, SocketAddr};
 
             // Create TCP SYN-ACK packet
             let mut tcp_buffer = vec![0u8; 20]; // Basic TCP header size

@@ -580,9 +580,9 @@ async fn handle_waf_stats(
 }
 
 /// Handle status request (API v1)
-#[instrument(skip(state))]
+#[instrument(skip(_state))]
 async fn handle_status(
-    State(state): State<ManagementState>,
+    State(_state): State<ManagementState>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     let uptime = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -679,9 +679,9 @@ async fn handle_add_rule(
 }
 
 /// Handle delete rule request (API v1)
-#[instrument(skip(state))]
+#[instrument(skip(_state))]
 async fn handle_delete_rule(
-    State(state): State<ManagementState>,
+    State(_state): State<ManagementState>,
     axum::extract::Path(_id): axum::extract::Path<String>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     Ok(Json(serde_json::json!({

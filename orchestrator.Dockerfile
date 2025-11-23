@@ -17,6 +17,8 @@ COPY Cargo.toml Cargo.lock ./
 # Copy source code
 COPY orchestrator-node/ ./orchestrator-node/
 COPY mitigation-node/ ./mitigation-node/
+COPY secbeat-common/ ./secbeat-common/
+COPY secbeat-ebpf/ ./secbeat-ebpf/
 
 # Build the orchestrator node in release mode
 RUN cargo build --release --bin orchestrator-node

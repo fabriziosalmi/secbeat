@@ -170,7 +170,7 @@ impl DynamicRuleState {
 }
 
 /// NATS event publisher and command consumer
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct EventSystem {
     /// NATS client
     client: Client,

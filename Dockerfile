@@ -1,5 +1,5 @@
 # SecBeat Mitigation Node - Production Docker Image
-FROM rust:1.78-slim AS builder
+FROM rust:1.88-slim AS builder
 
 # Install system dependencies for building
 RUN apt-get update && apt-get install -y \
@@ -17,6 +17,8 @@ COPY Cargo.toml Cargo.lock ./
 # Copy source code
 COPY mitigation-node/ ./mitigation-node/
 COPY orchestrator-node/ ./orchestrator-node/
+COPY secbeat-common/ ./secbeat-common/
+COPY secbeat-ebpf/ ./secbeat-ebpf/
 
 # Build the mitigation node in release mode
 RUN cargo build --release --bin mitigation-node --bin test-origin

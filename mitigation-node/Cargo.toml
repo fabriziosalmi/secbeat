@@ -44,6 +44,7 @@ ipnet = { workspace = true }
 config = { workspace = true }
 toml = { workspace = true }
 futures = { workspace = true }
+futures-util = { workspace = true }
 tokio-util = { workspace = true }
 pnet = { workspace = true }
 rand = { workspace = true }
