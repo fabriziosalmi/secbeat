@@ -21,7 +21,10 @@ use tracing::{debug, error, info, instrument, warn};
 use uuid::Uuid;
 
 mod experts;
-use experts::{BehavioralConfig, BehavioralExpert, ThreatIntelExpert};
+use experts::{
+    AnomalyConfig, AnomalyExpert, BehavioralConfig, BehavioralExpert,
+    ThreatIntelExpert,
+};
 
 /// Node information stored in the registry
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -271,6 +274,37 @@ async fn main() -> Result<()> {
 
     // Start behavioral analysis cleanup task
     Arc::clone(&behavioral_expert).spawn_cleanup_task();
+
+    // Initialize ML-based anomaly detection expert
+    info!(nats_url = %config.nats_url, "Initializing ML anomaly detection expert");
+    let anomaly_config = AnomalyConfig {
+        training_duration_secs: 300,  // 5 minutes training window
+        feature_window_secs: 60.0,    // 60 second feature extraction window
+        min_training_samples: 100,    // Need 100 samples before training
+        anomaly_threshold: 0.7,       // 70% anomaly score triggers alert
+        retrain_interval_secs: 1800,  // Retrain every 30 minutes
+        max_buffer_size: 1000,        // Max 1000 features per IP
+        n_trees: 100,                 // 100 trees in Random Forest
+        max_depth: 10,                // Max tree depth
+    };
+    
+    // Connect to NATS for anomaly expert
+    let anomaly_nats_client = match async_nats::connect(&config.nats_url).await {
+        Ok(client) => {
+            info!("Connected to NATS for anomaly detection");
+            client
+        }
+        Err(e) => {
+            error!(error = %e, "Failed to connect to NATS for anomaly detection");
+            return Err(e.into());
+        }
+    };
+    
+    let anomaly_expert = Arc::new(AnomalyExpert::new(anomaly_config, anomaly_nats_client));
+    info!("Successfully initialized ML anomaly detection expert");
+
+    // Start anomaly detection background tasks
+    Arc::clone(&anomaly_expert).start().await;
 
     // Initialize orchestrator state
     let state = OrchestratorState {
@@ -624,8 +658,8 @@ async fn dashboard_summary(State(state): State<OrchestratorState>) -> Json<Dashb
 }
 
 /// Dashboard attacks endpoint - recent attack events
-#[instrument(skip(state))]
-async fn dashboard_attacks(State(state): State<OrchestratorState>) -> Json<DashboardAttacksResponse> {
+#[instrument]
+async fn dashboard_attacks(State(_state): State<OrchestratorState>) -> Json<DashboardAttacksResponse> {
     // Mock attack events for now - in production, read from event log or NATS stream
     let mock_attacks = vec![
         AttackEvent {

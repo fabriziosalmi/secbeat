@@ -98,7 +98,8 @@ pub struct AnomalyExpert {
     /// Current operating mode
     mode: Arc<RwLock<OperatingMode>>,
     
-    /// Timestamp when training started
+    /// Timestamp when training started (used for metrics/logging)
+    #[allow(dead_code)]
     training_start: DateTime<Utc>,
     
     /// Feature buffer for training (IP -> features)
