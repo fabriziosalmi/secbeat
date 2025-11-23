@@ -14,7 +14,6 @@ use tracing::{info, warn};
 
 /// Handle to the loaded BPF program and its maps
 /// Keep this alive for the lifetime of the XDP program
-#[derive(Debug)]
 pub struct BpfHandle {
     /// The loaded eBPF program (must stay alive)
     _ebpf: Ebpf,
@@ -61,9 +60,9 @@ impl BpfHandle {
         info!("✅ XDP program attached to interface: {}", interface);
 
         // Get handle to the blocklist map
-        let blocklist: AyaHashMap<std::sync::Arc<aya::maps::MapData>, u32, BlockEntry> = AyaHashMap::try_from(
-            ebpf.take_map("BLOCKLIST")
-                .context("Failed to find BLOCKLIST map")?
+        let blocklist = AyaHashMap::try_from(
+            std::sync::Arc::new(ebpf.take_map("BLOCKLIST")
+                .context("Failed to find BLOCKLIST map")?)
         )
         .context("Map is not a HashMap")?;
 
@@ -71,9 +70,9 @@ impl BpfHandle {
               secbeat_common::MAX_BLOCKLIST_ENTRIES);
 
         // Get handle to the statistics map
-        let stats: PerCpuArray<std::sync::Arc<aya::maps::MapData>, u64> = PerCpuArray::try_from(
-            ebpf.take_map("STATS")
-                .context("Failed to find STATS map")?
+        let stats = PerCpuArray::try_from(
+            std::sync::Arc::new(ebpf.take_map("STATS")
+                .context("Failed to find STATS map")?)
         )
         .context("Map is not a PerCpuArray")?;
 

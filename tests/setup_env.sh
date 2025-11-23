@@ -57,7 +57,7 @@ build_images() {
     
     # Build mitigation-node
     log_info "Building mitigation-node image..."
-    docker build -f "$PROJECT_ROOT/Dockerfile" -t secbeat-mitigation:test "$PROJECT_ROOT"
+    docker build --no-cache -f "$PROJECT_ROOT/Dockerfile" -t secbeat-mitigation:test "$PROJECT_ROOT"
     
     # Build mock-origin
     log_info "Building mock-origin image..."

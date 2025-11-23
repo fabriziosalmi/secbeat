@@ -43,7 +43,7 @@ pub struct IpAddr {
 /// Blocklist entry metadata
 /// Stores information about blocked IPs
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct BlockEntry {
     /// Timestamp when IP was blocked (Unix epoch)
     pub blocked_at: u64,
