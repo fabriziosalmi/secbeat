@@ -1,0 +1,80 @@
+---
+title: SecBeat
+description: DDoS mitigation at kernel speed. eBPF + WASM + Rust.
+template: splash
+hero:
+  title: Defense at Kernel Speed
+  tagline: The first DDoS mitigation platform leveraging eBPF for raw power and WASM for infinite flexibility. Built in Rust.
+  actions:
+    - text: Get Started
+      link: /quickstart/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/yourusername/secbeat
+      icon: external
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Kernel-First Architecture
+
+<CardGrid>
+  <Card title="eBPF Kernel Mode" icon="shield">
+    XDP programs running at the lowest level. Drop attacks before they touch the network stack.
+
+    - **Sub-20µs** packet processing
+    - **1%** CPU usage
+    - **10M+ PPS** capacity
+  </Card>
+
+  <Card title="WASM Hot Reload" icon="rocket">
+    Update detection rules without restarting. WASM modules loaded dynamically.
+
+    - Dynamic rule updates
+    - Zero downtime
+    - Sandboxed execution
+  </Card>
+
+  <Card title="Rust Safety" icon="approve-check">
+    Memory safe by design. Zero-cost abstractions with borrow checker guarantees.
+
+    - No memory leaks
+    - Thread safety
+    - Zero-cost abstractions
+  </Card>
+
+  <Card title="Global Sync (CRDTs)" icon="external">
+    Distributed mitigation decisions. Real-time sync via NATS.
+
+    - Multi-region deployment
+    - Eventually consistent
+    - Conflict-free replication
+  </Card>
+</CardGrid>
+
+## Quick Example
+
+```toml
+[mitigation]
+interface = "eth0"
+mode = "xdp"
+threshold_pps = 1_000_000
+
+[wasm]
+rules_dir = "./rules"
+hot_reload = true
+```
+
+```rust
+#[no_mangle]
+pub extern "C" fn check_packet() {
+  if is_syn_flood() {
+    emit_verdict(XDP_DROP);
+  }
+}
+```
+
+## Don't Trust Our Words
+
+Trust the borrow checker. SecBeat is built in Rust, leveraging the language's memory safety guarantees and zero-cost abstractions to deliver maximum performance without sacrificing reliability.

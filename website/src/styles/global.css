@@ -1,0 +1,32 @@
+/* Import fonts first */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@import "tailwindcss";
+
+:root {
+  /* SecBeat Color Palette */
+  --color-deep: #050505;
+  --color-void: #0a0a0a;
+  --color-rust: #dea584;
+  --color-rust-dark: #b8876a;
+  --color-cyber: #00f0ff;
+  --color-cyber-dark: #00b8c4;
+  --color-neon-green: #39ff14;
+  --color-danger: #ff3366;
+  --color-warning: #ffaa00;
+
+  /* Fonts */
+  --font-sans: Inter, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--color-deep);
+  color: #e5e5e5;
+}
+
+code, pre {
+  font-family: var(--font-mono);
+}

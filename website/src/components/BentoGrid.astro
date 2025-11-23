@@ -1,0 +1,204 @@
+---
+// Bento Grid for showcasing features
+---
+
+<div class="bento-grid">
+  <!-- Large: eBPF Kernel Mode -->
+  <div class="bento-item bento-large group">
+    <div class="bento-content">
+      <div class="flex items-center gap-2 mb-3">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+        </svg>
+        <h3 class="text-xl font-bold text-[var(--color-cyber)]">Kernel Mode</h3>
+      </div>
+      <p class="text-sm text-gray-400 mb-4">XDP programs running at the lowest level. Drop attacks before they touch the network stack.</p>
+      <div class="metric-display">
+        <span class="metric-value">1%</span>
+        <span class="metric-label">CPU Usage</span>
+      </div>
+      <div class="code-snippet">
+        <code class="text-xs font-mono opacity-60">
+          // XDP_DROP @ L2<br/>
+          return bpf_redirect(ctx, 0);
+        </code>
+      </div>
+    </div>
+  </div>
+
+  <!-- Medium: WASM Hot Reload -->
+  <div class="bento-item bento-medium group">
+    <div class="bento-content">
+      <div class="flex items-center gap-2 mb-3">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+        <h3 class="text-lg font-bold text-[var(--color-rust)]">Hot Reload Logic</h3>
+      </div>
+      <p class="text-xs text-gray-400 mb-3">Update detection rules without restarting. WASM modules loaded dynamically.</p>
+      <div class="flex items-center gap-2 text-xs font-mono">
+        <span class="text-[var(--color-neon-green)]">●</span>
+        <span class="opacity-70">rule_v2.wasm loaded</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Small: Rust Safety -->
+  <div class="bento-item bento-small group">
+    <div class="bento-content flex flex-col items-center justify-center text-center">
+      <div class="rust-logo mb-2">🦀</div>
+      <h3 class="text-sm font-bold text-[var(--color-rust)]">Memory Safe</h3>
+      <p class="text-xs text-gray-400 mt-1">Zero-cost abstractions</p>
+    </div>
+  </div>
+
+  <!-- Wide: Global Sync -->
+  <div class="bento-item bento-wide group">
+    <div class="bento-content">
+      <div class="flex items-center gap-2 mb-3">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <h3 class="text-lg font-bold text-[var(--color-cyber)]">CRDT Synchronized State</h3>
+      </div>
+      <p class="text-xs text-gray-400">Distributed mitigation decisions. Real-time sync via NATS.</p>
+      <div class="flex gap-2 mt-3">
+        <div class="region-node">🌐 US-EAST</div>
+        <div class="region-node">🌐 EU-WEST</div>
+        <div class="region-node">🌐 AP-SOUTH</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .bento-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  .bento-item {
+    background: linear-gradient(135deg, rgba(10, 10, 10, 0.9), rgba(5, 5, 5, 0.95));
+    border: 1px solid rgba(0, 240, 255, 0.2);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .bento-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at top right, rgba(0, 240, 255, 0.05), transparent 50%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .bento-item:hover::before {
+    opacity: 1;
+  }
+
+  .bento-item:hover {
+    border-color: rgba(0, 240, 255, 0.5);
+    transform: translateY(-4px);
+    box-shadow: 0 10px 30px rgba(0, 240, 255, 0.2);
+  }
+
+  .bento-large {
+    grid-column: span 2;
+    grid-row: span 2;
+  }
+
+  .bento-medium {
+    grid-column: span 1;
+    grid-row: span 2;
+  }
+
+  .bento-small {
+    grid-column: span 1;
+    grid-row: span 1;
+  }
+
+  .bento-wide {
+    grid-column: span 3;
+    grid-row: span 1;
+  }
+
+  .bento-content {
+    position: relative;
+    z-index: 1;
+    height: 100%;
+  }
+
+  .metric-display {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+
+  .metric-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    color: var(--color-neon-green);
+    text-shadow: 0 0 10px rgba(57, 255, 20, 0.5);
+  }
+
+  .metric-label {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.5);
+    font-family: var(--font-mono);
+  }
+
+  .code-snippet {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-left: 2px solid var(--color-cyber);
+    border-radius: 0.25rem;
+  }
+
+  .rust-logo {
+    font-size: 3rem;
+    filter: grayscale(100%) brightness(0.8);
+    transition: filter 0.3s ease;
+  }
+
+  .group:hover .rust-logo {
+    filter: grayscale(0%) brightness(1);
+  }
+
+  .region-node {
+    padding: 0.5rem 1rem;
+    background: rgba(0, 240, 255, 0.1);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
+    font-family: var(--font-mono);
+    color: var(--color-cyber);
+  }
+
+  @media (max-width: 768px) {
+    .bento-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .bento-large,
+    .bento-medium,
+    .bento-small,
+    .bento-wide {
+      grid-column: span 1;
+      grid-row: span 1;
+    }
+  }
+</style>
