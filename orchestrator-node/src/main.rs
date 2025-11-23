@@ -338,6 +338,8 @@ fn create_api_router(state: OrchestratorState) -> Router {
         .route("/api/v1/nodes/:node_id", get(get_node))
         .route("/api/v1/nodes/:node_id/terminate", post(terminate_node))
         .route("/api/v1/fleet/stats", get(fleet_statistics))
+        .route("/api/v1/dashboard/summary", get(dashboard_summary))
+        .route("/api/v1/dashboard/attacks", get(dashboard_attacks))
         .route("/api/v1/rules/block_ip", post(block_ip_endpoint))
         .route("/api/v1/rules/blocked_ips", get(get_blocked_ips_endpoint))
         .route("/api/v1/health", get(health_check))
@@ -514,6 +516,146 @@ async fn fleet_statistics(State(state): State<OrchestratorState>) -> Json<FleetS
         avg_memory_usage: avg_memory,
         total_pps,
         total_connections,
+    })
+}
+
+/// Dashboard summary response
+#[derive(Debug, Serialize)]
+pub struct DashboardSummary {
+    /// Total requests processed across all nodes
+    pub total_requests: u64,
+    /// Total requests blocked (DDoS + WAF)
+    pub blocked_requests: u64,
+    /// Number of active nodes
+    pub active_nodes: u32,
+    /// Cluster health status
+    pub cluster_health: String,
+    /// Average requests per minute (last minute)
+    pub requests_per_minute: u64,
+    /// Total packets per second across fleet
+    pub total_pps: u64,
+    /// Global block rate (percentage)
+    pub block_rate: f64,
+    /// Timestamp of this summary
+    pub timestamp: DateTime<Utc>,
+}
+
+/// Recent attack event
+#[derive(Debug, Serialize)]
+pub struct AttackEvent {
+    /// Attack timestamp
+    pub timestamp: DateTime<Utc>,
+    /// Source IP
+    pub source_ip: String,
+    /// Attack type (e.g., "SYN Flood", "SQL Injection")
+    pub attack_type: String,
+    /// Node that blocked it
+    pub node_id: Uuid,
+    /// Action taken (Block, RateLimit, etc.)
+    pub action: String,
+    /// Request URI (if applicable)
+    pub uri: Option<String>,
+}
+
+/// Dashboard attacks response
+#[derive(Debug, Serialize)]
+pub struct DashboardAttacksResponse {
+    /// Recent attack events
+    pub attacks: Vec<AttackEvent>,
+    /// Total count
+    pub total_count: u64,
+}
+
+/// Dashboard summary endpoint - aggregated metrics for UI
+#[instrument(skip(state))]
+async fn dashboard_summary(State(state): State<OrchestratorState>) -> Json<DashboardSummary> {
+    let nodes: Vec<_> = state.nodes.iter().map(|entry| entry.clone()).collect();
+
+    let active_nodes = nodes
+        .iter()
+        .filter(|node| node.status == NodeStatus::Active)
+        .count() as u32;
+
+    // Aggregate metrics from all nodes
+    let (total_requests, blocked_requests, total_pps) = {
+        let metrics: Vec<_> = nodes
+            .iter()
+            .filter_map(|node| node.metrics.as_ref())
+            .collect();
+
+        let total_reqs = metrics.iter().map(|m| m.total_requests).sum::<u64>();
+        let ddos_blocks = metrics.iter().map(|m| m.ddos_blocks).sum::<u64>();
+        let waf_blocks = metrics.iter().map(|m| m.waf_blocks).sum::<u64>();
+        let pps = metrics.iter().map(|m| m.packets_per_second).sum::<u64>();
+
+        (total_reqs, ddos_blocks + waf_blocks, pps)
+    };
+
+    // Calculate block rate
+    let block_rate = if total_requests > 0 {
+        (blocked_requests as f64 / total_requests as f64) * 100.0
+    } else {
+        0.0
+    };
+
+    // Determine cluster health based on node status
+    let cluster_health = if active_nodes == 0 {
+        "critical".to_string()
+    } else if active_nodes < nodes.len() as u32 / 2 {
+        "degraded".to_string()
+    } else {
+        "healthy".to_string()
+    };
+
+    // Estimate RPM (mock for now - in production, calculate from time-series data)
+    let requests_per_minute = total_pps * 60 / (active_nodes.max(1) as u64);
+
+    Json(DashboardSummary {
+        total_requests,
+        blocked_requests,
+        active_nodes,
+        cluster_health,
+        requests_per_minute,
+        total_pps,
+        block_rate,
+        timestamp: Utc::now(),
+    })
+}
+
+/// Dashboard attacks endpoint - recent attack events
+#[instrument(skip(state))]
+async fn dashboard_attacks(State(state): State<OrchestratorState>) -> Json<DashboardAttacksResponse> {
+    // Mock attack events for now - in production, read from event log or NATS stream
+    let mock_attacks = vec![
+        AttackEvent {
+            timestamp: Utc::now() - chrono::Duration::seconds(10),
+            source_ip: "192.168.1.100".to_string(),
+            attack_type: "SYN Flood".to_string(),
+            node_id: Uuid::new_v4(),
+            action: "Block".to_string(),
+            uri: None,
+        },
+        AttackEvent {
+            timestamp: Utc::now() - chrono::Duration::seconds(25),
+            source_ip: "10.0.0.50".to_string(),
+            attack_type: "SQL Injection".to_string(),
+            node_id: Uuid::new_v4(),
+            action: "Block".to_string(),
+            uri: Some("/api/users?id=1' OR 1=1--".to_string()),
+        },
+        AttackEvent {
+            timestamp: Utc::now() - chrono::Duration::seconds(45),
+            source_ip: "172.16.0.25".to_string(),
+            attack_type: "Path Traversal".to_string(),
+            node_id: Uuid::new_v4(),
+            action: "Log".to_string(),
+            uri: Some("/files/../../etc/passwd".to_string()),
+        },
+    ];
+
+    Json(DashboardAttacksResponse {
+        total_count: mock_attacks.len() as u64,
+        attacks: mock_attacks,
     })
 }
 
