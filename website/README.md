@@ -1,12 +1,25 @@
-# Starlight Starter Kit: Basics
+# SecBeat Documentation
 
-[![Built with Starlight](https://astro.badg.es/v2/built-with-starlight/tiny.svg)](https://starlight.astro.build)
+Built with [Starlight](https://starlight.astro.build) - A modern documentation framework powered by Astro.
 
+## Development
+
+```bash
+npm install
+npm run dev
 ```
-npm create astro@latest -- --template starlight
+
+## Build
+
+```bash
+npm run build
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+The built site will be in `dist/` directory.
+
+## Deployment
+
+The site is automatically deployed to GitHub Pages when changes are pushed to the `main` branch.
 
 ## 🚀 Project Structure
 
