@@ -15,7 +15,7 @@ buffer_size = 65536
 
 # TLS Configuration for HTTPS
 [tls]
-enabled = true
+enabled = false
 cert_path = "certs/cert.pem"
 key_path = "certs/key.pem"
 protocols = ["TLSv1.2", "TLSv1.3"]

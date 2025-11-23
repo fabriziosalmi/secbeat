@@ -345,14 +345,15 @@ async fn run_l7_proxy_mode(
     };
 
     // Load TLS configuration if TLS is enabled
-    if !config.tls_enabled() {
-        return Err(anyhow::anyhow!("L7 proxy mode requires TLS to be enabled"));
-    }
-
-    let tls_config = load_tls_config(&config.network.tls)
-        .await
-        .context("Failed to load TLS configuration")?;
-    let tls_acceptor = TlsAcceptor::from(Arc::new(tls_config));
+    let tls_acceptor = if config.tls_enabled() {
+        let tls_config = load_tls_config(&config.network.tls)
+            .await
+            .context("Failed to load TLS configuration")?;
+        Some(TlsAcceptor::from(Arc::new(tls_config)))
+    } else {
+        info!("TLS disabled - running L7 proxy in plain HTTP mode");
+        None
+    };
 
     // Create TCP listener
     let listen_addr = config.listen_addr()?;
@@ -506,7 +507,7 @@ async fn run_l7_proxy_mode(
 async fn handle_tls_connection(
     tcp_stream: TcpStream,
     client_addr: SocketAddr,
-    tls_acceptor: TlsAcceptor,
+    tls_acceptor: Option<TlsAcceptor>,
     state: ProxyState,
 ) -> Result<()> {
     // PHASE 5: Check dynamic IP blocklist BEFORE any processing
@@ -530,42 +531,64 @@ async fn handle_tls_connection(
         read_metric!(state, active_connections) as f64
     );
 
-    // Perform TLS handshake
-    let tls_stream = match tls_acceptor.accept(tcp_stream).await {
-        Ok(stream) => {
-            update_metric!(state, tls_handshakes_completed, fetch_add, 1);
-            counter!("tls_handshakes_completed", 1);
-            stream
-        }
-        Err(e) => {
-            update_metric!(state, tls_handshake_errors, fetch_add, 1);
-            counter!("tls_handshake_errors", 1);
-            error!(client_addr = %client_addr, error = %e, "TLS handshake failed");
-            update_metric!(state, active_connections, fetch_sub, 1);
-            return Err(e.into());
-        }
-    };
-
-    debug!(client_addr = %client_addr, "TLS handshake completed successfully");
-
     // Clone state for the service closure
     let state_for_service = state.clone();
 
-    // Create HTTP service for this connection
-    let service = service_fn(move |req: Request<Body>| {
-        let state = state_for_service.clone();
-        let client_addr = client_addr;
+    // Handle connection based on TLS configuration
+    if let Some(acceptor) = tls_acceptor {
+        // Perform TLS handshake
+        let tls_stream = match acceptor.accept(tcp_stream).await {
+            Ok(stream) => {
+                update_metric!(state, tls_handshakes_completed, fetch_add, 1);
+                counter!("tls_handshakes_completed", 1);
+                stream
+            }
+            Err(e) => {
+                update_metric!(state, tls_handshake_errors, fetch_add, 1);
+                counter!("tls_handshake_errors", 1);
+                error!(client_addr = %client_addr, error = %e, "TLS handshake failed");
+                update_metric!(state, active_connections, fetch_sub, 1);
+                return Err(e.into());
+            }
+        };
 
-        async move { handle_http_request(req, client_addr, state).await }
-    });
+        debug!(client_addr = %client_addr, "TLS handshake completed successfully");
 
-    // Serve HTTP requests over TLS
-    if let Err(e) = hyper::server::conn::Http::new()
-        .serve_connection(tls_stream, service)
-        .await
-    {
-        warn!(client_addr = %client_addr, error = %e, "HTTP connection error");
-        update_metric!(state, http_errors, fetch_add, 1);
+        // Create HTTPS service for this connection
+        let service = service_fn(move |req: Request<Body>| {
+            let state = state_for_service.clone();
+            let client_addr = client_addr;
+
+            async move { handle_http_request(req, client_addr, state).await }
+        });
+
+        // Serve HTTP requests over TLS
+        if let Err(e) = hyper::server::conn::Http::new()
+            .serve_connection(tls_stream, service)
+            .await
+        {
+            warn!(client_addr = %client_addr, error = %e, "HTTP connection error");
+            update_metric!(state, http_errors, fetch_add, 1);
+        }
+    } else {
+        // Plain HTTP mode (no TLS)
+        debug!(client_addr = %client_addr, "Handling plain HTTP connection");
+
+        let service = service_fn(move |req: Request<Body>| {
+            let state = state_for_service.clone();
+            let client_addr = client_addr;
+
+            async move { handle_http_request(req, client_addr, state).await }
+        });
+
+        // Serve HTTP over plain TCP
+        if let Err(e) = hyper::server::conn::Http::new()
+            .serve_connection(tcp_stream, service)
+            .await
+        {
+            warn!(client_addr = %client_addr, error = %e, "HTTP connection error");
+            update_metric!(state, http_errors, fetch_add, 1);
+        }
     }
 
     // Decrement active connections counter

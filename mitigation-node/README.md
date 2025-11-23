@@ -34,8 +34,8 @@ The SecBeat mitigation node now includes complete orchestrator integration for f
    - Token bucket rate limiting (100 req/sec per IP by default)
    - Per-IP connection limits (10 concurrent by default)
    - Global connection limits (1000 total by default)
-   - IP whitelist/blacklist with CIDR support
-   - Automatic blacklisting for repeated violations
+   - IP allowlist/blocklist with CIDR support
+   - Automatic blocklisting for repeated violations
 
 5. **WAF Placeholder Implementation**
    - HTTP request inspection (URI, headers, user-agent)

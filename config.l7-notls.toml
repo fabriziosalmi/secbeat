@@ -15,16 +15,16 @@ features = [
 
 [network]
 public_interface = "0.0.0.0"
-public_port = 8080  # HTTP port instead of HTTPS
-backend_interface = "127.0.0.1"
-backend_port = 9999  # Dummy backend
+public_port = 8443  # Proxy HTTP port
+backend_interface = "172.18.0.2"
+backend_port = 8080  # Real backend
 max_connections = 10000
 connection_timeout_seconds = 30
 keep_alive_timeout_seconds = 60
 buffer_size = 65536
 
 backend_servers = [
-    { address = "127.0.0.1:9999", weight = 100, health_check = true }
+    { address = "172.18.0.2:8080", weight = 100, health_check = true }
 ]
 
 # TLS Configuration (DISABLED for testing)

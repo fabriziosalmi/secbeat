@@ -1,0 +1,41 @@
+# SecBeat Basic TCP Proxy Configuration (Docker-compatible, no raw sockets)
+[mitigation]
+environment = "production"
+deployment_id = "secbeat-tcp-001"
+operation_mode = "tcp"  # Force basic TCP proxy mode
+
+# TCP Proxy Configuration
+[tcp_proxy]
+enabled = true
+listen_port = 8443
+backend_addr = "test-origin:8080"
+max_connections = 1000
+timeout = "30s"
+
+# Management API
+[management]
+enabled = true
+listen_addr = "0.0.0.0:9090"
+api_key = "secbeat-mgmt-key-dev"
+
+# Metrics
+[metrics]
+enabled = true
+listen_addr = "0.0.0.0:9191"
+path = "/metrics"
+
+# Health Checks
+[health]
+enabled = true
+interval = "10s"
+
+# DDoS Protection (basic)
+[ddos]
+enabled = true
+max_connections_per_ip = 10
+rate_limit_rps = 100
+
+# Logging
+[logging]
+level = "info"
+format = "json"

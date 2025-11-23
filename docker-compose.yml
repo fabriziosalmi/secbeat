@@ -44,13 +44,14 @@ services:
     depends_on:
       - nats
       - test-origin
+    privileged: true
     ports:
       - "8443:8443"   # HTTPS proxy
       - "9090:9090"   # Prometheus metrics (mitigation node)
       - "9191:9191"   # Internal metrics
       - "9999:9999"   # Management API
     environment:
-      - SECBEAT_CONFIG=config.dev
+      - SECBEAT_CONFIG=config.l7-notls
       - RUST_LOG=info
       - RUST_BACKTRACE=1
       - SYN_COOKIE_SECRET=${SYN_COOKIE_SECRET:-default-secret-change-in-production}
@@ -61,6 +62,8 @@ services:
       - ORCHESTRATOR_API_KEY=${ORCHESTRATOR_API_KEY:-dev-orchestrator-key}
     volumes:
       - ./config.dev.toml:/app/config.dev.toml:ro
+      - ./config.l7-notls.toml:/app/config.l7-notls.toml:ro
+      - ./config.l7.toml:/app/config.l7.toml:ro
       - ./mitigation-node/config:/app/config:ro
       - ./mitigation-node/certs:/app/certs:ro
       - ./logs:/app/logs

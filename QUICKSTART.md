@@ -79,7 +79,7 @@ mode = "l7"  # tcp, syn, l7, or auto
 - [ ] Enable rate limiting
 - [ ] Set up monitoring alerts
 - [ ] Rotate secrets regularly
-- [ ] Review blacklist/whitelist IPs
+- [ ] Review blocklist/allowlist IPs
 
 ## 📈 Performance Tuning
 

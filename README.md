@@ -8,24 +8,26 @@
 
 > 🌐 **[View Full Documentation →](https://fabriziosalmi.github.io/secbeat)**
 
-SecBeat is a distributed security platform built in Rust that provides DDoS mitigation and Web Application Firewall capabilities. The project implements a "smart edge, intelligent orchestrator" architecture where mitigation nodes handle traffic processing while a central orchestrator provides coordination and intelligence.
+SecBeat is a distributed security platform built in Rust that provides DDoS mitigation and Web Application Firewall capabilities. The platform implements a "smart edge, intelligent orchestrator" architecture where mitigation nodes handle traffic processing while a central orchestrator provides coordination and intelligence.
 
 **Current Status:** Early development (v0.1.0) - Not recommended for production use
 
 ## Quick Start
+
+Prerequisites: Rust 1.78+, Docker 20.10+, Docker Compose 1.29+
 
 ```bash
 # Clone the repository
 git clone https://github.com/fabriziosalmi/secbeat.git
 cd secbeat
 
-# Build (requires Rust 1.78+)
+# Build the workspace (expected: compilation completes successfully in 2-4 minutes)
 cargo build --release --workspace
 
-# Start services
+# Start services (expected: all containers start successfully)
 docker-compose up -d
 
-# Test the deployment
+# Verify the deployment (expected: HTML response or connection success)
 curl -k https://localhost:8443/
 ```
 
@@ -41,7 +43,7 @@ curl -k https://localhost:8443/
 ### Distributed Features
 - **NATS Messaging**: Real-time event stream between nodes
 - **Fleet Management**: Orchestrator tracks and coordinates mitigation nodes
-- **Dynamic Rules**: Hot-reload of WAF rules and IP blacklists
+- **Dynamic Rules**: Hot-reload of WAF rules and IP blocklists
 - **Behavioral Analysis**: Sliding window anomaly detection with automated blocking
 
 ### ML/AI Capabilities
@@ -56,33 +58,24 @@ curl -k https://localhost:8443/
 
 ## Architecture
 
-```
-┌─────────────────────────────────────┐
-│      Orchestrator Node              │
-│  • Fleet Management                 │
-│  • ML-based Anomaly Detection       │
-│  • Resource Optimization            │
-│  • Policy Distribution              │
-└─────────────────────────────────────┘
-                 │
-    ┌────────────┴────────────┐
-    │   NATS Message Bus      │
-    └────────────┬────────────┘
-                 │
-    ┌────────────┴────────────┐
-    ▼            ▼            ▼
-┌─────────┐  ┌─────────┐  ┌─────────┐
-│ Mitigation │ Mitigation │ Mitigation │
-│  Node 1    │  Node 2    │  Node N    │
-│            │            │            │
-│ • TCP Proxy│ • TCP Proxy│ • TCP Proxy│
-│ • WAF      │ • WAF      │ • WAF      │
-│ • TLS      │ • TLS      │ • TLS      │
-└─────────┘  └─────────┘  └─────────┘
-     │            │            │
-     ▼            ▼            ▼
-  Backend     Backend     Backend
-  Services    Services    Services
+```mermaid
+graph TD
+    O[Orchestrator Node<br/>• Fleet Management<br/>• ML-based Anomaly Detection<br/>• Resource Optimization<br/>• Policy Distribution]
+    N[NATS Message Bus]
+    M1[Mitigation Node 1<br/>• TCP Proxy<br/>• WAF<br/>• TLS]
+    M2[Mitigation Node 2<br/>• TCP Proxy<br/>• WAF<br/>• TLS]
+    M3[Mitigation Node N<br/>• TCP Proxy<br/>• WAF<br/>• TLS]
+    B1[Backend Services]
+    B2[Backend Services]
+    B3[Backend Services]
+    
+    O --> N
+    N --> M1
+    N --> M2
+    N --> M3
+    M1 --> B1
+    M2 --> B2
+    M3 --> B3
 ```
 
 ## Configuration
@@ -135,7 +128,7 @@ See [Configuration Reference](https://fabriziosalmi.github.io/secbeat/reference/
 ### 📋 In Development
 - [ ] Complete threat intelligence API
 - [ ] Enhanced statistics and reporting
-- [ ] IP blacklist/whitelist persistence
+- [ ] IP blocklist/allowlist persistence
 - [ ] Comprehensive test suite
 - [ ] Performance benchmarks
 - [ ] Production deployment tooling
@@ -161,7 +154,7 @@ cargo test --workspace
 cd mitigation-node && cargo test --test integration_tests
 ```
 
-**Note:** Many test scripts are present but may require adjustments for different environments.
+**Note:** Test scripts require environment-specific configuration. Refer to individual test files for setup instructions.
 
 ## Deployment
 
@@ -201,6 +194,14 @@ SecBeat exposes Prometheus metrics on port 9191:
 curl http://localhost:9191/metrics
 ```
 
+**Expected output:**
+```
+# HELP secbeat_requests_total Total HTTP requests
+# TYPE secbeat_requests_total counter
+secbeat_requests_total 1234
+...
+```
+
 Key metrics include:
 - `secbeat_requests_total` - Total HTTP requests processed
 - `secbeat_blocked_total` - Total blocked attacks
@@ -212,26 +213,34 @@ Key metrics include:
 ### Management API (Mitigation Node)
 
 ```bash
-# Health check
+# Health check (expected: JSON with status, uptime, active connections)
 GET http://localhost:9999/api/v1/status
+# Expected response:
+# {"status":"running","uptime_seconds":123,"active_connections":5}
 
-# Block an IP
-POST http://localhost:9999/api/v1/blacklist
+# Block an IP (expected: 200 OK with confirmation message)
+POST http://localhost:9999/api/v1/blocklist
 Content-Type: application/json
 {
   "ip": "192.0.2.100",
   "duration_seconds": 3600
 }
+# Expected response:
+# {"success":true,"message":"IP blocked for 3600 seconds"}
 ```
 
 ### Control API (Orchestrator)
 
 ```bash
-# List fleet nodes
+# List fleet nodes (expected: JSON array of node objects with status)
 GET http://localhost:3030/api/v1/nodes
+# Expected response:
+# [{"id":"node-1","status":"active","last_seen":"2025-11-23T10:30:00Z"}]
 
-# Get node metrics
+# Get node metrics (expected: JSON object with metrics data)
 GET http://localhost:3030/api/v1/nodes/{id}/metrics
+# Expected response:
+# {"requests_total":1234,"blocked_total":56,"cpu_percent":12.5}
 ```
 
 See [API Reference](https://fabriziosalmi.github.io/secbeat/reference/api/) for complete documentation.
@@ -248,20 +257,28 @@ See [API Reference](https://fabriziosalmi.github.io/secbeat/reference/api/) for 
 
 ## Requirements
 
+### Minimum Versions
 - **Rust**: 1.78 or later
+- **Docker**: 20.10 or later
+- **Docker Compose**: 1.29 or later
 - **Operating System**: Linux (recommended) or macOS for development
-- **Linux Kernel**: 5.15+ for eBPF/XDP features
-- **Memory**: 4GB+ RAM recommended
-- **Privileges**: Root/CAP_NET_RAW for SYN proxy mode
+- **Linux Kernel**: 5.15+ for eBPF/XDP features (Linux only)
+- **Memory**: 4GB RAM minimum, 8GB recommended
+- **Privileges**: Root or CAP_NET_RAW capability for SYN proxy mode
 
 ## Contributing
 
-This is an early-stage project. Contributions are welcome, but be aware of the current development status. Before contributing:
+This is an early-stage project. Contributions are welcome, but be aware of the current development status.
+
+Before contributing:
 
 1. Review the [documentation](https://fabriziosalmi.github.io/secbeat)
 2. Check existing issues and pull requests
-3. Test your changes thoroughly
-4. Follow Rust best practices
+3. Set up the development environment (see CONTRIBUTING.md)
+4. Test your changes thoroughly
+5. Follow Rust best practices and project coding standards
+
+For detailed guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Documentation
 
