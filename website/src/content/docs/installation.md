@@ -10,8 +10,11 @@ Deploy SecBeat using Docker for quick testing and development environments.
 ### Single Mitigation Node
 
 ```bash
-# Build the image
+# Build the image (expected: successful build in 2-4 minutes)
 docker build -t secbeat/mitigation-node:latest .
+# Expected output:
+# Successfully built abc123def456
+# Successfully tagged secbeat/mitigation-node:latest
 
 # Run with auto-generated certificates (development)
 docker run -d \
@@ -47,8 +50,12 @@ Full-stack deployment with all services orchestrated together.
 ### Quick Start
 
 ```bash
-# Start all services
+# Start all services (expected: all containers start successfully)
 docker-compose up -d
+# Expected output:
+# Creating network "secbeat_secbeat-network" done
+# Creating secbeat-nats ... done
+# Creating secbeat-mitigation ... done
 
 # View logs
 docker-compose logs -f mitigation-node
