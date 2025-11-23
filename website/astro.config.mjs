@@ -8,6 +8,8 @@ import tailwindcss from '@tailwindcss/vite';
 
 // https://astro.build/config
 export default defineConfig({
+  site: 'https://fabriziosalmi.github.io',
+  base: '/secbeat',
   integrations: [starlight({
       title: 'SecBeat',
       description: 'DDoS mitigation at kernel speed. eBPF + WASM + Rust.',
