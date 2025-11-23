@@ -21,7 +21,7 @@ use tracing::{debug, error, info, instrument, warn};
 use uuid::Uuid;
 
 mod experts;
-use experts::{BehavioralConfig, BehavioralExpert, ResourceManager, ThreatIntelExpert};
+use experts::{BehavioralConfig, BehavioralExpert, ThreatIntelExpert};
 
 /// Node information stored in the registry
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -279,19 +279,20 @@ async fn main() -> Result<()> {
         threat_intel,
     };
 
+    // TODO: Resource Manager temporarily disabled - needs refactoring to match current NodeInfo structure
     // Initialize resource manager
-    info!("Initializing resource manager for intelligent scaling and self-healing");
-    let resource_manager = ResourceManager::new(Arc::clone(&state.nodes), config.clone());
+    // info!("Initializing resource manager for intelligent scaling and self-healing");
+    // let resource_manager = ResourceManager::new(Arc::clone(&state.nodes), config.clone());
 
     // Get reference to terminating nodes for self-healing
-    let terminating_nodes_ref = resource_manager.get_terminating_nodes();
+    let terminating_nodes_ref = Arc::new(RwLock::new(HashSet::new()));
 
     // Start resource manager
-    let _resource_manager_handle = tokio::spawn(async move {
-        if let Err(e) = resource_manager.start().await {
-            error!(error = %e, "Resource manager failed");
-        }
-    });
+    // let _resource_manager_handle = tokio::spawn(async move {
+    //     if let Err(e) = resource_manager.start().await {
+    //         error!(error = %e, "Resource manager failed");
+    //     }
+    // });
 
     // Initialize metrics
     initialize_metrics();

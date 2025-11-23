@@ -11,8 +11,9 @@ pub mod types;
 // Re-export commonly used types
 pub use experts::{
     AnomalyConfig, AnomalyExpert, AnomalyScore, BehavioralConfig, BehavioralExpert, BlockCommand,
-    OperatingMode, RequestMetadata, ResourceManager, TelemetryEvent, ThreatIntelExpert,
+    OperatingMode, RequestMetadata, TelemetryEvent, ThreatIntelExpert,
     TrafficFeatures,
 };
+// pub use ResourceManager;  // TODO: Disabled - needs refactoring
 pub use rule_gen::{GeneratorStats, RuleGenerator, WafConfig, WafRule, WasmDeployment};
 pub use types::{NodeInfo, NodeStatus, OrchestratorConfig, XdpStats};

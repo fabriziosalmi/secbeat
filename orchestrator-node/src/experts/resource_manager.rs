@@ -16,7 +16,7 @@ use linfa::prelude::*;
 use linfa_linear::LinearRegression;
 use ndarray::{Array1, Array2};
 
-use crate::types::{NodeInfo, NodeStatus, OrchestratorConfig};
+use super::super::{NodeInfo, NodeStatus, OrchestratorConfig};
 
 /// Time-series data point for CPU usage history
 #[derive(Debug, Clone)]
@@ -425,8 +425,17 @@ impl ResourceManager {
             prediction_info: Some(prediction_info),
         };
 
+        // Only call webhook if URL is configured
+        let webhook_url = match &self.config.provisioning_webhook_url {
+            Some(url) => url,
+            None => {
+                warn!("Provisioning webhook URL not configured, skipping predictive scale-up webhook");
+                return Ok(());
+            }
+        };
+
         info!(
-            webhook_url = %self.config.provisioning_webhook_url,
+            webhook_url = %webhook_url,
             predicted_cpu = predicted_cpu,
             current_cpu = metrics.avg_cpu_usage,
             "Calling provisioning webhook for predictive scale-up"
@@ -434,7 +443,7 @@ impl ResourceManager {
 
         let response = self
             .http_client
-            .post(&self.config.provisioning_webhook_url)
+            .post(webhook_url)
             .json(&payload)
             .send()
             .await
@@ -485,16 +494,25 @@ impl ResourceManager {
             },
         };
 
+        // Only call webhook if URL is configured
+        let webhook_url = match &self.config.provisioning_webhook_url {
+            Some(url) => url,
+            None => {
+                warn!("Provisioning webhook URL not configured, skipping self-healing webhook");
+                return Ok(());
+            }
+        };
+
         error!(
             failed_node = %failed_node_id,
             failed_ip = %failed_node_ip,
-            webhook_url = %self.config.provisioning_webhook_url,
+            webhook_url = %webhook_url,
             "CRITICAL: UNEXPECTED NODE FAILURE DETECTED. Initiating self-healing."
         );
 
         let response = self
             .http_client
-            .post(&self.config.provisioning_webhook_url)
+            .post(webhook_url)
             .json(&payload)
             .send()
             .await

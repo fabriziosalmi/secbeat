@@ -10,11 +10,9 @@
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use tracing::{debug, info};
 
 use crate::experts::anomaly_ml::AnomalyScore;
-use crate::experts::features::TrafficFeatures;
 
 // ============================================================================
 // WASM Configuration Schema (matches universal-waf module)
@@ -285,8 +283,6 @@ pub struct GeneratorStats {
 // ============================================================================
 
 mod base64 {
-    use std::fmt::Write;
-
     const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
     pub fn encode(input: &[u8]) -> String {
