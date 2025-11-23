@@ -1,6 +1,6 @@
 # SecBeat
 
-**A Rust-based DDoS mitigation and Web Application Firewall platform**
+**A Rust-based Distributed Denial of Service (DDoS) mitigation and Web Application Firewall (WAF) platform**
 
 [![Documentation](https://img.shields.io/badge/📚_Documentation-Visit_Site-blue?style=for-the-badge)](https://fabriziosalmi.github.io/secbeat)
 [![Rust](https://img.shields.io/badge/rust-1.78+-93450a.svg?style=flat-square)](https://www.rust-lang.org)
@@ -8,7 +8,7 @@
 
 > 🌐 **[View Full Documentation →](https://fabriziosalmi.github.io/secbeat)**
 
-SecBeat is a distributed security platform built in Rust that provides DDoS mitigation and Web Application Firewall capabilities. The platform implements a "smart edge, intelligent orchestrator" architecture where mitigation nodes handle traffic processing while a central orchestrator provides coordination and intelligence.
+SecBeat is a distributed security platform built in Rust that provides Distributed Denial of Service (DDoS) mitigation and Web Application Firewall (WAF) capabilities. The platform implements a "smart edge, intelligent orchestrator" architecture where mitigation nodes handle traffic processing while a central orchestrator provides coordination and intelligence.
 
 **Current Status:** Early development (v0.1.0) - Not recommended for production use
 
@@ -34,14 +34,14 @@ curl -k https://localhost:8443/
 ## What Works Today
 
 ### Core Functionality
-- **TCP Proxy**: Async reverse proxy with TLS termination (Tokio/Rustls)
-- **WAF Engine**: ~100 regex-based attack patterns for SQL injection, XSS, path traversal, and command injection
+- **TCP Proxy**: Async reverse proxy with Transport Layer Security (TLS) termination (Tokio/Rustls)
+- **WAF Engine**: ~100 regex-based attack patterns for Structured Query Language (SQL) injection, Cross-Site Scripting (XSS), path traversal, and command injection
 - **HTTP/HTTPS**: TLS 1.2/1.3 support with certificate management
 - **Metrics**: Prometheus-compatible metrics endpoint
 - **Management API**: Basic health, status, and configuration endpoints
 
 ### Distributed Features
-- **NATS Messaging**: Real-time event stream between nodes
+- **NATS Messaging**: Real-time event stream between nodes (NATS.io messaging system)
 - **Fleet Management**: Orchestrator tracks and coordinates mitigation nodes
 - **Dynamic Rules**: Hot-reload of WAF rules and IP blocklists
 - **Behavioral Analysis**: Sliding window anomaly detection with automated blocking
@@ -52,8 +52,8 @@ curl -k https://localhost:8443/
 - **Resource Manager**: Linear regression for CPU usage prediction
 
 ### Experimental Features
-- **WASM Runtime**: WebAssembly-based WAF rules (Wasmtime) - functional but basic
-- **eBPF/XDP**: Kernel-level packet processing for SYN flood mitigation - experimental, Linux only
+- **WASM Runtime**: WebAssembly (WASM)-based WAF rules (Wasmtime) - functional but basic
+- **eBPF/XDP**: Extended Berkeley Packet Filter (eBPF) and eXpress Data Path (XDP) for kernel-level packet processing for SYN flood mitigation - experimental, Linux only
 - **SYN Proxy**: Basic SYN cookie implementation - prototype with limitations
 
 ## Architecture

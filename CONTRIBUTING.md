@@ -10,7 +10,7 @@ Thank you for your interest in contributing to SecBeat! This document provides g
 - **Docker**: 20.10 or later
 - **Docker Compose**: 1.29 or later
 - **Git**: 2.30 or later
-- **Linux**: Required for eBPF/XDP features (kernel 5.15+)
+- **Linux**: Required for Extended Berkeley Packet Filter (eBPF) and eXpress Data Path (XDP) features (kernel 5.15+)
 
 ### Initial Setup
 

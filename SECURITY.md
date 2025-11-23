@@ -118,7 +118,7 @@ Planned security improvements:
 
 ### Severity Classification
 
-We use CVSS 3.1 for severity scoring:
+We use Common Vulnerability Scoring System (CVSS) 3.1 for severity scoring:
 
 - **Critical** (9.0-10.0): Immediate action required
 - **High** (7.0-8.9): Urgent fix needed
@@ -151,7 +151,7 @@ The following are explicitly out of scope:
 ## Contact
 
 - **Security Email**: security@example.com (replace with actual contact)
-- **PGP Key**: Available at https://example.com/pgp-key.txt (if applicable)
+- **Pretty Good Privacy (PGP) Key**: Available at https://example.com/pgp-key.txt (if applicable)
 - **GitHub**: https://github.com/fabriziosalmi/secbeat/security/advisories
 
 ## Attribution
