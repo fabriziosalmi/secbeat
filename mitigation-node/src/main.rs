@@ -16,21 +16,14 @@ use tokio::sync::RwLock;
 use tokio_rustls::TlsAcceptor;
 use tracing::{debug, error, info, warn};
 
-mod config;
-mod ddos;
-mod events;
-mod management;
-mod orchestrator;
-mod syn_proxy;
-mod tcp_proxy;
-mod waf;
-
-use config::MitigationConfig;
-use ddos::{DdosCheckResult, DdosProtection};
-use events::{EventSystem, SecurityEvent, WafEventResult};
-use orchestrator::OrchestratorClient;
-use syn_proxy::SynProxy;
-use tcp_proxy::TcpProxy;
+use mitigation_node::config::MitigationConfig;
+use mitigation_node::ddos::{DdosCheckResult, DdosProtection};
+use mitigation_node::events::{EventSystem, SecurityEvent, WafEventResult};
+use mitigation_node::management;
+use mitigation_node::orchestrator::OrchestratorClient;
+use mitigation_node::syn_proxy::SynProxy;
+use mitigation_node::tcp_proxy::TcpProxy;
+use mitigation_node::waf;
 
 // Helper macro for safely updating metrics
 macro_rules! update_metric {
@@ -918,7 +911,7 @@ fn publish_telemetry_event(
     user_agent: String,
 ) {
     if let Some(ref event_system) = state.event_system {
-        use crate::events::TelemetryEvent;
+        use mitigation_node::events::TelemetryEvent;
 
         let event = TelemetryEvent {
             node_id: event_system.node_id,
@@ -935,7 +928,7 @@ fn publish_telemetry_event(
 }
 
 /// Load TLS configuration from certificate and key files
-async fn load_tls_config(tls_config: &config::TlsConfig) -> Result<ServerConfig> {
+async fn load_tls_config(tls_config: &mitigation_node::config::TlsConfig) -> Result<ServerConfig> {
     info!(
         cert_path = %tls_config.cert_path,
         key_path = %tls_config.key_path,
