@@ -87,15 +87,21 @@ impl WasmEngine {
         })
     }
 
-    /// Load and compile a WASM module from bytecode
+    /// Load and compile a WASM module from bytecode with optional configuration
     ///
     /// # Arguments
     /// * `name` - Unique identifier for this module (e.g., "bad-bot-v1")
     /// * `bytecode` - WASM bytecode (.wasm file contents)
+    /// * `config_json` - Optional JSON configuration for the module
     ///
     /// # Returns
     /// Ok(()) if compilation and caching succeeded
-    pub fn load_module(&self, name: impl Into<String>, bytecode: &[u8]) -> Result<()> {
+    pub fn load_module_with_config(
+        &self,
+        name: impl Into<String>,
+        bytecode: &[u8],
+        config_json: Option<&str>,
+    ) -> Result<()> {
         let name = name.into();
         
         debug!("Compiling WASM module: {}", name);
@@ -119,6 +125,40 @@ impl WasmEngine {
             ));
         }
 
+        // If config provided, call configure() function
+        if let Some(config) = config_json {
+            // Create temporary instance to configure
+            let mut store = Store::new(&self.engine, ());
+            let instance = Instance::new(&mut store, &module, &[])
+                .context("Failed to create instance for configuration")?;
+
+            // Check if module exports configure function
+            if let Ok(configure_fn) = instance.get_typed_func::<(i32, i32), i32>(&mut store, "configure") {
+                let config_bytes = config.as_bytes();
+                
+                // Get memory
+                let memory = instance
+                    .get_memory(&mut store, "memory")
+                    .ok_or_else(|| anyhow!("WASM module must export 'memory'"))?;
+
+                // Write config to memory
+                memory.write(&mut store, 0, config_bytes)
+                    .context("Failed to write config to WASM memory")?;
+
+                // Call configure
+                let result = configure_fn.call(&mut store, (0, config_bytes.len() as i32))
+                    .context("configure() call failed")?;
+
+                if result != 0 {
+                    return Err(anyhow!("Configuration failed with code: {}", result));
+                }
+
+                info!("WASM module '{}' configured successfully", name);
+            } else {
+                warn!("WASM module '{}' does not support configuration", name);
+            }
+        }
+
         let cached = CachedModule {
             module,
             name: name.clone(),
@@ -130,6 +170,11 @@ impl WasmEngine {
 
         info!("Successfully loaded WASM module: {}", name);
         Ok(())
+    }
+
+    /// Load a WASM module without configuration (backward compatibility)
+    pub fn load_module(&self, name: impl Into<String>, bytecode: &[u8]) -> Result<()> {
+        self.load_module_with_config(name, bytecode, None)
     }
 
     /// Unload a WASM module from cache

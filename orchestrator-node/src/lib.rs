@@ -5,11 +5,14 @@
 //! anomaly detection.
 
 pub mod experts;
+pub mod rule_gen;
 pub mod types;
 
 // Re-export commonly used types
 pub use experts::{
-    BehavioralConfig, BehavioralExpert, BlockCommand, RequestMetadata, ResourceManager,
-    TelemetryEvent, ThreatIntelExpert, TrafficFeatures,
+    AnomalyConfig, AnomalyExpert, AnomalyScore, BehavioralConfig, BehavioralExpert, BlockCommand,
+    OperatingMode, RequestMetadata, ResourceManager, TelemetryEvent, ThreatIntelExpert,
+    TrafficFeatures,
 };
+pub use rule_gen::{GeneratorStats, RuleGenerator, WafConfig, WafRule, WasmDeployment};
 pub use types::{NodeInfo, NodeStatus, OrchestratorConfig, XdpStats};
