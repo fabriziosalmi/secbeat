@@ -1,0 +1,116 @@
+# Test Environment for SecBeat Integration Tests
+# Isolated from production/dev environments
+# Usage: docker-compose -f docker-compose.test.yml up -d
+
+version: '3.8'
+
+networks:
+  secbeat-test-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/16
+
+services:
+  # NATS Message Broker (Required for orchestrator/mitigation communication)
+  nats:
+    image: nats:2.9-alpine
+    container_name: secbeat-test-nats
+    networks:
+      secbeat-test-net:
+        ipv4_address: 172.30.0.10
+    ports:
+      - "14222:4222"  # Client connections (offset by +10000 from prod)
+      - "18222:8222"  # HTTP monitoring
+    command: ["-js", "-m", "8222"]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  # Orchestrator Node (Fleet coordinator + ML brain)
+  orchestrator:
+    build:
+      context: .
+      dockerfile: orchestrator.Dockerfile
+    container_name: secbeat-test-orchestrator
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      secbeat-test-net:
+        ipv4_address: 172.30.0.20
+    ports:
+      - "13030:3030"  # API server (offset by +10000)
+      - "19091:9091"  # Prometheus metrics
+    environment:
+      - RUST_LOG=info,orchestrator_node=debug
+      - NATS_URL=nats://172.30.0.10:4222
+      - API_LISTEN_ADDR=0.0.0.0:3030
+      - METRICS_LISTEN_ADDR=0.0.0.0:9091
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3030/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    command: ["/usr/local/bin/orchestrator-node"]
+
+  # Mitigation Node (XDP/eBPF + WASM WAF)
+  # Note: Requires privileged mode for XDP attachment
+  mitigation-node:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: secbeat-test-mitigation
+    depends_on:
+      orchestrator:
+        condition: service_healthy
+    networks:
+      secbeat-test-net:
+        ipv4_address: 172.30.0.30
+    ports:
+      - "18080:8080"   # Proxy port (offset by +10000)
+      - "19092:9092"   # Prometheus metrics
+    environment:
+      - RUST_LOG=info,mitigation_node=debug
+      - ORCHESTRATOR_URL=http://172.30.0.20:3030
+      - NATS_URL=nats://172.30.0.10:4222
+      - LISTEN_ADDR=0.0.0.0:8080
+      - METRICS_ADDR=0.0.0.0:9092
+      - ORIGIN_ADDR=172.30.0.100:80
+    privileged: true  # Required for XDP/eBPF
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
+      - SYS_RESOURCE
+    volumes:
+      - /sys/kernel/debug:/sys/kernel/debug:ro
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9092/metrics"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+
+  # Mock Origin Server (Simple echo/nginx for testing)
+  mock-origin:
+    build:
+      context: ./tests/mock-origin
+      dockerfile: Dockerfile
+    container_name: secbeat-test-origin
+    networks:
+      secbeat-test-net:
+        ipv4_address: 172.30.0.100
+    ports:
+      - "18888:80"
+    environment:
+      - SERVER_NAME=test-origin
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost/health"]
+      interval: 5s
+      timeout: 2s
+      retries: 3
+      start_period: 5s
