@@ -2,7 +2,7 @@
 
 ## Deployment Summary
 
-**Date:** November 23, 2025  
+**Date:** 2025-11-23  
 **Target:** Proxmox LXC 100 (Ubuntu 22.04, kernel 6.14.11-2-pve)  
 **Duration:** 30+ iterative build cycles  
 **Status:** ✅ **COMPILATION SUCCESSFUL** | ⚠️ **DOCKER-IN-LXC LIMITATIONS IDENTIFIED**

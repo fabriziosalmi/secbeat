@@ -388,7 +388,7 @@ metrics::gauge!("secbeat_queue_size", queue.len() as f64);
 **Structured Logging** (JSON format):
 ```json
 {
-  "timestamp": "2024-01-15T10:30:45Z",
+  "timestamp": "2025-01-15T10:30:45Z",
   "level": "INFO",
   "component": "mitigation-node",
   "event": "connection_established",
@@ -401,7 +401,7 @@ metrics::gauge!("secbeat_queue_size", queue.len() as f64);
 **Security Event Logging**:
 ```json
 {
-  "timestamp": "2024-01-15T10:31:02Z",
+  "timestamp": "2025-01-15T10:31:02Z",
   "level": "WARN",
   "component": "waf",
   "event": "attack_detected",
