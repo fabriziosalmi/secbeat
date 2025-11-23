@@ -11,6 +11,7 @@ pub mod orchestrator;
 pub mod syn_proxy;
 pub mod tcp_proxy;
 pub mod waf;
+pub mod wasm;
 
 #[cfg(target_os = "linux")]
 pub mod bpf_loader;
@@ -21,6 +22,7 @@ pub use ddos::DdosProtection;
 pub use events::EventSystem;
 pub use management::{ManagementState, ShutdownSignal};
 pub use waf::{WafEngine, WafResult};
+pub use wasm::{Action as WasmAction, RequestContext, WasmConfig, WasmEngine};
 
 #[cfg(target_os = "linux")]
 pub use bpf_loader::BpfHandle;

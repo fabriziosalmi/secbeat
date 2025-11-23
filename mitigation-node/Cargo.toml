@@ -29,9 +29,14 @@ serde_yaml = "0.9"
 axum = { workspace = true }
 httparse = { workspace = true }
 
-# eBPF/XDP support
+# eBPF/XDP support (Linux only)
+[target.'cfg(target_os = "linux")'.dependencies]
 aya = { version = "0.13", features = ["async_tokio"] }
 secbeat-common = { path = "../secbeat-common", features = ["user"] }
+
+# WASM Runtime for hot-reloadable WAF rules
+wasmtime = "26.0"
+
 regex = { workspace = true }
 governor = { workspace = true }
 dashmap = { workspace = true }
@@ -55,6 +60,10 @@ reqwest = { workspace = true }
 uuid = { workspace = true }
 async-nats = { workspace = true }
 tokio-stream = { workspace = true }
+
+# Common types (secbeat-common without eBPF on macOS)
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+secbeat-common = { path = "../secbeat-common", default-features = false }
 
 [features]
 default = ["syn_proxy", "tls", "orchestrator", "events"]
