@@ -173,9 +173,10 @@ docker-compose.override.yml
 perf.data*
 callgrind.out.*
 
-# Ignore core dumps
-core
+# Ignore core dumps (but not website/src/content/docs/core/)
+/core
 core.*
+!website/src/content/docs/core/
 
 # Ignore flamegraphs and profiling output
 *.svg
