@@ -329,7 +329,7 @@ Add to your CI pipeline:
 
 1. **Tune Thresholds**: Adjust based on your traffic patterns
 2. **Monitor False Positives**: Use Grafana dashboards to track blocked IPs
-3. **Whitelist Critical IPs**: Implement IP whitelist for internal services
+3. **Allowlist Critical IPs**: Implement IP allowlist for internal services
 4. **Alert on High Ban Rate**: Set up alerts if ban rate exceeds normal
 5. **Review Ban Logs**: Regularly audit behavioral ban decisions
 

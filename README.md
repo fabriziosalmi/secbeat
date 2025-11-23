@@ -154,7 +154,8 @@ cargo test --workspace
 cd mitigation-node && cargo test --test integration_tests
 ```
 
-**Note:** Test scripts require environment-specific configuration. Refer to individual test files for setup instructions.
+> **Note**  
+> Test scripts require environment-specific configuration. Refer to individual test files for setup instructions.
 
 ## Deployment
 
@@ -305,7 +306,7 @@ Built with:
 
 **Current Version:** 0.1.0 (Early Development)
 
-This project is under active development. Features and APIs are subject to change. Not recommended for production use at this time.
+This project is under active development. Features and APIs are subject to change. **Not recommended for production use (v0.1.x)**.
 
 For production DDoS mitigation, consider established solutions like:
 - Cloudflare

@@ -94,7 +94,7 @@ Before deploying to production, ensure you:
 - ✓ Enable rate limiting
 - ✓ Set up monitoring alerts
 - ✓ Rotate secrets regularly
-- ✓ Review blacklist/whitelist IPs
+- ✓ Review blocklist/allowlist IPs
 
 ## Performance Tuning
 

@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-SecBeat is currently in early development (v0.1.x). Security updates are provided on a best-effort basis.
+SecBeat is in early development (v0.1.x as of November 2025). Security updates are provided on a best-effort basis.
 
 | Version | Supported          | Status      |
 | ------- | ------------------ | ----------- |

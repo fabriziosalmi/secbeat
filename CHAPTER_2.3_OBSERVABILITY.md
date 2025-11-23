@@ -105,9 +105,9 @@ Added public methods to expose BPF functionality:
 
 **File:** `mitigation-node/src/management.rs`
 
-#### New Endpoint: `DELETE /api/v1/blacklist/:ip`
+#### New Endpoint: `DELETE /api/v1/blocklist/:ip`
 
-**Handler:** `handle_delete_blacklist()`
+**Handler:** `handle_delete_blocklist()`
 
 **Functionality:**
 1. Extracts IP from URL path parameter
@@ -117,14 +117,14 @@ Added public methods to expose BPF functionality:
 
 **Example Request:**
 ```bash
-curl -X DELETE http://localhost:9090/api/v1/blacklist/192.168.100.12
+curl -X DELETE http://localhost:9090/api/v1/blocklist/192.168.100.12
 ```
 
 **Response:**
 ```json
 {
   "success": true,
-  "message": "IP 192.168.100.12 removed from blacklist"
+  "message": "IP 192.168.100.12 removed from blocklist"
 }
 ```
 
@@ -210,7 +210,7 @@ chmod +x test_xdp_observability.sh
 ```
 ┌─────────────────────────────────────────────────────┐
 │                 Management API                       │
-│  DELETE /api/v1/blacklist/:ip                       │
+│  DELETE /api/v1/blocklist/:ip                       │
 │  GET /api/v1/stats                                  │
 │  GET /metrics (Prometheus)                          │
 └────────────────┬────────────────────────────────────┘
@@ -314,7 +314,7 @@ All changes committed to main branch:
 - [x] BpfHandle.get_stats() aggregates across CPUs
 - [x] BpfHandle.unblock_ip() removes from blocklist
 - [x] EventSystem wrapper methods implemented
-- [x] DELETE /api/v1/blacklist/:ip endpoint works
+- [x] DELETE /api/v1/blocklist/:ip endpoint works
 - [x] GET /api/v1/stats returns real data
 - [x] GET /metrics returns Prometheus format
 - [x] Test suite created

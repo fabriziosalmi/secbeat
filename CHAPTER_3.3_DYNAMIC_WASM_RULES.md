@@ -392,8 +392,8 @@ ANY request with User-Agent containing "sqlmap" → BLOCKED
 **Config Validation:**
 - JSON schema validation
 - Pattern syntax validation
-- Action whitelist (only Allow/Block/Log/RateLimit)
-- Field whitelist (only URI/Method/SourceIP/Header:X/Body)
+- Action allowlist (only Allow/Block/Log/RateLimit)
+- Field allowlist (only URI/Method/SourceIP/Header:X/Body)
 
 **WASM Sandboxing:**
 - No system calls

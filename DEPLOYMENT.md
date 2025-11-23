@@ -101,7 +101,7 @@ NATS_AUTH_TOKEN=your-nats-token-here
 
 **Status**: Planned - Not yet implemented
 
-Kubernetes deployment manifests are planned for future releases. For now, use Docker or Docker Compose deployment.
+Kubernetes deployment manifests are planned for v0.2.0 release. Use Docker or Docker Compose for v0.1.x deployments.
 
 ### Planned Features
 
