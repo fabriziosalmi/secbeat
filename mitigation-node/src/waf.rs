@@ -1,8 +1,9 @@
 use crate::config::WafConfig;
 use anyhow::{Context, Result};
-use metrics::counter;
+use metrics::{counter, histogram};
 use regex::Regex;
 use std::collections::HashMap;
+use std::time::Instant;
 use tracing::{debug, info, warn};
 
 /// Web Application Firewall engine
@@ -36,6 +37,22 @@ pub enum WafResult {
     InvalidHttp,
     /// Block due to oversized request
     OversizedRequest,
+}
+
+impl WafResult {
+    /// Get category name for metrics
+    pub fn category(&self) -> &'static str {
+        match self {
+            WafResult::Allow => "allow",
+            WafResult::SqlInjection => "sql_injection",
+            WafResult::XssAttempt => "xss",
+            WafResult::PathTraversal => "path_traversal",
+            WafResult::CommandInjection => "command_injection",
+            WafResult::CustomPattern(_) => "custom",
+            WafResult::InvalidHttp => "invalid_http",
+            WafResult::OversizedRequest => "oversized",
+        }
+    }
 }
 
 /// Parsed HTTP request for inspection
@@ -371,8 +388,10 @@ impl WafEngine {
         Ok(removed_count)
     }
 
-    /// Inspect HTTP request
+    /// Inspect HTTP request with latency tracking
     pub fn inspect_request(&self, request: &HttpRequest) -> WafResult {
+        let start = Instant::now();
+        
         if !self.config.enabled {
             return WafResult::Allow;
         }
@@ -402,6 +421,11 @@ impl WafEngine {
                     "Request body too large"
                 );
                 counter!("waf_blocked_oversized", 1);
+                
+                // Record latency before returning
+                let elapsed = start.elapsed().as_secs_f64();
+                histogram!("waf_inspection_duration_seconds", elapsed, "result" => "oversized");
+                
                 return WafResult::OversizedRequest;
             }
         }
@@ -409,11 +433,15 @@ impl WafEngine {
         // Inspect URL
         if self.config.http_inspection.inspect_url {
             if let Some(result) = self.inspect_string(&request.path, "url") {
+                let elapsed = start.elapsed().as_secs_f64();
+                histogram!("waf_inspection_duration_seconds", elapsed, "result" => "blocked", "category" => result.category());
                 return result;
             }
 
             if let Some(query) = &request.query_string {
                 if let Some(result) = self.inspect_string(query, "query") {
+                    let elapsed = start.elapsed().as_secs_f64();
+                    histogram!("waf_inspection_duration_seconds", elapsed, "result" => "blocked", "category" => result.category());
                     return result;
                 }
             }
@@ -423,6 +451,8 @@ impl WafEngine {
         if self.config.http_inspection.inspect_headers {
             for (name, value) in &request.headers {
                 if let Some(result) = self.inspect_string(value, &format!("header:{name}")) {
+                    let elapsed = start.elapsed().as_secs_f64();
+                    histogram!("waf_inspection_duration_seconds", elapsed, "result" => "blocked", "category" => result.category());
                     return result;
                 }
             }
@@ -433,11 +463,17 @@ impl WafEngine {
             if let Some(body) = &request.body {
                 if let Ok(body_str) = std::str::from_utf8(body) {
                     if let Some(result) = self.inspect_string(body_str, "body") {
+                        let elapsed = start.elapsed().as_secs_f64();
+                        histogram!("waf_inspection_duration_seconds", elapsed, "result" => "blocked", "category" => result.category());
                         return result;
                     }
                 }
             }
         }
+
+        // Record latency for allowed requests
+        let elapsed = start.elapsed().as_secs_f64();
+        histogram!("waf_inspection_duration_seconds", elapsed, "result" => "allowed");
 
         WafResult::Allow
     }
