@@ -1,0 +1,29 @@
+[workspace]
+# Prevent inheritance from parent workspace
+
+[package]
+name = "mitigation-node-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+sha2 = "0.10"
+
+[[bin]]
+name = "fuzz_syn_cookie_generation"
+path = "fuzz_targets/fuzz_syn_cookie_generation.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fuzz_syn_cookie_validation"
+path = "fuzz_targets/fuzz_syn_cookie_validation.rs"
+test = false
+doc = false
+bench = false
