@@ -14,20 +14,21 @@ futures = "0.3"
 futures-util = "0.3"
 
 # Networking
-hyper = { version = "0.14", features = ["full"] }
-hyper-rustls = "0.24"
+hyper = { version = "1.5", features = ["full"] }
+hyper-util = { version = "0.1", features = ["tokio", "server", "client", "http1", "http2"] }
+hyper-rustls = "0.27"
 axum = "0.7"
 tower = "0.4"
 tower-http = { version = "0.5", features = ["cors", "trace"] }
 tower-service = "0.3"
 
 # TLS and security
-rustls = "0.21"
-tokio-rustls = "0.24"
-rustls-pemfile = "1.0"
+rustls = "0.23"
+tokio-rustls = "0.26"
+rustls-pemfile = "2.0"
 
 # HTTP client
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -85,6 +86,9 @@ regex = "1.10"
 
 # HTTP parsing
 httparse = "1.8"
+
+# Performance optimizations
+arc-swap = "1.7"
 
 [profile.release]
 lto = true

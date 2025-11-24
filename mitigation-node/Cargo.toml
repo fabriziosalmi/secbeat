@@ -29,6 +29,7 @@ serde_json = { workspace = true }
 serde_yaml = "0.9"
 axum = { workspace = true }
 httparse = { workspace = true }
+hyper-util = { workspace = true }
 
 # WASM Runtime for hot-reloadable WAF rules
 wasmtime = "26.0"
@@ -78,4 +79,5 @@ events = []
 [dev-dependencies]
 # Testing dependencies
 tempfile = "3.8"
+proptest = "1.4"
 tokio-test = "0.4"

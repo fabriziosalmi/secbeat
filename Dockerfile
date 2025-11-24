@@ -46,8 +46,10 @@ COPY --from=builder /app/target/release/test-origin /usr/local/bin/
 # Copy configuration files
 COPY --chown=secbeat:secbeat config.prod.toml ./config.prod.toml
 COPY --chown=secbeat:secbeat config.l7.toml ./config.l7.toml
-COPY --chown=secbeat:secbeat config.l7-notls.toml ./config.l7-notls.toml
 COPY --chown=secbeat:secbeat mitigation-node/config/ ./config/
+
+# Copy Seccomp profile for security hardening
+COPY seccomp.json /etc/seccomp.json
 
 # Copy docker entrypoint script
 COPY --chown=secbeat:secbeat docker-entrypoint.sh /usr/local/bin/
@@ -66,8 +68,8 @@ USER secbeat
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:9191/metrics || exit 1
 
-# Default configuration
-ENV SECBEAT_CONFIG=config.l7-notls
+# Default configuration - ALWAYS use TLS in production
+ENV SECBEAT_CONFIG=config.prod
 ENV RUST_LOG=info
 ENV RUST_BACKTRACE=1
 

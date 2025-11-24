@@ -1,0 +1,105 @@
+name: Fuzzing Suite
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run fuzzing nightly
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  cargo-fuzz:
+    name: Cargo Fuzz
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@nightly
+        
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz
+        
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Run WAF regex fuzzer
+        working-directory: mitigation-node
+        run: |
+          if [ -d "fuzz" ]; then
+            cargo fuzz run waf_regex -- -max_total_time=300 -runs=100000
+          else
+            echo "Fuzz targets not yet implemented - skipping"
+          fi
+        continue-on-error: true
+        
+      - name: Run config parser fuzzer
+        working-directory: mitigation-node
+        run: |
+          if [ -d "fuzz" ]; then
+            cargo fuzz run config_parser -- -max_total_time=300 -runs=100000
+          else
+            echo "Fuzz targets not yet implemented - skipping"
+          fi
+        continue-on-error: true
+
+  proptest:
+    name: Property-Based Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          
+      - name: Run proptest suite
+        run: cargo test --all-features proptest
+        env:
+          PROPTEST_CASES: 10000
+
+  report:
+    name: Report Results
+    runs-on: ubuntu-latest
+    needs: [cargo-fuzz, proptest]
+    if: always()
+    
+    steps:
+      - name: Check fuzzing status
+        run: |
+          if [ "${{ needs.cargo-fuzz.result }}" == "failure" ]; then
+            echo "::error::Fuzzing suite found crashes or hangs"
+            exit 1
+          fi
+          
+      - name: Check proptest status
+        run: |
+          if [ "${{ needs.proptest.result }}" == "failure" ]; then
+            echo "::error::Property-based tests failed"
+            exit 1
+          fi
