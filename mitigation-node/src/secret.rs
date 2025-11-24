@@ -130,7 +130,7 @@ mod tests {
         std::env::set_var("TEST_SECRET_EMPTY", "");
         let result = Secret::<String>::from_env("TEST_SECRET_EMPTY");
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("empty"));
+        assert!(result.unwrap_err().to_string().contains("empty"));
         std::env::remove_var("TEST_SECRET_EMPTY");
     }
 
