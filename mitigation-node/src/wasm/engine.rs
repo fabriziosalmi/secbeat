@@ -279,6 +279,46 @@ pub struct ModuleInfo {
     pub age: std::time::Duration,
 }
 
+// Explicit Drop implementation for WasmEngine to ensure proper cleanup
+// 
+// Memory Safety Guarantees:
+// 1. Arc<RwLock<HashMap>> automatically cleans up when last reference drops
+// 2. Each CachedModule contains a wasmtime::Module that properly drops
+// 3. wasmtime::Engine cleanup is handled by wasmtime's Drop impl
+// 4. No raw pointers or manual memory management
+//
+// Hot-Reload Cleanup:
+// - unload_module() removes from HashMap, triggering Module::drop()
+// - Module::drop() releases compiled code and JIT resources
+// - Engine persists across reloads (intentional for cache reuse)
+// - Store instances are created per-execution and drop immediately
+//
+// Leak Prevention:
+// - Stores are NOT cached (created on each run_module call)
+// - Instances are NOT cached (created on each run_module call)
+// - Memory exports are NOT held between executions
+// - Fuel metering prevents unbounded execution
+//
+// Tested in: tests/wasm_memory_leak_tests.rs
+impl Drop for WasmEngine {
+    fn drop(&mut self) {
+        // Get write lock to clear all modules
+        if let Ok(mut modules) = self.modules.write() {
+            let count = modules.len();
+            modules.clear();
+            
+            if count > 0 {
+                debug!("WasmEngine dropping - cleared {} cached modules", count);
+            }
+        } else {
+            warn!("WasmEngine drop: failed to acquire lock for cleanup");
+        }
+        
+        // Engine will drop automatically after this
+        // wasmtime::Engine handles its own cleanup (compiled code cache, etc.)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
