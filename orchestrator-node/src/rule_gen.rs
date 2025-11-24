@@ -352,6 +352,7 @@ mod base64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::experts::features::TrafficFeatures;
 
     #[test]
     fn test_base64_encoding() {
