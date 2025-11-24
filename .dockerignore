@@ -1,0 +1,117 @@
+# SecBeat Docker Build Ignore
+# Optimize Docker build by excluding unnecessary files
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+!README.md
+docs/
+CONTRIBUTING.md
+LICENSE
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Build artifacts
+target/
+*/target/
+**/*.rs.bk
+*.pdb
+
+# Logs
+logs/
+*.log
+reports/
+
+# Test files
+tests/
+*/tests/
+test_*.sh
+*.test
+
+# Temporary files
+tmp/
+*.tmp
+*.swp
+*.swo
+*~
+
+# IDE and editors
+.vscode/
+.idea/
+*.iml
+.DS_Store
+.project
+.settings/
+
+# Configuration (keep essential ones)
+config.dev.toml
+!config.prod.toml
+!config.l7.toml
+!config.l7-notls.toml
+
+# Certificates (will be generated)
+certs/*.pem
+!mitigation-node/certs/.gitkeep
+
+# Docker
+docker-compose.yml
+docker-compose.*.yml
+Dockerfile.dev
+.dockerignore
+
+# Kubernetes
+k8s/
+*.yaml
+!systemd/*.service
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+terraform.tfvars
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Scripts (keep essential ones)
+scripts/
+deploy_*.sh
+setup-*.sh
+
+# Build cache
+.cargo/
+rust-toolchain.toml
+
+# Node.js (website - should never be in Docker image)
+node_modules/
+website/
+package.json
+package-lock.json
+yarn.lock
+npm-debug.log
+.next/
+.nuxt/
+dist/
+
+# Fuzzing (large corpus files)
+fuzz/
+*/fuzz/
+corpus/
+artifacts/
+*.profraw
+*.profdata
+
+# Additional development files
+Makefile
+*.backup
+*.bak
+*.old
