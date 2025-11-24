@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use crate::error::{MitigationError, Result};
 use async_nats::{Client, ConnectOptions};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -200,7 +200,7 @@ impl EventSystem {
 
         let client: async_nats::Client = async_nats::connect_with_options(nats_url, options)
             .await
-            .context("Failed to connect to NATS server")?;
+            .map_err(|e| MitigationError::Other(format!("Failed to connect to NATS server: {}", e)))?;;
 
         info!("Successfully connected to NATS server");
 
@@ -224,13 +224,14 @@ impl EventSystem {
     /// Publish a security event
     #[instrument(skip(self, event))]
     pub async fn publish_security_event(&self, event: SecurityEvent) -> Result<()> {
-        let payload = serde_json::to_vec(&event).context("Failed to serialize security event")?;
+        let payload = serde_json::to_vec(&event)
+            .map_err(|e| MitigationError::Serialization(format!("Failed to serialize security event: {}", e)))?;
 
-        let _result: Result<(), async_nats::PublishError> = self.client
+        let _result: std::result::Result<(), async_nats::PublishError> = self.client
             .publish("secbeat.events.waf", payload.into())
             .await;
         
-        _result.context("Failed to publish security event")?;
+        _result.map_err(|e| MitigationError::Other(format!("Failed to publish security event: {}", e)))?;
 
         debug!(
             node_id = %event.node_id,
@@ -274,7 +275,7 @@ impl EventSystem {
         let mut subscriber: async_nats::Subscriber = client
             .subscribe("secbeat.control.commands")
             .await
-            .context("Failed to subscribe to control commands")?;
+            .map_err(|e| MitigationError::Other(format!("Failed to subscribe to control commands: {}", e)))?;;
 
         info!("Started consuming control commands from secbeat.control.commands");
 
@@ -311,7 +312,7 @@ impl EventSystem {
         let mut subscriber: async_nats::Subscriber = client
             .subscribe("secbeat.commands.block")
             .await
-            .context("Failed to subscribe to behavioral block commands")?;
+            .map_err(|e| MitigationError::Other(format!("Failed to subscribe to behavioral block commands: {}", e)))?;;
 
         info!("Started consuming behavioral block commands from secbeat.commands.block");
 
@@ -379,7 +380,7 @@ impl EventSystem {
                         let ip: IpAddr = command
                             .target
                             .parse()
-                            .context("Invalid IP address in command")?;
+                            .map_err(|_| MitigationError::Other("Invalid IP address in command".to_string()))?;;
 
                         rule_state.add_blocked_ip(ip, command.clone()).await;
 
@@ -432,7 +433,7 @@ impl EventSystem {
                     let ip: IpAddr = command
                         .target
                         .parse()
-                        .context("Invalid IP address in command")?;
+                        .map_err(|_| MitigationError::Other("Invalid IP address in command".to_string()))?;;
 
                     rule_state.remove_blocked_ip(&ip, command.command_id).await;
                 }
@@ -466,36 +467,36 @@ impl EventSystem {
 
     /// Unblock an IP address from the kernel blocklist (Linux only)
     #[cfg(target_os = "linux")]
-    pub async fn unblock_ip(&self, ip: std::net::Ipv4Addr) -> anyhow::Result<()> {
+    pub async fn unblock_ip(&self, ip: std::net::Ipv4Addr) -> Result<()> {
         let mut bpf_guard = self.bpf_handle.lock().await;
         if let Some(ref mut bpf) = *bpf_guard {
             bpf.unblock_ip(ip)?;
             Ok(())
         } else {
-            anyhow::bail!("BPF handle not attached")
+            Err(MitigationError::Bpf("BPF handle not attached".to_string()))
         }
     }
 
     /// Get XDP packet statistics (Linux only)
     #[cfg(target_os = "linux")]
-    pub async fn get_xdp_stats(&self) -> anyhow::Result<(u64, u64)> {
+    pub async fn get_xdp_stats(&self) -> Result<(u64, u64)> {
         let bpf_guard = self.bpf_handle.lock().await;
         if let Some(ref bpf) = *bpf_guard {
             bpf.get_stats()
         } else {
-            anyhow::bail!("BPF handle not attached")
+            Err(MitigationError::Bpf("BPF handle not attached".to_string()))
         }
     }
 
     /// Unblock an IP address (stub for non-Linux platforms)
     #[cfg(not(target_os = "linux"))]
-    pub async fn unblock_ip(&self, _ip: std::net::Ipv4Addr) -> anyhow::Result<()> {
-        anyhow::bail!("XDP blocking not supported on this platform")
+    pub async fn unblock_ip(&self, _ip: std::net::Ipv4Addr) -> Result<()> {
+        Err(MitigationError::Other("XDP blocking not supported on this platform".to_string()))
     }
 
     /// Get XDP packet statistics (stub for non-Linux platforms)
     #[cfg(not(target_os = "linux"))]
-    pub async fn get_xdp_stats(&self) -> anyhow::Result<(u64, u64)> {
+    pub async fn get_xdp_stats(&self) -> Result<(u64, u64)> {
         Ok((0, 0))
     }
 }

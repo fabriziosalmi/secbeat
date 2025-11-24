@@ -5,7 +5,7 @@
 // - Execution with strict resource limits (fuel, memory)
 // - Hot-reloading capability for dynamic rule updates
 
-use anyhow::{anyhow, Context, Result};
+use crate::error::{MitigationError, Result};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use tracing::{debug, info, warn};
@@ -75,7 +75,7 @@ impl WasmEngine {
         }
 
         let engine = Engine::new(&engine_config)
-            .context("Failed to create wasmtime engine")?;
+            .map_err(|e| MitigationError::Wasm(format!("Failed to create wasmtime engine: {}", e)))?;;
 
         info!(
             "WASM engine initialized with max_fuel={}, max_memory={}",
@@ -109,7 +109,7 @@ impl WasmEngine {
         debug!("Compiling WASM module: {}", name);
         
         let module = Module::new(&self.engine, bytecode)
-            .context("Failed to compile WASM module")?;
+            .map_err(|e| MitigationError::Wasm(format!("Failed to compile WASM module: {}", e)))?;;
 
         // Validate module exports the required function
         let mut has_inspect = false;
@@ -122,10 +122,10 @@ impl WasmEngine {
         }
 
         if !has_inspect {
-            return Err(anyhow!(
+            return Err(MitigationError::Wasm(format!(
                 "WASM module must export '{}' function",
                 INSPECT_REQUEST_FN
-            ));
+            )));
         }
 
         // If config provided, call configure() function
@@ -133,7 +133,7 @@ impl WasmEngine {
             // Create temporary instance to configure
             let mut store = Store::new(&self.engine, ());
             let instance = Instance::new(&mut store, &module, &[])
-                .context("Failed to create instance for configuration")?;
+                .map_err(|e| MitigationError::Wasm(format!("Failed to create instance for configuration: {}", e)))?;;
 
             // Check if module exports configure function
             if let Ok(configure_fn) = instance.get_typed_func::<(i32, i32), i32>(&mut store, "configure") {
@@ -142,18 +142,18 @@ impl WasmEngine {
                 // Get memory
                 let memory = instance
                     .get_memory(&mut store, "memory")
-                    .ok_or_else(|| anyhow!("WASM module must export 'memory'"))?;
+                    .ok_or_else(|| MitigationError::Wasm("WASM module must export 'memory'".to_string()))?;;
 
                 // Write config to memory
                 memory.write(&mut store, 0, config_bytes)
-                    .context("Failed to write config to WASM memory")?;
+                    .map_err(|e| MitigationError::Wasm(format!("Failed to write config to WASM memory: {}", e)))?;;
 
                 // Call configure
                 let result: i32 = configure_fn.call(&mut store, (0, config_bytes.len() as i32))
-                    .context("configure() call failed")?;
+                    .map_err(|e| MitigationError::Wasm(format!("configure() call failed: {}", e)))?;;
 
                 if result != 0 {
-                    return Err(anyhow!("Configuration failed with code: {}", result));
+                    return Err(MitigationError::Wasm(format!("Configuration failed with code: {}", result)));
                 }
 
                 info!("WASM module '{}' configured successfully", name);
@@ -188,7 +188,7 @@ impl WasmEngine {
             info!("Unloaded WASM module: {}", name);
             Ok(())
         } else {
-            Err(anyhow!("Module not found: {}", name))
+            Err(MitigationError::Wasm(format!("Module not found: {}", name)))
         }
     }
 
@@ -205,32 +205,33 @@ impl WasmEngine {
         let modules = self.modules.read().unwrap();
         let cached = modules
             .get(name)
-            .ok_or_else(|| anyhow!("Module not loaded: {}", name))?;
+            .ok_or_else(|| MitigationError::Wasm(format!("Module not loaded: {}", name)))?;;
 
         // Create a new store for this execution
         let mut store = Store::new(&self.engine, ());
         
         // Set fuel limit
         store.set_fuel(self.config.max_fuel)
-            .context("Failed to set fuel limit")?;
+            .map_err(|e| MitigationError::Wasm(format!("Failed to set fuel limit: {}", e)))?;;
 
         // Create instance
         let instance = Instance::new(&mut store, &cached.module, &[])
-            .context("Failed to create WASM instance")?;
+            .map_err(|e| MitigationError::Wasm(format!("Failed to create WASM instance: {}", e)))?;;
 
         // Get the inspect_request function
         let inspect_fn = instance
             .get_typed_func::<(i32, i32), i32>(&mut store, INSPECT_REQUEST_FN)
-            .context("Failed to get inspect_request function")?;
+            .map_err(|e| MitigationError::Wasm(format!("Failed to get inspect_request function: {}", e)))?;;
 
         // Serialize request context to JSON
-        let json = ctx.to_json().context("Failed to serialize request context")?;
+        let json = ctx.to_json()
+            .map_err(|e| MitigationError::Serialization(format!("Failed to serialize request context: {}", e)))?;;
         let json_bytes = json.as_bytes();
 
         // Get memory export
         let memory = instance
             .get_memory(&mut store, "memory")
-            .ok_or_else(|| anyhow!("WASM module must export 'memory'"))?;
+            .ok_or_else(|| MitigationError::Wasm("WASM module must export 'memory'".to_string()))?;;
 
         // Write JSON to WASM memory
         // We use a simple convention: write at offset 0
@@ -238,12 +239,12 @@ impl WasmEngine {
         let offset = 0;
         memory
             .write(&mut store, offset, json_bytes)
-            .context("Failed to write to WASM memory")?;
+            .map_err(|e| MitigationError::Wasm(format!("Failed to write to WASM memory: {}", e)))?;;
 
         // Call the function with (ptr=0, len=json_bytes.len())
         let result = inspect_fn
             .call(&mut store, (offset as i32, json_bytes.len() as i32))
-            .context("WASM function execution failed")?;
+            .map_err(|e| MitigationError::Wasm(format!("WASM function execution failed: {}", e)))?;;
 
         // Get remaining fuel for logging
         let fuel_consumed = self.config.max_fuel - store.get_fuel().unwrap_or(0);
@@ -254,7 +255,7 @@ impl WasmEngine {
 
         // Convert result to Action
         Action::from_i32(result)
-            .ok_or_else(|| anyhow!("Invalid action returned from WASM: {}", result))
+            .ok_or_else(|| MitigationError::Wasm(format!("Invalid action returned from WASM: {}", result)))
     }
 
     /// Get list of loaded modules

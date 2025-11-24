@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use crate::error::{MitigationError, Result};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -130,7 +130,7 @@ impl OrchestratorClient {
         Client::builder()
             .timeout(Duration::from_secs(30))
             .build()
-            .context("Failed to build HTTP client")
+            .map_err(|e| MitigationError::Orchestrator(format!("Failed to build HTTP client: {}", e)))
     }
 
     /// Register node with orchestrator
@@ -145,7 +145,7 @@ impl OrchestratorClient {
                 .and_then(|r| r.max_retries)
                 .unwrap_or(3)
         {
-            return Err(anyhow::anyhow!("Max registration attempts exceeded"));
+            return Err(MitigationError::Orchestrator("Max registration attempts exceeded".to_string()));
         }
 
         *attempts += 1;
@@ -200,22 +200,22 @@ impl OrchestratorClient {
             ))
             .send()
             .await
-            .context("Failed to send registration request")?;
+            .map_err(|e| MitigationError::Orchestrator(format!("Failed to send registration request: {}", e)))?;;
 
         if !response.status().is_success() {
             let status = response.status();
             let body: String = response.text().await.unwrap_or_default();
-            return Err(anyhow::anyhow!(
+            return Err(MitigationError::Orchestrator(format!(
                 "Registration failed with status {}: {}",
                 status,
                 body
-            ));
+            )));
         }
 
         let register_response: RegisterResponse = response
             .json()
             .await
-            .context("Failed to parse registration response")?;
+            .map_err(|e| MitigationError::Serialization(format!("Failed to parse registration response: {}", e)))?;;
 
         // Update node ID and reset attempts counter
         *self.node_id.write().await = Some(register_response.node_id);
@@ -236,7 +236,7 @@ impl OrchestratorClient {
             .node_id
             .read()
             .await
-            .ok_or_else(|| anyhow::anyhow!("Node not registered"))?;
+            .ok_or_else(|| MitigationError::InvalidState("Node not registered".to_string()))?;;
 
         let status = self.node_status.read().await.clone();
 
@@ -269,16 +269,16 @@ impl OrchestratorClient {
             ))
             .send()
             .await
-            .context("Failed to send heartbeat")?;
+            .map_err(|e| MitigationError::Orchestrator(format!("Failed to send heartbeat: {}", e)))?;;
 
         if !response.status().is_success() {
             let status = response.status();
             let body: String = response.text().await.unwrap_or_default();
-            return Err(anyhow::anyhow!(
+            return Err(MitigationError::Orchestrator(format!(
                 "Heartbeat failed with status {}: {}",
                 status,
                 body
-            ));
+            )));
         }
 
         // Update last heartbeat timestamp

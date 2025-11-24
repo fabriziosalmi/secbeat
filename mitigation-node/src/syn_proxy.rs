@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use crate::error::{MitigationError, Result};
 use pnet::transport::{
     transport_channel, TransportChannelType, TransportProtocol, TransportReceiver, TransportSender,
 };
@@ -140,7 +140,8 @@ impl SynProxy {
         ));
 
         let (tx, rx) =
-            transport_channel(4096, protocol).context("Failed to create transport channel")?;
+            transport_channel(4096, protocol)
+                .map_err(|e| MitigationError::Other(format!("Failed to create transport channel: {}", e)))?;
 
         *self.tx.lock().await = Some(tx);
         *self.rx.lock().await = Some(rx);
@@ -494,16 +495,16 @@ impl SynProxy {
                         }
                         Err(e) => {
                             error!(error = %e, "Failed to send SYN-ACK packet");
-                            return Err(anyhow::anyhow!("Failed to send SYN-ACK: {}", e));
+                            return Err(MitigationError::Other(format!("Failed to send SYN-ACK: {}", e)));
                         }
                     }
                 } else {
                     error!("Failed to create IP packet");
-                    return Err(anyhow::anyhow!("Failed to create IP packet"));
+                    return Err(MitigationError::Other("Failed to create IP packet".to_string()));
                 }
             } else {
                 error!("Failed to create TCP packet");
-                return Err(anyhow::anyhow!("Failed to create TCP packet"));
+                return Err(MitigationError::Other("Failed to create TCP packet".to_string()));
             }
         } else {
             warn!("Transport transmitter not available, cannot send SYN-ACK");
@@ -535,7 +536,7 @@ impl SynProxy {
                     error = %e,
                     "Failed to connect to backend server"
                 );
-                return Err(anyhow::anyhow!("Backend connection failed: {}", e));
+                return Err(MitigationError::Other(format!("Backend connection failed: {}", e)));
             }
         };
 

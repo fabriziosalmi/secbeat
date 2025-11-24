@@ -1,5 +1,5 @@
 use crate::config::DdosConfig;
-use anyhow::Result;
+use crate::error::Result;
 use dashmap::DashMap;
 use governor::{clock::DefaultClock, state::InMemoryState, Quota, RateLimiter};
 use ipnet::IpNet;

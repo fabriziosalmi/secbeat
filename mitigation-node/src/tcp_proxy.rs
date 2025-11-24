@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use crate::error::{MitigationError, Result};
 use std::net::SocketAddr;
 use tokio::io::{self, AsyncReadExt, AsyncWriteExt};
 use tokio::net::{
@@ -35,7 +35,7 @@ impl TcpProxy {
 
         let listener = TcpListener::bind(&self.listen_addr)
             .await
-            .with_context(|| format!("Failed to bind to {}", self.listen_addr))?;
+            .map_err(|e| MitigationError::Io(e))?;;
 
         info!(
             listen_addr = %self.listen_addr,
@@ -90,7 +90,7 @@ async fn handle_connection(
     // Connect to backend server
     let mut backend_stream = TcpStream::connect(&backend_addr)
         .await
-        .with_context(|| format!("Failed to connect to backend {}", backend_addr))?;
+        .map_err(|e| MitigationError::Io(e))?;
 
     debug!(
         client_addr = %client_addr,

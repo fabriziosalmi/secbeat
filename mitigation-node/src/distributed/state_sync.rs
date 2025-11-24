@@ -6,7 +6,7 @@
 // - Listener task to receive and merge updates from other nodes
 // - Global rate limiting based on distributed counters
 
-use anyhow::{Context, Result};
+use crate::error::{MitigationError, Result};
 use async_nats::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -205,13 +205,13 @@ impl StateManager {
         }
 
         let json = serde_json::to_string(&update)
-            .context("Failed to serialize state update")?;
+            .map_err(|e| MitigationError::Serialization(format!("Failed to serialize state update: {}", e)))?;
 
-        let _result: Result<(), async_nats::PublishError> = self.nats_client
+        let _result: std::result::Result<(), async_nats::PublishError> = self.nats_client
             .publish("secbeat.state.sync", json.into())
             .await;
         
-        _result.context("Failed to publish state update")?;
+        _result.map_err(|e| MitigationError::Other(format!("Failed to publish state update: {}", e)))?;
 
         let mut stats = self.stats.write().await;
         stats.broadcasts_sent += 1;
@@ -291,7 +291,7 @@ impl StateManager {
     /// Handle a remote state update
     async fn handle_remote_update(&self, payload: &[u8]) -> Result<()> {
         let update: StateUpdate = serde_json::from_slice(payload)
-            .context("Failed to deserialize state update")?;
+            .map_err(|e| MitigationError::Serialization(format!("Failed to deserialize state update: {}", e)))?;
 
         // Ignore updates from ourselves
         if update.node_id == self.node_id {

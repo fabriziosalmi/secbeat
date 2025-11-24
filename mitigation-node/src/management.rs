@@ -1,4 +1,5 @@
-use anyhow::{Context, Result};
+use crate::error::MitigationError;
+use crate::error::Result as MitResult;
 use axum::{
     extract::{Path, Request, State},
     http::{header::AUTHORIZATION, StatusCode},
@@ -306,7 +307,7 @@ pub async fn start_management_api(
     waf_engine: Option<Arc<RwLock<WafEngine>>>,
     event_system: Option<Arc<EventSystem>>,
     config_file_path: Option<String>,
-) -> Result<()> {
+) -> MitResult<()> {
     if !config.enabled {
         info!("Management API is disabled");
         return Ok(());
@@ -329,7 +330,7 @@ pub async fn start_management_api(
 
     let listener = TcpListener::bind(&config.listen_addr)
         .await
-        .with_context(|| format!("Failed to bind to {}", config.listen_addr))?;
+        .map_err(|e| MitigationError::Io(e))?;
 
     info!(
         addr = %config.listen_addr,

@@ -1,5 +1,5 @@
 use crate::config::WafConfig;
-use anyhow::{Context, Result};
+use crate::error::{MitigationError, Result};
 use metrics::{counter, histogram};
 use regex::Regex;
 use std::collections::HashMap;
@@ -334,11 +334,11 @@ impl WafEngine {
 
         let content = fs::read_to_string(file_path)
             .await
-            .context("Failed to read custom rules file")?;
+            .map_err(|e| MitigationError::Waf(format!("Failed to read custom rules file: {}", e)))?;;
 
         let rules: CustomRuleFile = serde_yaml::from_str(&content)
             .or_else(|_| serde_json::from_str(&content))
-            .context("Failed to parse custom rules file (expected JSON or YAML)")?;
+            .map_err(|e| MitigationError::Waf(format!("Failed to parse custom rules file (expected JSON or YAML): {}", e)))?;;
 
         let mut compiled_patterns = Vec::new();
         for pattern in rules.patterns {
@@ -371,7 +371,8 @@ impl WafEngine {
 
     /// Add a custom pattern at runtime
     pub async fn add_custom_pattern(&mut self, pattern: &str) -> Result<()> {
-        let regex = Regex::new(pattern).context("Failed to compile custom pattern")?;
+        let regex = Regex::new(pattern)
+            .map_err(|e| MitigationError::Waf(format!("Failed to compile custom pattern '{}': {}", pattern, e)))?;;
 
         self.custom_patterns.push(regex);
         info!(pattern = %pattern, "Added custom WAF pattern");
@@ -565,17 +566,18 @@ impl WafEngine {
 
     /// Parse HTTP request from raw bytes
     pub fn parse_http_request(&self, data: &[u8]) -> Result<HttpRequest> {
-        let request_str = std::str::from_utf8(data)?;
+        let request_str = std::str::from_utf8(data)
+            .map_err(|e| MitigationError::Waf(format!("Invalid UTF-8 in request: {}", e)))?;
         let mut lines = request_str.lines();
 
         // Parse request line
         let request_line = lines
             .next()
-            .ok_or_else(|| anyhow::anyhow!("Empty request"))?;
+            .ok_or_else(|| MitigationError::Waf("Empty request".to_string()))?;
         let parts: Vec<&str> = request_line.split_whitespace().collect();
 
         if parts.len() != 3 {
-            return Err(anyhow::anyhow!("Invalid request line"));
+            return Err(MitigationError::Waf("Invalid request line".to_string()));
         }
 
         let method = parts[0].to_string();

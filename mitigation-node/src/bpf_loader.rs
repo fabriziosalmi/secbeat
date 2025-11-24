@@ -6,7 +6,7 @@ use aya::{
     programs::{Xdp, XdpFlags},
     Ebpf,
 };
-use anyhow::{Context, Result};
+use crate::error::{MitigationError, Result};
 use secbeat_common::{BlockEntry, STAT_PASS, STAT_DROP};
 use std::net::Ipv4Addr;
 use std::path::Path;
@@ -37,34 +37,34 @@ impl BpfHandle {
 
         // Load the compiled eBPF program
         let mut ebpf = Ebpf::load_file(ebpf_path)
-            .context("Failed to load eBPF program")?;
+            .map_err(|e| MitigationError::Bpf(format!("Failed to load eBPF program: {}", e)))?;;
 
         info!("eBPF program loaded successfully");
 
         // Get the XDP program by name
         let program: &mut Xdp = ebpf
             .program_mut("secbeat_xdp")
-            .context("Failed to find 'secbeat_xdp' program")?
+            .ok_or_else(|| MitigationError::Bpf("Failed to find 'secbeat_xdp' program".to_string()))?
             .try_into()
-            .context("Program is not an XDP program")?;
+            .map_err(|_| MitigationError::Bpf("Program is not an XDP program".to_string()))?;;
 
         // Load the program into the kernel
-        program.load().context("Failed to load XDP program into kernel")?;
+        program.load().map_err(|e| MitigationError::Bpf(format!("Failed to load XDP program into kernel: {}", e)))?;;
         info!("XDP program loaded into kernel");
 
         // Attach to the network interface
         program
             .attach(interface, XdpFlags::default())
-            .context(format!("Failed to attach XDP program to interface '{}'", interface))?;
+            .map_err(|e| MitigationError::Bpf(format!("Failed to attach XDP program to interface '{}': {}", interface, e)))?;;
 
         info!("✅ XDP program attached to interface: {}", interface);
 
         // Get handle to the blocklist map
         let blocklist = AyaHashMap::try_from(
             ebpf.take_map("BLOCKLIST")
-                .context("Failed to find BLOCKLIST map")?
+                .ok_or_else(|| MitigationError::Bpf("Failed to find BLOCKLIST map".to_string()))?
         )
-        .context("Map is not a HashMap")?;
+        .map_err(|_| MitigationError::Bpf("Map is not a HashMap".to_string()))?;;
 
         info!("✅ Blocklist map initialized (capacity: {} entries)", 
               secbeat_common::MAX_BLOCKLIST_ENTRIES);
@@ -72,9 +72,9 @@ impl BpfHandle {
         // Get handle to the statistics map
         let stats = PerCpuArray::try_from(
             ebpf.take_map("STATS")
-                .context("Failed to find STATS map")?
+                .ok_or_else(|| MitigationError::Bpf("Failed to find STATS map".to_string()))?
         )
-        .context("Map is not a PerCpuArray")?;
+        .map_err(|_| MitigationError::Bpf("Map is not a PerCpuArray".to_string()))?;
 
         info!("✅ Statistics map initialized");
 
@@ -126,7 +126,7 @@ impl BpfHandle {
         // Insert into kernel map
         self.blocklist
             .insert(ip_u32, entry, 0)
-            .context(format!("Failed to insert IP {} into blocklist", ip))?;
+            .map_err(|e| MitigationError::Bpf(format!("Failed to insert IP {} into blocklist: {}", ip, e)))?;
 
         info!("🚫 Offloaded IP block to kernel/XDP: {} (key: 0x{:08x})", ip, ip_u32);
         Ok(())

@@ -436,13 +436,20 @@ async fn run_l7_proxy_mode(
             .waf_engine
             .as_ref()
             .map(|w| Arc::new(RwLock::new((**w).clone())));
-        let mgmt_task = tokio::spawn(management::start_management_api(
-            config.management.clone(),
-            shutdown_signal,
-            waf_for_mgmt,
-            state.event_system.clone(),
-            config_file_path.clone(),
-        ));
+        
+        let mgmt_config = config.management.clone();
+        let event_system_clone = state.event_system.clone();
+        let config_file_clone = config_file_path.clone();
+        
+        let mgmt_task = tokio::spawn(async move {
+            management::start_management_api(
+                mgmt_config,
+                shutdown_signal,
+                waf_for_mgmt,
+                event_system_clone,
+                config_file_clone,
+            ).await.map_err(|e| anyhow::anyhow!("{}", e))
+        });
         background_tasks.push(mgmt_task);
     }
 
@@ -1113,7 +1120,7 @@ async fn run_tcp_proxy_mode(config: MitigationConfig) -> Result<()> {
         config.network.buffer_size,
     );
 
-    proxy.run().await
+    proxy.run().await.map_err(|e| anyhow::anyhow!("{}", e))
 }
 
 /// Run in SYN proxy mode (Phase 2)
@@ -1135,6 +1142,6 @@ async fn run_syn_proxy_mode(config: MitigationConfig) -> Result<()> {
         std::net::Ipv4Addr::new(0, 0, 0, 0), // Listen on all interfaces
     );
 
-    proxy.initialize().await?;
-    proxy.run().await
+    proxy.initialize().await.map_err(|e| anyhow::anyhow!("{}", e))?;
+    proxy.run().await.map_err(|e| anyhow::anyhow!("{}", e))
 }
