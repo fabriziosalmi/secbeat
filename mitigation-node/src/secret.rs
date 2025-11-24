@@ -1,3 +1,4 @@
+use crate::error::{MitigationError, Result};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
 
@@ -32,12 +33,12 @@ impl Secret<String> {
     /// 
     /// # Errors
     /// Returns an error if the environment variable is not set or is empty
-    pub fn from_env(var_name: &str) -> Result<Self, String> {
+    pub fn from_env(var_name: &str) -> Result<Self> {
         std::env::var(var_name)
-            .map_err(|e| format!("Environment variable '{}' not set: {}", var_name, e))
+            .map_err(|e| MitigationError::Secret(format!("Environment variable '{}' not set: {}", var_name, e)))
             .and_then(|val| {
                 if val.is_empty() {
-                    Err(format!("Environment variable '{}' is empty", var_name))
+                    Err(MitigationError::Secret(format!("Environment variable '{}' is empty", var_name)))
                 } else {
                     Ok(Self::new(val))
                 }
@@ -70,7 +71,7 @@ impl<T: Clone> From<T> for Secret<T> {
 
 // Serde support for Secret<String>
 impl Serialize for Secret<String> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -80,7 +81,7 @@ impl Serialize for Secret<String> {
 }
 
 impl<'de> Deserialize<'de> for Secret<String> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {

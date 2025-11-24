@@ -6,6 +6,7 @@
 pub mod config;
 pub mod ddos;
 pub mod distributed;
+pub mod error;
 pub mod events;
 pub mod management;
 pub mod orchestrator;
@@ -22,6 +23,7 @@ pub mod bpf_loader;
 pub use config::{DdosConfig, MitigationConfig};
 pub use ddos::DdosProtection;
 pub use distributed::{GCounter, NodeId, PNCounter, StateManager, StateSyncConfig};
+pub use error::{MitigationError, Result};
 pub use events::EventSystem;
 pub use management::{ManagementState, ShutdownSignal};
 pub use secret::Secret;
