@@ -1,5 +1,6 @@
 use crate::config::DdosConfig;
 use crate::error::Result;
+use arc_swap::ArcSwap;
 use dashmap::DashMap;
 use governor::{clock::DefaultClock, state::InMemoryState, Quota, RateLimiter};
 use ipnet::IpNet;
@@ -16,7 +17,7 @@ type IpRateLimiter = RateLimiter<governor::state::direct::NotKeyed, InMemoryStat
 /// DDoS protection engine
 #[derive(Debug, Clone)]
 pub struct DdosProtection {
-    config: DdosConfig,
+    config: Arc<ArcSwap<DdosConfig>>,
     /// Rate limiters per IP
     rate_limiters: Arc<DashMap<IpAddr, IpRateLimiter>>,
     /// Connection counters per IP
@@ -97,7 +98,7 @@ impl DdosProtection {
         );
 
         Ok(Self {
-            config,
+            config: Arc::new(ArcSwap::new(Arc::new(config))),
             rate_limiters: Arc::new(DashMap::new()),
             connection_counters: Arc::new(DashMap::new()),
             blacklist: Arc::new(DashMap::new()),
@@ -111,7 +112,8 @@ impl DdosProtection {
 
     /// Check if a connection should be allowed
     pub fn check_connection(&self, ip: IpAddr) -> DdosCheckResult {
-        if !self.config.enabled {
+        let config = self.config.load();
+        if !config.enabled {
             return DdosCheckResult::Allow;
         }
 
@@ -137,11 +139,11 @@ impl DdosProtection {
 
         // Check global connection limit
         let total_connections = self.total_connections.load(Ordering::Relaxed);
-        if total_connections >= self.config.connection_limits.max_total_connections {
+        if total_connections >= config.connection_limits.max_total_connections {
             debug!(
                 ip = %ip,
                 total_connections = total_connections,
-                max_total = self.config.connection_limits.max_total_connections,
+                max_total = config.connection_limits.max_total_connections,
                 "Global connection limit exceeded"
             );
             counter!("ddos_blocked_global_limit", 1);
@@ -155,11 +157,11 @@ impl DdosProtection {
             .or_insert_with(|| AtomicU32::new(0))
             .load(Ordering::Relaxed);
 
-        if connection_count >= self.config.connection_limits.max_connections_per_ip {
+        if connection_count >= config.connection_limits.max_connections_per_ip {
             debug!(
                 ip = %ip,
                 connections = connection_count,
-                max_per_ip = self.config.connection_limits.max_connections_per_ip,
+                max_per_ip = config.connection_limits.max_connections_per_ip,
                 "Per-IP connection limit exceeded"
             );
             self.record_violation(ip);
@@ -180,7 +182,8 @@ impl DdosProtection {
 
     /// Record a new connection
     pub fn record_connection(&self, ip: IpAddr) {
-        if !self.config.enabled {
+        let config = self.config.load();
+        if !config.enabled {
             return;
         }
 
@@ -203,7 +206,8 @@ impl DdosProtection {
 
     /// Record connection closure
     pub fn record_disconnection(&self, ip: IpAddr) {
-        if !self.config.enabled {
+        let config = self.config.load();
+        if !config.enabled {
             return;
         }
 
@@ -228,11 +232,12 @@ impl DdosProtection {
 
     /// Check if IP is rate limited
     fn is_rate_limited(&self, ip: IpAddr) -> bool {
+        let config = self.config.load();
         let rate_limiter = self.rate_limiters.entry(ip).or_insert_with(|| {
-            let requests_per_second = std::num::NonZeroU32::new(self.config.rate_limiting.requests_per_second)
+            let requests_per_second = std::num::NonZeroU32::new(config.rate_limiting.requests_per_second)
                 .unwrap_or_else(|| {
                     tracing::warn!("Invalid requests_per_second value {}, using default of 10", 
-                        self.config.rate_limiting.requests_per_second);
+                        config.rate_limiting.requests_per_second);
                     std::num::NonZeroU32::new(10).expect("10 is non-zero")
                 });
             RateLimiter::direct(Quota::per_second(requests_per_second))
@@ -266,7 +271,8 @@ impl DdosProtection {
 
     /// Record a violation for automatic blacklisting
     fn record_violation(&self, ip: IpAddr) {
-        if !self.config.blacklist.enabled {
+        let config = self.config.load();
+        if !config.blacklist.enabled {
             return;
         }
 
@@ -280,16 +286,17 @@ impl DdosProtection {
         debug!(ip = %ip, violations = violations, "Violation recorded");
 
         // Check if we should blacklist this IP
-        if violations >= self.config.blacklist.violation_threshold as u64 {
+        if violations >= config.blacklist.violation_threshold as u64 {
             self.add_to_blacklist(ip);
         }
     }
 
     /// Add IP to dynamic blacklist
     fn add_to_blacklist(&self, ip: IpAddr) {
+        let config = self.config.load();
         let expiry = Instant::now()
             + Duration::from_secs(
-                self.config
+                config
                     .blacklist
                     .blacklist_duration_seconds
                     .unwrap_or(300),
@@ -301,7 +308,7 @@ impl DdosProtection {
 
         warn!(
             ip = %ip,
-            duration_seconds = self.config.blacklist.blacklist_duration_seconds.unwrap_or(300),
+            duration_seconds = config.blacklist.blacklist_duration_seconds.unwrap_or(300),
             "IP added to blacklist"
         );
 
