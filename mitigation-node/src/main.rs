@@ -1,9 +1,14 @@
 use anyhow::{Context, Result};
 use hyper::service::service_fn;
-use hyper::{Body, Client, Request, Response, StatusCode};
+use hyper::{Request, Response, StatusCode};
+use hyper::body::{Bytes, Incoming};
+use hyper_util::client::legacy::Client;
+use hyper_util::rt::TokioExecutor;
+use http_body_util::{BodyExt, Full};
 use metrics::{counter, describe_counter, describe_gauge, gauge};
-use rustls::{Certificate, PrivateKey, ServerConfig};
-use rustls_pemfile::{certs, pkcs8_private_keys};
+use rustls::ServerConfig;
+use rustls::pki_types::CertificateDer;
+use rustls_pemfile::{certs, private_key};
 use std::convert::Infallible;
 use std::fs::File;
 use std::io::BufReader;
@@ -96,7 +101,7 @@ struct ProxyState {
     /// Global metrics counters (optional based on feature toggles)
     metrics: Option<ProxyMetrics>,
     /// HTTP client for backend connections
-    http_client: Client<hyper_rustls::HttpsConnector<hyper::client::HttpConnector>>,
+    http_client: Client<hyper_rustls::HttpsConnector<hyper_util::client::legacy::connect::HttpConnector>, Full<Bytes>>,
     /// Orchestrator client (optional based on feature toggles)
     #[allow(dead_code)] // Will be used when orchestrator is implemented
     orchestrator_client: Option<Arc<OrchestratorClient>>,
@@ -337,11 +342,11 @@ async fn run_l7_proxy_mode(
 
     // Initialize HTTP client
     let https_connector = hyper_rustls::HttpsConnectorBuilder::new()
-        .with_native_roots()
+        .with_native_roots()?
         .https_only()
         .enable_http1()
         .build();
-    let http_client = Client::builder()
+    let http_client = Client::builder(TokioExecutor::new())
         .pool_max_idle_per_host(20)
         .build(https_connector);
 
@@ -567,7 +572,7 @@ async fn handle_tls_connection(
         debug!(client_addr = %client_addr, "TLS handshake completed successfully");
 
         // Create HTTPS service for this connection
-        let service = service_fn(move |req: Request<Body>| {
+        let service = service_fn(move |req: Request<Incoming>| {
             let state = state_for_service.clone();
             let client_addr = client_addr;
 
@@ -575,8 +580,8 @@ async fn handle_tls_connection(
         });
 
         // Serve HTTP requests over TLS
-        if let Err(e) = hyper::server::conn::Http::new()
-            .serve_connection(tls_stream, service)
+        if let Err(e) = hyper::server::conn::http1::Builder::new()
+            .serve_connection(hyper_util::rt::TokioIo::new(tls_stream), service)
             .await
         {
             warn!(client_addr = %client_addr, error = %e, "HTTP connection error");
@@ -586,7 +591,7 @@ async fn handle_tls_connection(
         // Plain HTTP mode (no TLS)
         debug!(client_addr = %client_addr, "Handling plain HTTP connection");
 
-        let service = service_fn(move |req: Request<Body>| {
+        let service = service_fn(move |req: Request<Incoming>| {
             let state = state_for_service.clone();
             let client_addr = client_addr;
 
@@ -594,8 +599,8 @@ async fn handle_tls_connection(
         });
 
         // Serve HTTP over plain TCP
-        if let Err(e) = hyper::server::conn::Http::new()
-            .serve_connection(tcp_stream, service)
+        if let Err(e) = hyper::server::conn::http1::Builder::new()
+            .serve_connection(hyper_util::rt::TokioIo::new(tcp_stream), service)
             .await
         {
             warn!(client_addr = %client_addr, error = %e, "HTTP connection error");
@@ -616,10 +621,10 @@ async fn handle_tls_connection(
 
 /// Handle individual HTTP request
 async fn handle_http_request(
-    req: Request<Body>,
+    req: Request<Incoming>,
     client_addr: SocketAddr,
     state: ProxyState,
-) -> Result<Response<Body>, Infallible> {
+) -> Result<Response<Full<Bytes>>, Infallible> {
     let start_time = std::time::Instant::now();
 
     // Increment HTTPS requests counter
@@ -668,10 +673,10 @@ async fn handle_http_request(
         // Create blocked response
         let response = Response::builder()
             .status(StatusCode::FORBIDDEN)
-            .body(Body::from("Request blocked by Web Application Firewall"))
+            .body(Full::new(Bytes::from("Request blocked by Web Application Firewall")))
             .unwrap_or_else(|e| {
                 error!("Failed to create WAF blocked response: {}", e);
-                Response::new(Body::from("Internal Server Error"))
+                Response::new(Full::new(Bytes::from("Internal Server Error")))
             });
 
         // Publish security event for blocked request
@@ -801,13 +806,13 @@ async fn analyze_request_with_waf(
 
 /// Proxy request to backend server
 async fn proxy_to_backend(
-    req: Request<Body>,
+    req: Request<Incoming>,
     method: &hyper::Method,
     uri: &hyper::Uri,
     client_addr: SocketAddr,
     state: &ProxyState,
     user_agent: &str,
-) -> Result<Response<Body>, Infallible> {
+) -> Result<Response<Full<Bytes>>, Infallible> {
     // Create backend request URI
     let backend_addr = match state.config.backend_addr() {
         Ok(addr) => addr,
@@ -815,8 +820,8 @@ async fn proxy_to_backend(
             error!("Invalid backend address configuration: {}", e);
             return Ok(Response::builder()
                 .status(StatusCode::INTERNAL_SERVER_ERROR)
-                .body(Body::from("Configuration error"))
-                .unwrap_or_else(|_| Response::new(Body::from("Internal Server Error"))));
+                .body(Full::new(Bytes::from("Configuration error")))
+                .unwrap_or_else(|_| Response::new(Full::new(Bytes::from("Internal Server Error")))));
         }
     };
     let backend_uri = format!(
@@ -847,17 +852,17 @@ async fn proxy_to_backend(
     backend_req = backend_req.header("X-Forwarded-For", client_addr.ip().to_string());
     backend_req = backend_req.header("Host", backend_addr.to_string());
 
-    let backend_request = backend_req.body(req.into_body()).unwrap_or_else(|e| {
+    let backend_request = backend_req.body(Full::new(Bytes::new())).unwrap_or_else(|e| {
         error!("Failed to create backend request: {}", e);
         // Return a dummy request that will be handled as an error
         hyper::Request::builder()
             .method("GET")
             .uri("http://invalid")
-            .body(Body::empty())
+            .body(Full::new(Bytes::new()))
             .unwrap_or_else(|builder_error| {
                 error!("Failed to create fallback request: {}", builder_error);
                 // This should never happen, but if it does, we'll create a minimal request
-                hyper::Request::new(Body::empty())
+                hyper::Request::new(Full::new(Bytes::new()))
             })
     });
 
@@ -867,15 +872,26 @@ async fn proxy_to_backend(
             update_metric!(state, requests_proxied, fetch_add, 1);
             counter!("requests_proxied", 1);
 
+            let status = response.status();
+            
             info!(
                 client_addr = %client_addr,
                 backend_uri = %backend_uri,
-                status = %response.status(),
+                status = %status,
                 user_agent = %user_agent,
                 "Request proxied successfully"
             );
 
-            Ok(response)
+            // Collect the response body
+            let (parts, body) = response.into_parts();
+            let body_bytes = body.collect().await
+                .map(|collected| collected.to_bytes())
+                .unwrap_or_else(|e| {
+                    error!("Failed to collect response body: {}", e);
+                    Bytes::new()
+                });
+
+            Ok(Response::from_parts(parts, Full::new(body_bytes)))
         }
         Err(e) => {
             update_metric!(state, http_errors, fetch_add, 1);
@@ -890,10 +906,10 @@ async fn proxy_to_backend(
 
             let error_response = Response::builder()
                 .status(StatusCode::BAD_GATEWAY)
-                .body(Body::from("Backend server unavailable"))
+                .body(Full::new(Bytes::from("Backend server unavailable")))
                 .unwrap_or_else(|e| {
                     error!("Failed to create error response: {}", e);
-                    Response::new(Body::from("Internal Server Error"))
+                    Response::new(Full::new(Bytes::from("Internal Server Error")))
                 });
             Ok(error_response)
         }
@@ -974,28 +990,20 @@ async fn load_tls_config(tls_config: &mitigation_node::config::TlsConfig) -> Res
     let cert_file = File::open(&tls_config.cert_path)
         .with_context(|| format!("Failed to open certificate file: {}", tls_config.cert_path))?;
     let mut cert_reader = BufReader::new(cert_file);
-    let certs = certs(&mut cert_reader)
-        .with_context(|| "Failed to parse certificate file")?
-        .into_iter()
-        .map(Certificate)
-        .collect();
+    let certs: Vec<CertificateDer> = certs(&mut cert_reader)
+        .collect::<Result<Vec<_>, _>>()
+        .with_context(|| "Failed to parse certificate file")?;
 
     // Load private key
     let key_file = File::open(&tls_config.key_path)
         .with_context(|| format!("Failed to open private key file: {}", tls_config.key_path))?;
     let mut key_reader = BufReader::new(key_file);
-    let keys =
-        pkcs8_private_keys(&mut key_reader).with_context(|| "Failed to parse private key file")?;
-
-    if keys.is_empty() {
-        return Err(anyhow::anyhow!("No private keys found in key file"));
-    }
-
-    let private_key = PrivateKey(keys[0].clone());
+    let private_key = private_key(&mut key_reader)
+        .with_context(|| "Failed to parse private key file")?
+        .ok_or_else(|| anyhow::anyhow!("No private key found in key file"))?;
 
     // Build TLS configuration
     let config = ServerConfig::builder()
-        .with_safe_defaults()
         .with_no_client_auth()
         .with_single_cert(certs, private_key)
         .context("Failed to build TLS configuration")?;

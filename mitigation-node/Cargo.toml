@@ -30,6 +30,7 @@ serde_yaml = "0.9"
 axum = { workspace = true }
 httparse = { workspace = true }
 hyper-util = { workspace = true }
+http-body-util = { workspace = true }
 
 # WASM Runtime for hot-reloadable WAF rules
 wasmtime = "26.0"

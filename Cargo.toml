@@ -16,6 +16,7 @@ futures-util = "0.3"
 # Networking
 hyper = { version = "1.5", features = ["full"] }
 hyper-util = { version = "0.1", features = ["tokio", "server", "client", "http1", "http2"] }
+http-body-util = "0.1"
 hyper-rustls = "0.27"
 axum = "0.7"
 tower = "0.4"
