@@ -108,6 +108,10 @@ impl WafEngine {
                 "(?i)('\\s*or\\s+\\d+\\s*=\\s*\\d+)",
                 "(?i)(or\\s+1\\s*=\\s*1)",
                 "(?i)(and\\s+1\\s*=\\s*1)",
+                // Quoted number comparisons (e.g., OR '1'='1')
+                "(?i)(or\\s+'[^']*'\\s*=\\s*'[^']*')",
+                "(?i)(and\\s+'[^']*'\\s*=\\s*'[^']*')",
+                "(?i)('\\s*or\\s+'[^']*'\\s*=\\s*'[^']*')",
                 // Advanced SQL injection
                 "(?i)(exec\\s*\\()",
                 "(?i)(sp_executesql)",
