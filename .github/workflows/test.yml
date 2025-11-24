@@ -1,0 +1,180 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Quick checks that run on every push
+  quick-checks:
+    name: Quick Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run clippy
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+      - name: Build workspace
+        run: cargo build --workspace --all-features
+
+  # Unit tests (fast, no Docker needed)
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: quick-checks
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Run unit tests
+        run: |
+          cargo test --workspace --lib
+          cargo test --workspace --bins
+
+  # Integration tests in Docker (with Linux capabilities)
+  integration-tests:
+    name: Integration Tests (Docker)
+    runs-on: ubuntu-latest
+    needs: quick-checks
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build test container
+        run: make test-docker-build
+
+      - name: Run integration tests in Docker
+        run: |
+          docker run --rm \
+            --cap-add=NET_ADMIN \
+            --cap-add=NET_RAW \
+            -v ${{ github.workspace }}:/workspace \
+            -e RUST_BACKTRACE=1 \
+            secbeat-test \
+            bash -c "cargo test --workspace --test integration_tests --all-features -- --nocapture"
+
+      - name: Run performance tests in Docker
+        run: |
+          docker run --rm \
+            --cap-add=NET_ADMIN \
+            --cap-add=NET_RAW \
+            -v ${{ github.workspace }}:/workspace \
+            -e RUST_BACKTRACE=1 \
+            secbeat-test \
+            bash -c "cargo test --workspace --test performance_tests --all-features -- --nocapture --test-threads=1"
+
+      - name: Save test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            reports/
+            target/debug/
+          retention-days: 7
+
+  # Security audit
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run cargo audit
+        uses: rustsec/audit-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  # Coverage (optional, runs on main branch only)
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: [unit-tests, integration-tests]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin
+
+      - name: Generate coverage
+        run: cargo tarpaulin --workspace --out xml --timeout 300
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./cobertura.xml
+          fail_ci_if_error: false
+
+  # Final status check
+  test-results:
+    name: Test Results Summary
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [quick-checks, unit-tests, integration-tests, security-audit]
+    steps:
+      - name: Check test results
+        run: |
+          echo "Quick Checks: ${{ needs.quick-checks.result }}"
+          echo "Unit Tests: ${{ needs.unit-tests.result }}"
+          echo "Integration Tests: ${{ needs.integration-tests.result }}"
+          echo "Security Audit: ${{ needs.security-audit.result }}"
+          
+          if [ "${{ needs.quick-checks.result }}" != "success" ] || \
+             [ "${{ needs.unit-tests.result }}" != "success" ] || \
+             [ "${{ needs.integration-tests.result }}" != "success" ]; then
+            echo "❌ Tests failed"
+            exit 1
+          else
+            echo "✅ All tests passed"
+          fi

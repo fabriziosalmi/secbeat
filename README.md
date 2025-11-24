@@ -6,6 +6,7 @@
 [![Rust](https://img.shields.io/badge/rust-1.78+-93450a.svg?style=flat-square)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Status](https://img.shields.io/badge/status-BETA-yellow?style=flat-square)](https://github.com/fabriziosalmi/secbeat/releases)
+[![Tests](https://github.com/fabriziosalmi/secbeat/workflows/Test%20Suite/badge.svg)](https://github.com/fabriziosalmi/secbeat/actions/workflows/test.yml)
 
 > 🌐 **[View Full Documentation →](https://fabriziosalmi.github.io/secbeat)**
 
