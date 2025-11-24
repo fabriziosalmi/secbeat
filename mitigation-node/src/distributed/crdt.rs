@@ -66,10 +66,14 @@ impl GCounter {
     ///
     /// # Example
     /// ```
+    /// use mitigation_node::distributed::crdt::{GCounter, NodeId};
+    /// use uuid::Uuid;
+    /// 
+    /// let node_id = NodeId(Uuid::new_v4());
     /// let mut counter = GCounter::new();
-    /// counter.inc(node_a, 10);
-    /// counter.inc(node_a, 5);
-    /// assert_eq!(counter.get(node_a), 15);
+    /// counter.inc(node_id, 10);
+    /// counter.inc(node_id, 5);
+    /// assert_eq!(counter.get(node_id), 15);
     /// ```
     pub fn inc(&mut self, node_id: NodeId, delta: u64) {
         *self.counts.entry(node_id).or_insert(0) += delta;
@@ -95,6 +99,12 @@ impl GCounter {
     ///
     /// # Example
     /// ```
+    /// use mitigation_node::distributed::crdt::{GCounter, NodeId};
+    /// use uuid::Uuid;
+    /// 
+    /// let node_a = NodeId(Uuid::new_v4());
+    /// let node_b = NodeId(Uuid::new_v4());
+    /// 
     /// let mut counter_a = GCounter::new();
     /// counter_a.inc(node_a, 10);
     ///
