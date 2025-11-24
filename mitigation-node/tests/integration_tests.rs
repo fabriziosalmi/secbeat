@@ -8,9 +8,9 @@
 //! - Full proxy chain testing
 
 use anyhow::Result;
-use axum::http::StatusCode;
 use serde_json::json;
-use std::net::SocketAddr;
+use std::collections::HashMap;
+use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpListener;
@@ -19,9 +19,22 @@ use tokio::time::timeout;
 
 // Import modules under test
 use mitigation_node::config::{ManagementApiConfig, MitigationConfig};
+use mitigation_node::ddos::{DdosProtection, DdosCheckResult};
 use mitigation_node::events::EventSystem;
 use mitigation_node::management::{start_management_api, ShutdownSignal};
-use mitigation_node::waf::WafEngine;
+use mitigation_node::waf::{WafEngine, WafResult, HttpRequest};
+
+// Test helper functions
+fn create_test_request(uri: &str, body: Option<&str>) -> HttpRequest {
+    HttpRequest {
+        method: "GET".to_string(),
+        path: uri.split('?').next().unwrap_or("/").to_string(),
+        version: "HTTP/1.1".to_string(),
+        headers: HashMap::new(),
+        body: body.map(|s| s.as_bytes().to_vec()),
+        query_string: uri.split('?').nth(1).map(|s| s.to_string()),
+    }
+}
 
 /// Helper function to get available port
 async fn get_available_port() -> u16 {
@@ -36,7 +49,6 @@ fn create_test_config() -> MitigationConfig {
     config.management.enabled = true;
     config.management.listen_addr = "127.0.0.1:0".to_string(); // Will be updated with actual port
     config.management.auth_token = Some("test-token-123".to_string());
-    config.management.timeout_seconds = 10;
     config
 }
 
@@ -64,7 +76,7 @@ mod management_api_tests {
                 shutdown_signal,
                 Some(waf_clone),
                 None, // No event system for this test
-                Some(config.get_config_path()),
+                None, // No config path
             )
             .await;
         });

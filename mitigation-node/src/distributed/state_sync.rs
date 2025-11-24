@@ -207,10 +207,11 @@ impl StateManager {
         let json = serde_json::to_string(&update)
             .context("Failed to serialize state update")?;
 
-        self.nats_client
+        let _result: Result<(), async_nats::PublishError> = self.nats_client
             .publish("secbeat.state.sync", json.into())
-            .await
-            .context("Failed to publish state update")?;
+            .await;
+        
+        _result.context("Failed to publish state update")?;
 
         let mut stats = self.stats.write().await;
         stats.broadcasts_sent += 1;
@@ -270,7 +271,7 @@ impl StateManager {
 
     /// Background task: Listen for remote updates
     async fn sync_listener_task(&self) {
-        let mut subscriber = match self.nats_client.subscribe("secbeat.state.sync").await {
+        let mut subscriber: async_nats::Subscriber = match self.nats_client.subscribe("secbeat.state.sync").await {
             Ok(sub) => sub,
             Err(e) => {
                 error!("Failed to subscribe to state sync topic: {}", e);

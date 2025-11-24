@@ -195,7 +195,7 @@ impl DdosProtection {
 
         debug!(
             ip = %ip,
-            per_ip_connections = self.connection_counters.get(&ip).map(|c| c.load(Ordering::Relaxed)).unwrap_or(0),
+            per_ip_connections = self.connection_counters.get(&ip).map(|c: dashmap::mapref::one::Ref<'_, IpAddr, AtomicU32>| c.load(Ordering::Relaxed)).unwrap_or(0),
             total_connections = self.total_connections.load(Ordering::Relaxed),
             "Connection recorded"
         );
@@ -209,7 +209,7 @@ impl DdosProtection {
 
         // Decrement per-IP counter
         if let Some(counter) = self.connection_counters.get(&ip) {
-            let prev = counter.fetch_sub(1, Ordering::Relaxed);
+            let prev: u32 = counter.fetch_sub(1, Ordering::Relaxed);
             if prev > 0 {
                 debug!(
                     ip = %ip,
@@ -243,12 +243,12 @@ impl DdosProtection {
 
     /// Check if IP is whitelisted
     fn is_whitelisted(&self, ip: IpAddr) -> bool {
-        self.whitelist.iter().any(|net| net.contains(&ip))
+        self.whitelist.iter().any(|net: &IpNet| net.contains(&ip))
     }
 
     /// Check if IP is manually blacklisted
     fn is_manually_blacklisted(&self, ip: IpAddr) -> bool {
-        self.manual_blacklist.iter().any(|net| net.contains(&ip))
+        self.manual_blacklist.iter().any(|net: &IpNet| net.contains(&ip))
     }
 
     /// Check if IP is dynamically blacklisted
@@ -344,10 +344,10 @@ impl DdosProtection {
         // Cleanup expired blacklist entries
         let mut expired_blacklist = Vec::new();
         for entry in self.blacklist.iter() {
-            let ip: &IpAddr = entry.key();
-            let expiry: &Instant = entry.value();
-            if now >= *expiry {
-                expired_blacklist.push(*ip);
+            let ip = *entry.key();
+            let expiry = *entry.value();
+            if now >= expiry {
+                expired_blacklist.push(ip);
             }
         }
 
@@ -359,10 +359,10 @@ impl DdosProtection {
         // Cleanup zero connection counters
         let mut zero_connections = Vec::new();
         for entry in self.connection_counters.iter() {
-            let ip: &IpAddr = entry.key();
-            let counter: &AtomicU32 = entry.value();
+            let ip = *entry.key();
+            let counter = entry.value();
             if counter.load(Ordering::Relaxed) == 0 {
-                zero_connections.push(*ip);
+                zero_connections.push(ip);
             }
         }
 

@@ -378,7 +378,7 @@ impl WafEngine {
     pub async fn remove_custom_pattern(&mut self, pattern: &str) -> Result<usize> {
         let initial_count = self.custom_patterns.len();
         self.custom_patterns
-            .retain(|regex| regex.as_str() != pattern);
+            .retain(|regex: &Regex| regex.as_str() != pattern);
         let removed_count = initial_count - self.custom_patterns.len();
 
         if removed_count > 0 {
@@ -482,10 +482,11 @@ impl WafEngine {
     fn inspect_string(&self, content: &str, location: &str) -> Option<WafResult> {
         // SQL Injection
         for pattern in &self.sql_injection_patterns {
-            if pattern.is_match(content) {
+            let regex: &Regex = pattern;
+            if regex.is_match(content) {
                 debug!(
                     location = location,
-                    pattern = pattern.as_str(),
+                    pattern = regex.as_str(),
                     content = %content,
                     "SQL injection pattern matched"
                 );
@@ -496,10 +497,11 @@ impl WafEngine {
 
         // XSS
         for pattern in &self.xss_patterns {
-            if pattern.is_match(content) {
+            let regex: &Regex = pattern;
+            if regex.is_match(content) {
                 debug!(
                     location = location,
-                    pattern = pattern.as_str(),
+                    pattern = regex.as_str(),
                     content = %content,
                     "XSS pattern matched"
                 );
@@ -510,10 +512,11 @@ impl WafEngine {
 
         // Path Traversal
         for pattern in &self.path_traversal_patterns {
-            if pattern.is_match(content) {
+            let regex: &Regex = pattern;
+            if regex.is_match(content) {
                 debug!(
                     location = location,
-                    pattern = pattern.as_str(),
+                    pattern = regex.as_str(),
                     content = %content,
                     "Path traversal pattern matched"
                 );
@@ -524,10 +527,11 @@ impl WafEngine {
 
         // Command Injection
         for pattern in &self.command_injection_patterns {
-            if pattern.is_match(content) {
+            let regex: &Regex = pattern;
+            if regex.is_match(content) {
                 debug!(
                     location = location,
-                    pattern = pattern.as_str(),
+                    pattern = regex.as_str(),
                     content = %content,
                     "Command injection pattern matched"
                 );
@@ -538,10 +542,11 @@ impl WafEngine {
 
         // Custom patterns
         for (i, pattern) in self.custom_patterns.iter().enumerate() {
-            if pattern.is_match(content) {
+            let regex: &Regex = pattern;
+            if regex.is_match(content) {
                 debug!(
                     location = location,
-                    pattern = pattern.as_str(),
+                    pattern = regex.as_str(),
                     pattern_index = i,
                     content = %content,
                     "Custom pattern matched"

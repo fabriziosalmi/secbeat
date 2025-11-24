@@ -11,13 +11,26 @@
 use anyhow::Result;
 use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr};
+use std::sync::Arc;
 use tokio::time::Duration;
 
 // Import modules under test
 use mitigation_node::config::MitigationConfig;
-use mitigation_node::ddos::DdosProtection;
+use mitigation_node::ddos::{DdosProtection, DdosCheckResult};
 use mitigation_node::events::EventSystem;
-use mitigation_node::waf::{WafEngine, WafResult};
+use mitigation_node::waf::{WafEngine, WafResult, HttpRequest};
+
+// Test helper functions
+fn create_test_request(uri: &str, body: Option<&str>) -> HttpRequest {
+    HttpRequest {
+        method: "GET".to_string(),
+        path: uri.split('?').next().unwrap_or("/").to_string(),
+        version: "HTTP/1.1".to_string(),
+        headers: HashMap::new(),
+        body: body.map(|s| s.as_bytes().to_vec()),
+        query_string: uri.split('?').nth(1).map(|s| s.to_string()),
+    }
+}
 
 /// Test configuration loading and validation
 #[cfg(test)]
@@ -102,10 +115,10 @@ mod waf_tests {
         ];
 
         for input in malicious_inputs {
-            let result = waf.check_sql_injection(input).await;
-            assert_eq!(
-                result,
-                WafResult::Blocked,
+            let request = create_test_request(&format!("/?q={}", input), None);
+            let result = waf.inspect_request(&request);
+            assert!(
+                matches!(result, WafResult::SqlInjection),
                 "Should detect SQL injection in: {}",
                 input
             );
@@ -120,10 +133,10 @@ mod waf_tests {
         ];
 
         for input in legitimate_inputs {
-            let result = waf.check_sql_injection(input).await;
-            assert_eq!(
-                result,
-                WafResult::Allowed,
+            let request = create_test_request(&format!("/?q={}", input), None);
+            let result = waf.inspect_request(&request);
+            assert!(
+                matches!(result, WafResult::Allow),
                 "Should allow legitimate input: {}",
                 input
             );
@@ -145,10 +158,10 @@ mod waf_tests {
         ];
 
         for input in xss_inputs {
-            let result = waf.check_xss(input).await;
-            assert_eq!(
-                result,
-                WafResult::Blocked,
+            let request = create_test_request(&format!("/?q={}", input), None);
+            let result = waf.inspect_request(&request);
+            assert!(
+                matches!(result, WafResult::XssAttempt),
                 "Should detect XSS in: {}",
                 input
             );
@@ -169,10 +182,10 @@ mod waf_tests {
         ];
 
         for input in traversal_inputs {
-            let result = waf.check_path_traversal(input).await;
-            assert_eq!(
-                result,
-                WafResult::Blocked,
+            let request = create_test_request(input, None);
+            let result = waf.inspect_request(&request);
+            assert!(
+                matches!(result, WafResult::PathTraversal),
                 "Should detect path traversal in: {}",
                 input
             );
@@ -189,16 +202,18 @@ mod waf_tests {
         waf.add_custom_pattern(custom_pattern).await.unwrap();
 
         // Test detection
-        let result = waf.check_custom_patterns("This contains badword123").await;
-        assert_eq!(result, WafResult::Blocked);
+        let request = create_test_request("/?q=This contains badword123", None);
+        let result = waf.inspect_request(&request);
+        assert!(matches!(result, WafResult::CustomPattern(_)));
 
         // Remove pattern
         let removed_count = waf.remove_custom_pattern(custom_pattern).await.unwrap();
         assert_eq!(removed_count, 1);
 
         // Test that it's no longer detected
-        let result = waf.check_custom_patterns("This contains badword123").await;
-        assert_eq!(result, WafResult::Allowed);
+        let request = create_test_request("/?q=This contains badword123", None);
+        let result = waf.inspect_request(&request);
+        assert!(matches!(result, WafResult::Allow));
     }
 
     #[tokio::test]
@@ -242,15 +257,15 @@ mod ddos_tests {
 
         // Test within limits
         for _ in 0..15 {
-            let result = ddos.check_rate_limit(client_ip).await;
-            assert_eq!(result, WafResult::Allowed);
+            let result = ddos.check_connection(client_ip);
+            assert!(matches!(result, DdosCheckResult::Allow));
         }
 
         // Test exceeding burst
         for _ in 0..10 {
-            let result = ddos.check_rate_limit(client_ip).await;
-            if result == WafResult::Blocked {
-                break; // Expected to be blocked eventually
+            let result = ddos.check_connection(client_ip);
+            if matches!(result, DdosCheckResult::RateLimited) {
+                break; // Expected to be rate limited eventually
             }
         }
     }
@@ -266,7 +281,7 @@ mod ddos_tests {
         ddos.record_connection(client_ip);
 
         let stats = ddos.get_stats();
-        assert!(stats.active_connections > 0);
+        assert!(stats.total_connections > 0);
 
         // Record disconnections
         ddos.record_disconnection(client_ip);
@@ -276,21 +291,17 @@ mod ddos_tests {
     #[tokio::test]
     async fn test_blacklist_functionality() {
         let config = MitigationConfig::default();
-        let ddos = DdosProtection::new(config.ddos.clone()).unwrap();
+        let mut ddos_config = config.ddos.clone();
+        
+        // Add static blacklist entry
+        ddos_config.blacklist.static_blacklist = Some(vec!["10.0.0.0/24".to_string()]);
+        
+        let ddos = DdosProtection::new(ddos_config).unwrap();
         let malicious_ip: IpAddr = "10.0.0.1".parse().unwrap();
 
-        // Add to blacklist
-        ddos.add_to_blacklist(malicious_ip, Duration::from_secs(60))
-            .await;
-
-        // Check blacklist
-        let is_blocked = ddos.is_blacklisted(malicious_ip).await;
-        assert!(is_blocked);
-
-        // Remove from blacklist
-        ddos.remove_from_blacklist(malicious_ip).await;
-        let is_blocked = ddos.is_blacklisted(malicious_ip).await;
-        assert!(!is_blocked);
+        // Check that blacklisted IP is blocked
+        let result = ddos.check_connection(malicious_ip);
+        assert!(matches!(result, DdosCheckResult::Blacklisted));
     }
 }
 

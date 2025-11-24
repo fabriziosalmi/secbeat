@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use async_nats::{Client, ConnectOptions};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -141,7 +141,7 @@ impl DynamicRuleState {
         }
 
         {
-            let mut metadata = self.rule_metadata.write().await;
+            let mut metadata: tokio::sync::RwLockWriteGuard<'_, HashMap<Uuid, ControlCommand>> = self.rule_metadata.write().await;
             metadata.insert(command.command_id, command);
         }
 
@@ -156,7 +156,7 @@ impl DynamicRuleState {
         }
 
         {
-            let mut metadata = self.rule_metadata.write().await;
+            let mut metadata: tokio::sync::RwLockWriteGuard<'_, HashMap<Uuid, ControlCommand>> = self.rule_metadata.write().await;
             metadata.remove(&command_id);
         }
 
@@ -198,7 +198,7 @@ impl EventSystem {
                 }
             });
 
-        let client = async_nats::connect_with_options(nats_url, options)
+        let client: async_nats::Client = async_nats::connect_with_options(nats_url, options)
             .await
             .context("Failed to connect to NATS server")?;
 
@@ -226,10 +226,11 @@ impl EventSystem {
     pub async fn publish_security_event(&self, event: SecurityEvent) -> Result<()> {
         let payload = serde_json::to_vec(&event).context("Failed to serialize security event")?;
 
-        self.client
+        let _result: Result<(), async_nats::PublishError> = self.client
             .publish("secbeat.events.waf", payload.into())
-            .await
-            .context("Failed to publish security event")?;
+            .await;
+        
+        _result.context("Failed to publish security event")?;
 
         debug!(
             node_id = %event.node_id,
@@ -270,7 +271,7 @@ impl EventSystem {
         #[cfg(target_os = "linux")]
         let bpf_handle = Arc::clone(&self.bpf_handle);
 
-        let mut subscriber = client
+        let mut subscriber: async_nats::Subscriber = client
             .subscribe("secbeat.control.commands")
             .await
             .context("Failed to subscribe to control commands")?;
@@ -307,7 +308,7 @@ impl EventSystem {
         #[cfg(target_os = "linux")]
         let bpf_handle = Arc::clone(&self.bpf_handle);
 
-        let mut subscriber = client
+        let mut subscriber: async_nats::Subscriber = client
             .subscribe("secbeat.commands.block")
             .await
             .context("Failed to subscribe to behavioral block commands")?;

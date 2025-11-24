@@ -112,7 +112,8 @@ impl WasmEngine {
         // Validate module exports the required function
         let mut has_inspect = false;
         for export in module.exports() {
-            if export.name() == INSPECT_REQUEST_FN {
+            let export_type: wasmtime::ExportType = export;
+            if export_type.name() == INSPECT_REQUEST_FN {
                 has_inspect = true;
                 break;
             }
@@ -146,7 +147,7 @@ impl WasmEngine {
                     .context("Failed to write config to WASM memory")?;
 
                 // Call configure
-                let result = configure_fn.call(&mut store, (0, config_bytes.len() as i32))
+                let result: i32 = configure_fn.call(&mut store, (0, config_bytes.len() as i32))
                     .context("configure() call failed")?;
 
                 if result != 0 {

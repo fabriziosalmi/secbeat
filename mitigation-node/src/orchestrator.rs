@@ -187,7 +187,7 @@ impl OrchestratorClient {
             "Attempting node registration"
         );
 
-        let response = self
+        let response: reqwest::Response = self
             .http_client
             .post(&url)
             .json(&request)
@@ -204,7 +204,7 @@ impl OrchestratorClient {
 
         if !response.status().is_success() {
             let status = response.status();
-            let body = response.text().await.unwrap_or_default();
+            let body: String = response.text().await.unwrap_or_default();
             return Err(anyhow::anyhow!(
                 "Registration failed with status {}: {}",
                 status,
@@ -232,7 +232,7 @@ impl OrchestratorClient {
 
     /// Send heartbeat to orchestrator
     pub async fn send_heartbeat(&self, metrics: NodeMetrics) -> Result<HeartbeatResponse> {
-        let node_id = self
+        let node_id: Uuid = self
             .node_id
             .read()
             .await
@@ -256,7 +256,7 @@ impl OrchestratorClient {
 
         debug!(node_id = %node_id, "Sending heartbeat to orchestrator");
 
-        let response = self
+        let response: reqwest::Response = self
             .http_client
             .post(&url)
             .json(&request)
@@ -273,7 +273,7 @@ impl OrchestratorClient {
 
         if !response.status().is_success() {
             let status = response.status();
-            let body = response.text().await.unwrap_or_default();
+            let body: String = response.text().await.unwrap_or_default();
             return Err(anyhow::anyhow!(
                 "Heartbeat failed with status {}: {}",
                 status,
