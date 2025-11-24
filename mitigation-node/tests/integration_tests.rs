@@ -429,6 +429,8 @@ mod protection_integration_tests {
     async fn test_blacklist_integration() {
         let mut config = MitigationConfig::default();
         config.ddos.enabled = true;  // Enable DDoS protection
+        // Clear the default whitelist that includes 10.0.0.0/8
+        config.ddos.blacklist.static_whitelist = None;
         config.ddos.blacklist.static_blacklist = Some(vec!["10.0.0.0/24".to_string()]);
         
         let ddos = Arc::new(DdosProtection::new(config.ddos.clone()).unwrap());
