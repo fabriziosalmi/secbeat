@@ -331,7 +331,10 @@ mod tests {
     fn test_engine_creation() {
         let config = WasmConfig::default();
         let engine = WasmEngine::new(config);
-        assert!(engine.is_ok());
+        if let Err(ref e) = engine {
+            eprintln!("WasmEngine creation failed: {:?}", e);
+        }
+        assert!(engine.is_ok(), "WasmEngine creation failed: {:?}", engine.err());
     }
 
     #[test]
@@ -342,6 +345,9 @@ mod tests {
             cache_enabled: false,
         };
         let engine = WasmEngine::new(config);
-        assert!(engine.is_ok());
+        if let Err(ref e) = engine {
+            eprintln!("WasmEngine creation failed: {:?}", e);
+        }
+        assert!(engine.is_ok(), "WasmEngine creation failed: {:?}", engine.err());
     }
 }

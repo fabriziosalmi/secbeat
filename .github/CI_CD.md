@@ -64,6 +64,32 @@ make test-docker
 make test-docker-shell
 ```
 
+### LXC Testing (Recommended for eBPF/XDP)
+**Why LXC?** Docker containers don't have full kernel access, so eBPF/XDP features can't be properly tested. LXC containers with privileged mode provide real kernel access.
+
+```bash
+# Quick test run (unit + integration)
+./run_lxc_tests.sh --quick
+
+# Full test suite including performance
+./run_lxc_tests.sh --full
+
+# Clean build before testing
+./run_lxc_tests.sh --clean --full
+```
+
+**Requirements:**
+- Proxmox host with LXC container (ID 100)
+- SSH access to Proxmox host
+- LXC container with Rust toolchain
+- Privileged container mode for kernel access
+
+**Configuration:**
+```bash
+export PROXMOX_HOST="root@your-proxmox-host"
+export LXC_ID="100"
+```
+
 ### Individual Test Suites
 ```bash
 # Unit tests only
