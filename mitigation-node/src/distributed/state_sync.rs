@@ -362,6 +362,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[ignore = "Requires NATS server running on localhost:4222"]
     async fn test_state_manager_increment() {
         let nats_client = async_nats::connect("nats://localhost:4222")
             .await
@@ -378,6 +379,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "Requires NATS server running on localhost:4222"]
     async fn test_state_manager_check_limit() {
         let nats_client = async_nats::connect("nats://localhost:4222")
             .await
