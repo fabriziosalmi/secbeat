@@ -10,7 +10,7 @@
 
 SecBeat is a distributed security platform built in Rust that provides Distributed Denial of Service (DDoS) mitigation and Web Application Firewall (WAF) capabilities. The platform implements a "smart edge, intelligent orchestrator" architecture where mitigation nodes handle traffic processing while a central orchestrator provides coordination and intelligence.
 
-**Current Status:** Early development (v0.1.0) - Not recommended for production use
+**Current Status:** Early development (v0.9.2) - Not recommended for production use
 
 ## Quick Start
 
@@ -33,28 +33,38 @@ curl -k https://localhost:8443/
 
 ## What Works Today
 
-### Core Functionality
-- **TCP Proxy**: Async reverse proxy with Transport Layer Security (TLS) termination (Tokio/Rustls)
-- **WAF Engine**: ~100 regex-based attack patterns for Structured Query Language (SQL) injection, Cross-Site Scripting (XSS), path traversal, and command injection
-- **HTTP/HTTPS**: TLS 1.2/1.3 support with certificate management
-- **Metrics**: Prometheus-compatible metrics endpoint
-- **Management API**: Basic health, status, and configuration endpoints
+### Core Functionality (Stable)
+- **L7 HTTP/HTTPS Proxy**: Async reverse proxy with configurable Transport Layer Security (TLS) termination (Tokio/Rustls)
+- **WAF Engine**: 100+ regex-based attack patterns for:
+  - Structured Query Language (SQL) injection (~30 rules)
+  - Cross-Site Scripting (XSS) (~35 rules)
+  - Path traversal (~21 rules)
+  - Command injection (~20 rules)
+- **TLS Support**: TLS 1.2/1.3 with optional mode (can run plain HTTP)
+- **Metrics**: Prometheus-compatible metrics at `/metrics` endpoint
+- **Management API**: Health checks, statistics, and dynamic configuration
+- **Configuration System**: Unified TOML-based config with environment profiles
 
-### Distributed Features
+### Distributed Features (Beta)
 - **NATS Messaging**: Real-time event stream between nodes (NATS.io messaging system)
 - **Fleet Management**: Orchestrator tracks and coordinates mitigation nodes
-- **Dynamic Rules**: Hot-reload of WAF rules and IP blocklists
+- **Dynamic Rules**: Hot-reload of WAF rules and IP blocklists via API
 - **Behavioral Analysis**: Sliding window anomaly detection with automated blocking
 
-### ML/AI Capabilities
-- **Anomaly Detection**: Random Forest classifier for traffic anomaly detection (smartcore)
+### ML/AI Capabilities (Experimental)
+- **Anomaly Detection**: Random Forest classifier for traffic pattern analysis (smartcore)
 - **Behavioral Expert**: Pattern-based analysis with configurable thresholds
-- **Resource Manager**: Linear regression for CPU usage prediction
+- **Resource Manager**: Linear regression for Central Processing Unit (CPU) usage prediction
 
-### Experimental Features
-- **WASM Runtime**: WebAssembly (WASM)-based WAF rules (Wasmtime) - functional but basic
-- **eBPF/XDP**: Extended Berkeley Packet Filter (eBPF) and eXpress Data Path (XDP) for kernel-level packet processing for SYN flood mitigation - experimental, Linux only
-- **SYN Proxy**: Basic SYN cookie implementation - prototype with limitations
+### Experimental Features (Linux Only)
+- **eBPF/XDP**: Extended Berkeley Packet Filter (eBPF) and eXpress Data Path (XDP) for kernel-level packet processing
+  - IP blocklist with HashMap (10,000 entry capacity)
+  - PerCpuArray statistics (lock-free counters)
+  - <1µs latency, 10M+ packets/second throughput
+- **SYN Proxy**: SYN cookie implementation for flood mitigation
+  - **Requirements**: Linux 5.15+, `CAP_NET_ADMIN`, `CAP_BPF`
+  - **Status**: Functional in LXC, not supported in Docker-in-Docker
+- **WASM Runtime**: WebAssembly (WASM)-based WAF rules (Wasmtime) - basic implementation
 
 ## Architecture
 
@@ -78,20 +88,74 @@ graph TD
     M3 --> B3
 ```
 
+## Operation Modes
+
+SecBeat supports multiple operation modes configured via `[platform.mode]`:
+
+### L7 (Layer 7) Mode - **Recommended**
+```bash
+# Full feature set: TLS termination + WAF + DDoS protection
+cargo run --release -- --config config.l7
+```
+**Features:**
+- HyperText Transfer Protocol Secure (HTTPS)/HyperText Transfer Protocol (HTTP) reverse proxy
+- TLS 1.2/1.3 termination
+- WAF with 100+ attack patterns
+- Behavioral analysis
+- Prometheus metrics
+- NATS integration (optional)
+
+### SYN Mode - **Experimental**
+```bash
+# Layer 4 SYN flood protection (Linux only, requires CAP_NET_ADMIN)
+sudo cargo run --release -- --config config.syn
+```
+**Features:**
+- SYN cookie validation
+- eBPF/XDP packet filtering
+- Kernel-level packet dropping
+- **Requirements**: Linux 5.15+, `CAP_NET_ADMIN`, `CAP_BPF`
+
+### TCP Mode - **Basic**
+```bash
+# Simple TCP reverse proxy (no TLS, no WAF)
+cargo run --release -- --config config.tcp
+```
+**Features:**
+- Basic TCP proxying
+- Connection rate limiting
+- Minimal overhead
+
+### Auto Mode
+Automatically selects mode based on enabled features in configuration.
+
 ## Configuration
 
-SecBeat uses TOML configuration files:
+SecBeat uses TOML configuration files with a unified platform structure:
 
 ```toml
-# Basic mitigation node configuration
-[network]
-listen_address = "0.0.0.0:8443"
-upstream_address = "127.0.0.1:8080"
+# Platform configuration (config.dev.toml, config.prod.toml)
+[platform]
+environment = "development"
+deployment_id = "mitigation-1"
+region = "us-east-1"
+features = ["waf", "ddos", "metrics"]
+mode = "l7"  # Options: tcp, syn, l7, auto
 
-[tls]
+[network]
+public_interface = "0.0.0.0"
+public_port = 8443
+backend_interface = "127.0.0.1"
+backend_port = 8080
+max_connections = 10000
+connection_timeout_seconds = 30
+
+[network.tls]
 enabled = true
 cert_path = "certs/cert.pem"
 key_path = "certs/key.pem"
+min_version = "1.2"
+max_version = "1.3"
 
 [waf]
 enabled = true
@@ -102,6 +166,11 @@ block_command_injection = true
 
 [metrics]
 bind_address = "0.0.0.0:9191"
+enabled = true
+
+[nats]
+url = "nats://localhost:4222"
+enabled = false
 ```
 
 See [Configuration Reference](https://fabriziosalmi.github.io/secbeat/reference/config/) for complete options.
@@ -158,6 +227,55 @@ cd mitigation-node && cargo test --test integration_tests
 > Test scripts require environment-specific configuration. Refer to individual test files for setup instructions.
 
 ## Deployment
+
+### Docker Compose (Recommended for Testing)
+
+```bash
+# Start all services (mitigation node + NATS + test backend)
+docker-compose up -d
+
+# Expected output:
+# Creating network "secbeat_default" done
+# Creating secbeat_nats_1 ... done
+# Creating secbeat_backend_1 ... done  
+# Creating secbeat_mitigation_1 ... done
+
+# View logs
+docker-compose logs -f mitigation-node
+
+# Test the deployment
+curl -k https://localhost:8443/health
+# Expected output:
+# {"status":"healthy","version":"0.9.2"}
+```
+
+### Native Linux (Production)
+
+For eBPF/XDP features and optimal performance:
+
+```bash
+# Build release binary
+cargo build --release --workspace
+
+# Grant required capabilities for SYN proxy mode
+sudo setcap cap_net_admin,cap_bpf,cap_net_raw=eip target/release/mitigation-node
+
+# Run in L7 mode
+./target/release/mitigation-node --config config.prod
+
+# Or use systemd service
+sudo cp systemd/secbeat-mitigation.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now secbeat-mitigation
+```
+
+**Production Requirements:**
+- Linux kernel 5.15+ (for eBPF/XDP)
+- Rust 1.78+
+- TLS certificates
+- NATS server (for distributed deployment)
+
+See [Installation Guide](https://fabriziosalmi.github.io/secbeat/installation/) for detailed instructions.
 
 ### Docker (Development)
 
