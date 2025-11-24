@@ -11,7 +11,6 @@ use aya_ebpf::{
     programs::XdpContext,
 };
 use aya_log_ebpf::info;
-use core::mem;
 use secbeat_common::{
     BlockEntry, Ipv4Hdr, TcpHdr, 
     MAX_BLOCKLIST_ENTRIES, STAT_PASS, STAT_DROP,
@@ -225,14 +224,8 @@ fn handle_syn_packet(
         (*tcp_hdr).check = tcp_csum;
     }
 
-    info!(ctx, "🍪 TX SYN-ACK to {:i}:{} (cookie: 0x{:08x})", daddr, u16::from_be(dport), cookie);
+    info!(ctx, "🍪 TX SYN-ACK to {:i}:{} (cookie: {})", daddr, u16::from_be(dport), cookie);
 
     // Send packet back out the same interface
     Ok(xdp_action::XDP_TX)
 }
-
-#[panic_handler]
-fn panic(_info: &core::panic::PanicInfo) -> ! {
-    unsafe { core::hint::unreachable_unchecked() }
-}
-
