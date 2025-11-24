@@ -33,63 +33,27 @@ RUN apt-get update && apt-get install -y \
     curl \
     jq \
     # eBPF/XDP dependencies (Linux only)
-    linux-headers-generic \
     llvm \
     clang \
-    libbpf-dev \
     # Debugging tools
     strace \
-    ltrace \
     gdb \
     # Memory leak detection
     valgrind \
-    heaptrack \
-    # Performance profiling
-    linux-perf \
     # Cleanup
     && rm -rf /var/lib/apt/lists/*
 
-# Install cargo-fuzz for fuzzing tests
-RUN cargo install cargo-fuzz
-
-# Create non-root user for test execution
-RUN useradd -m -s /bin/bash -u 1000 secbeat && \
-    usermod -aG sudo secbeat && \
-    # Allow secbeat to use network capabilities without password
-    echo "secbeat ALL=(ALL) NOPASSWD: /sbin/setcap, /sbin/ip, /sbin/iptables" > /etc/sudoers.d/secbeat && \
-    chmod 0440 /etc/sudoers.d/secbeat
-
 # Create workspace directory
 WORKDIR /workspace
-
-# Set ownership for workspace
-RUN chown -R secbeat:secbeat /workspace
-
-# Switch to secbeat user
-USER secbeat
-
-# Configure Rust environment
-ENV USER=secbeat
-ENV CARGO_HOME=/home/secbeat/.cargo
-ENV RUSTUP_HOME=/home/secbeat/.rustup
-ENV PATH="/home/secbeat/.cargo/bin:${PATH}"
-
-# Pre-download Rust components to speed up tests
-RUN rustup component add rustfmt clippy
 
 # Set environment variables for testing
 ENV RUST_BACKTRACE=1
 ENV RUST_LOG=info
 
 # Default command: run comprehensive test suite
-CMD ["bash", "-c", "cargo test --workspace && ./test_comprehensive.sh"]
-
-# Health check: verify Rust toolchain
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD cargo --version || exit 1
+CMD ["bash", "-c", "cargo test --workspace --all-features -- --nocapture"]
 
 # Labels for metadata
-LABEL maintainer="Fabrizio Salmi <fabrizio.salmi@gmail.com>"
+LABEL maintainer="Fabrizio Salmi"
 LABEL description="SecBeat containerized test environment with Linux capabilities"
 LABEL version="1.0"
-LABEL org.opencontainers.image.source="https://github.com/fabriziosalmi/secbeat"
