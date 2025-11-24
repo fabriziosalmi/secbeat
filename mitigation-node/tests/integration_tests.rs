@@ -297,6 +297,8 @@ mod config_integration_tests {
         let config_content = r#"
 [platform]
 environment = "test"
+deployment_id = "test-deployment"
+region = "test-region"
 
 [network]
 public_port = 8443
@@ -325,6 +327,8 @@ listen_addr = "127.0.0.1:9192"
         let modified_content = r#"
 [platform]
 environment = "test"
+deployment_id = "test-deployment"
+region = "test-region"
 
 [network]
 public_port = 8443
@@ -432,6 +436,7 @@ mod protection_integration_tests {
 
         // Check that all requests from this IP are blocked
         let ddos_result = ddos.check_connection(malicious_ip);
+        eprintln!("DDoS check result: {:?}", ddos_result);
         assert!(matches!(ddos_result, DdosCheckResult::Blacklisted));
     }
 
