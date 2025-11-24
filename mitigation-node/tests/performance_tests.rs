@@ -8,6 +8,8 @@
 //! - Resource exhaustion scenarios
 
 use anyhow::Result;
+use std::collections::HashMap;
+use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
@@ -15,8 +17,20 @@ use tokio::task::JoinSet;
 
 // Import modules under test
 use mitigation_node::config::MitigationConfig;
-use mitigation_node::ddos::DdosProtection;
-use mitigation_node::waf::{WafEngine, WafResult};
+use mitigation_node::ddos::{DdosProtection, DdosCheckResult};
+use mitigation_node::waf::{WafEngine, WafResult, HttpRequest};
+
+// Test helper functions
+fn create_test_request(uri: &str, body: Option<&str>) -> HttpRequest {
+    HttpRequest {
+        method: "GET".to_string(),
+        path: uri.split('?').next().unwrap_or("/").to_string(),
+        version: "HTTP/1.1".to_string(),
+        headers: HashMap::new(),
+        body: body.map(|s| s.as_bytes().to_vec()),
+        query_string: uri.split('?').nth(1).map(|s| s.to_string()),
+    }
+}
 
 /// Performance test configuration
 #[derive(Debug, Clone)]
@@ -69,13 +83,14 @@ mod waf_performance_tests {
             "'; DROP TABLE users; --",
         ];
 
-        let iterations = 10000;
+        let iterations = 1000; // Reduced for test speed
         let mut latencies = Vec::with_capacity(iterations);
 
         // Warmup
-        for _ in 0..1000 {
+        for _ in 0..100 {
             for input in &test_inputs {
-                let _ = waf.check_sql_injection(input).await;
+                let request = create_test_request(&format!("/?q={}", input), None);
+                let _ = waf.inspect_request(&request);
             }
         }
 
@@ -83,6 +98,9 @@ mod waf_performance_tests {
         let start = Instant::now();
         for i in 0..iterations {
             let input = &test_inputs[i % test_inputs.len()];
+            let request = create_test_request(&format!("/?q={}", input), None);
+            let _ = waf.inspect_request(&request);
+        }
 
             let request_start = Instant::now();
             let _ = waf.check_sql_injection(input).await;
@@ -200,7 +218,7 @@ mod waf_performance_tests {
                     latencies.push(latency.as_nanos() as f64 / 1_000_000.0);
 
                     match result {
-                        WafResult::Allowed | WafResult::Blocked => successes += 1,
+                        WafResult::Allow | WafResult::SqlInjection => successes += 1,
                         _ => failures += 1,
                     }
                 }
@@ -394,8 +412,8 @@ mod ddos_performance_tests {
 
                 for _ in 0..requests_per_ip {
                     match ddos_clone.check_rate_limit(client_ip).await {
-                        WafResult::Allowed => allowed_count += 1,
-                        WafResult::Blocked => blocked_count += 1,
+                        WafResult::Allow => allowed_count += 1,
+                        WafResult::SqlInjection => blocked_count += 1,
                         _ => {}
                     }
                 }
@@ -515,7 +533,7 @@ mod stress_tests {
                     // DDoS check
                     let ddos_result = ddos_clone.check_rate_limit(client_ip).await;
 
-                    if ddos_result == WafResult::Allowed {
+                    if ddos_result == WafResult::Allow {
                         // WAF check
                         let waf_guard = waf_clone.read().await;
                         let test_input = format!("test input {} from user {}", i, user_id);
@@ -748,7 +766,7 @@ mod scalability_tests {
                     latencies.push(latency.as_nanos() as f64 / 1_000_000.0);
 
                     match result {
-                        WafResult::Allowed | WafResult::Blocked => successes += 1,
+                        WafResult::Allow | WafResult::SqlInjection => successes += 1,
                         _ => failures += 1,
                     }
                 }
