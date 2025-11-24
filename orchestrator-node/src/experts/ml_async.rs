@@ -168,7 +168,7 @@ mod tests {
     #[tokio::test]
     async fn test_predict_without_model() {
         let engine = AsyncMlEngine::new(100, 2);
-        let features = TrafficFeatures::default();
+        let features = TrafficFeatures::zero("127.0.0.1".to_string());
         
         // Should return 0.0 when no model loaded
         let score = engine.predict_async(&features).await.unwrap();
@@ -179,7 +179,7 @@ mod tests {
     async fn test_queue_overflow_handling() {
         // Small queue to test overflow
         let engine = AsyncMlEngine::new(2, 1);
-        let features = TrafficFeatures::default();
+        let features = TrafficFeatures::zero("127.0.0.1".to_string());
         
         // Fill the queue
         for _ in 0..10 {
