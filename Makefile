@@ -21,7 +21,35 @@ test:
 	@echo "Running all tests..."
 	cargo test --workspace
 	@echo "Running comprehensive integration tests..."
-	sudo ./test_comprehensive.sh
+	@echo "Note: Use 'make test-docker' for containerized tests with Linux capabilities"
+	./test_comprehensive.sh
+
+# Run tests in Docker container (with CAP_NET_ADMIN for XDP/eBPF)
+test-docker:
+	@echo "Building test container..."
+	docker build -t secbeat-test -f Dockerfile.test .
+	@echo "Running tests in container with CAP_NET_ADMIN..."
+	docker run --rm \
+		--cap-add=NET_ADMIN \
+		--cap-add=NET_RAW \
+		-v $(PWD):/workspace \
+		-e RUST_LOG=$(RUST_LOG) \
+		secbeat-test
+
+# Run tests in Docker with interactive shell (for debugging)
+test-docker-shell:
+	@echo "Starting interactive test container..."
+	docker run -it --rm \
+		--cap-add=NET_ADMIN \
+		--cap-add=NET_RAW \
+		-v $(PWD):/workspace \
+		-e RUST_LOG=$(RUST_LOG) \
+		secbeat-test bash
+
+# Build test container only
+test-docker-build:
+	@echo "Building test container..."
+	docker build -t secbeat-test -f Dockerfile.test .
 
 # Clean build artifacts
 clean:
@@ -106,7 +134,10 @@ help:
 	@echo "Available targets:"
 	@echo "  build              - Build all components (debug)"
 	@echo "  release            - Build all components (release)"
-	@echo "  test               - Run all tests"
+	@echo "  test               - Run all tests (requires sudo for XDP tests)"
+	@echo "  test-docker        - Run tests in Docker with CAP_NET_ADMIN (no sudo)"
+	@echo "  test-docker-shell  - Interactive test container for debugging"
+	@echo "  test-docker-build  - Build test container only"
 	@echo "  clean              - Clean build artifacts"
 	@echo "  check              - Check code without building"
 	@echo "  fmt                - Format code"

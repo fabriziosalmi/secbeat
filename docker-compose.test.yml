@@ -114,3 +114,35 @@ services:
       timeout: 2s
       retries: 3
       start_period: 5s
+
+  # Test Runner (for CI/CD and local testing without sudo)
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: secbeat-test-runner
+    networks:
+      - secbeat-test-net
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_ADMIN
+    volumes:
+      - .:/workspace
+      - ./target:/workspace/target
+      - ./reports:/workspace/reports
+      - cargo-test-cache:/home/secbeat/.cargo
+    environment:
+      - RUST_BACKTRACE=1
+      - RUST_LOG=${RUST_LOG:-info}
+      - TEST_ENV=docker
+      - PARALLEL_JOBS=4
+    stdin_open: true
+    tty: true
+    command: bash -c "cargo test --workspace && echo 'Tests passed!'"
+    profiles:
+      - test-runner
+
+volumes:
+  cargo-test-cache:
+    driver: local
