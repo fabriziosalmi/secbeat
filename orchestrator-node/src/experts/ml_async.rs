@@ -42,27 +42,25 @@ impl AsyncMlEngine {
     /// # Arguments
     /// * `queue_size` - Maximum pending inference requests (prevents memory exhaustion)
     /// * `num_workers` - Number of worker threads for parallel inference
-    pub fn new(queue_size: usize, num_workers: usize) -> Self {
-        let (request_tx, request_rx) = mpsc::channel(queue_size);
+    pub fn new(queue_size: usize, _num_workers: usize) -> Self {
+        let (request_tx, mut request_rx) = mpsc::channel::<InferenceRequest>(queue_size);
         let model = Arc::new(RwLock::new(None));
 
-        // Spawn worker threads for CPU-intensive inference
-        for worker_id in 0..num_workers {
-            let model = Arc::clone(&model);
-            let mut rx = request_rx.clone();
+        // Spawn single worker thread for CPU-intensive inference
+        // TODO: Support multiple workers with work-stealing queue
+        let model_clone = Arc::clone(&model);
+        tokio::spawn(async move {
+            debug!("ML worker started");
 
-            tokio::spawn(async move {
-                debug!("ML worker {} started", worker_id);
-
-                while let Some(req) = rx.recv().await {
+            while let Some(req) = request_rx.recv().await {
                     // Perform BLOCKING inference in a blocking thread pool
                     // This prevents blocking the tokio runtime
-                    let model_clone = Arc::clone(&model);
+                    let model_ref = Arc::clone(&model_clone);
                     let features = req.features;
                     
                     let result = tokio::task::spawn_blocking(move || {
                         // This runs in a dedicated thread pool for blocking operations
-                        Self::predict_blocking(&model_clone, &features)
+                        Self::predict_blocking(&model_ref, &features)
                     })
                     .await;
 
@@ -82,9 +80,8 @@ impl AsyncMlEngine {
                     }
                 }
 
-                debug!("ML worker {} stopped", worker_id);
+                debug!("ML worker stopped");
             });
-        }
 
         Self { model, request_tx }
     }

@@ -344,8 +344,10 @@ impl DdosProtection {
         // Cleanup expired blacklist entries
         let mut expired_blacklist = Vec::new();
         for entry in self.blacklist.iter() {
-            if now >= *entry.value() {
-                expired_blacklist.push(*entry.key());
+            let ip: &IpAddr = entry.key();
+            let expiry: &Instant = entry.value();
+            if now >= *expiry {
+                expired_blacklist.push(*ip);
             }
         }
 
@@ -357,8 +359,10 @@ impl DdosProtection {
         // Cleanup zero connection counters
         let mut zero_connections = Vec::new();
         for entry in self.connection_counters.iter() {
-            if entry.value().load(Ordering::Relaxed) == 0 {
-                zero_connections.push(*entry.key());
+            let ip: &IpAddr = entry.key();
+            let counter: &AtomicU32 = entry.value();
+            if counter.load(Ordering::Relaxed) == 0 {
+                zero_connections.push(*ip);
             }
         }
 
