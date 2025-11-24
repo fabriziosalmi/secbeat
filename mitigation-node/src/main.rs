@@ -31,64 +31,6 @@ use mitigation_node::tcp_proxy::TcpProxy;
 use mitigation_node::waf;
 
 // Helper macro for safely updating metrics
-macro_rules! update_metric {
-    ($state:expr, $field:ident, $op:ident, $value:expr) => {
-        if let Some(ref metrics) = $state.metrics {
-            metrics.$field.$op($value, Ordering::Relaxed);
-        }
-    };
-}
-
-// Helper macro for safely reading metrics
-macro_rules! read_metric {
-    ($state:expr, $field:ident) => {
-        $state
-            .metrics
-            .as_ref()
-            .map(|m| m.$field.load(Ordering::Relaxed))
-            .unwrap_or(0)
-    };
-}
-
-/// Global metrics counters
-#[derive(Debug, Clone)]
-struct ProxyMetrics {
-    /// Total HTTPS requests received
-    https_requests_received: Arc<AtomicU64>,
-    /// Total requests proxied to backend
-    requests_proxied: Arc<AtomicU64>,
-    /// Total TLS handshakes completed
-    tls_handshakes_completed: Arc<AtomicU64>,
-    /// Total TLS handshake errors
-    tls_handshake_errors: Arc<AtomicU64>,
-    /// Total HTTP errors
-    http_errors: Arc<AtomicU64>,
-    /// Currently active connections
-    active_connections: Arc<AtomicU64>,
-    /// Total blocked requests (DDoS + WAF)
-    blocked_requests: Arc<AtomicU64>,
-    /// DDoS events detected
-    ddos_events_detected: Arc<AtomicU64>,
-    /// WAF events blocked
-    waf_events_blocked: Arc<AtomicU64>,
-}
-
-impl ProxyMetrics {
-    fn new() -> Self {
-        Self {
-            https_requests_received: Arc::new(AtomicU64::new(0)),
-            requests_proxied: Arc::new(AtomicU64::new(0)),
-            tls_handshakes_completed: Arc::new(AtomicU64::new(0)),
-            tls_handshake_errors: Arc::new(AtomicU64::new(0)),
-            http_errors: Arc::new(AtomicU64::new(0)),
-            active_connections: Arc::new(AtomicU64::new(0)),
-            blocked_requests: Arc::new(AtomicU64::new(0)),
-            ddos_events_detected: Arc::new(AtomicU64::new(0)),
-            waf_events_blocked: Arc::new(AtomicU64::new(0)),
-        }
-    }
-}
-
 /// L7 TLS/HTTP Proxy state management
 #[derive(Clone)]
 struct ProxyState {
@@ -98,8 +40,8 @@ struct ProxyState {
     ddos_protection: Option<Arc<DdosProtection>>,
     /// WAF engine (optional based on feature toggles)
     waf_engine: Option<Arc<waf::WafEngine>>,
-    /// Global metrics counters (optional based on feature toggles)
-    metrics: Option<ProxyMetrics>,
+    /// Active connections counter (for gauge metric)
+    active_connections: Arc<AtomicU64>,
     /// HTTP client for backend connections
     http_client: Client<hyper_rustls::HttpsConnector<hyper_util::client::legacy::connect::HttpConnector>, Full<Bytes>>,
     /// Orchestrator client (optional based on feature toggles)
@@ -267,14 +209,6 @@ async fn run_l7_proxy_mode(
         None
     };
 
-    // Initialize metrics if enabled
-    let metrics = if config.metrics_enabled() {
-        Some(ProxyMetrics::new())
-    } else {
-        info!("Metrics collection disabled by feature toggle");
-        None
-    };
-
     // Setup metrics descriptions if enabled
     if config.metrics_enabled() {
         describe_counter!("https_requests_total", "Total HTTPS requests received");
@@ -355,7 +289,7 @@ async fn run_l7_proxy_mode(
         config: config.clone(),
         ddos_protection,
         waf_engine,
-        metrics: metrics.clone(),
+        active_connections: Arc::new(AtomicU64::new(0)),
         http_client,
         orchestrator_client: None, // Will be initialized if orchestrator is enabled
         event_system,
@@ -407,20 +341,18 @@ async fn run_l7_proxy_mode(
 
     // Start metrics server if enabled
     if config.metrics_enabled() {
-        if let Some(metrics_instance) = metrics {
-            info!("Starting metrics server on {}", config.metrics.listen_addr);
-            match config.metrics.listen_addr.parse::<SocketAddr>() {
-                Ok(metrics_addr) => {
-                    let metrics_task = tokio::spawn(start_metrics_server(metrics_addr, metrics_instance));
-                    background_tasks.push(metrics_task);
-                }
-                Err(e) => {
-                    error!(
-                        error = %e,
-                        addr = %config.metrics.listen_addr,
-                        "Invalid metrics listen address format, metrics server disabled"
-                    );
-                }
+        info!("Starting metrics server on {}", config.metrics.listen_addr);
+        match config.metrics.listen_addr.parse::<SocketAddr>() {
+            Ok(metrics_addr) => {
+                let metrics_task = tokio::spawn(start_metrics_server(metrics_addr));
+                background_tasks.push(metrics_task);
+            }
+            Err(e) => {
+                error!(
+                    error = %e,
+                    addr = %config.metrics.listen_addr,
+                    "Invalid metrics listen address format, metrics server disabled"
+                );
             }
         }
     }
@@ -492,29 +424,29 @@ async fn run_l7_proxy_mode(
                     DdosCheckResult::RateLimited => {
                         warn!(client_addr = %client_addr, "Connection blocked - rate limited");
                         counter!("l7_proxy_blocked_rate_limit", 1);
-                        update_metric!(state, blocked_requests, fetch_add, 1);
-                        update_metric!(state, ddos_events_detected, fetch_add, 1);
+                        counter!("blocked_requests_total", 1);
+                        counter!("ddos_events_detected_total", 1);
                         drop(tcp_stream);
                     }
                     DdosCheckResult::ConnectionLimitExceeded => {
                         warn!(client_addr = %client_addr, "Connection blocked - connection limit exceeded");
                         counter!("l7_proxy_blocked_connection_limit", 1);
-                        update_metric!(state, blocked_requests, fetch_add, 1);
-                        update_metric!(state, ddos_events_detected, fetch_add, 1);
+                        counter!("blocked_requests_total", 1);
+                        counter!("ddos_events_detected_total", 1);
                         drop(tcp_stream);
                     }
                     DdosCheckResult::Blacklisted => {
                         warn!(client_addr = %client_addr, "Connection blocked - IP blacklisted");
                         counter!("l7_proxy_blocked_blacklist", 1);
-                        update_metric!(state, blocked_requests, fetch_add, 1);
-                        update_metric!(state, ddos_events_detected, fetch_add, 1);
+                        counter!("blocked_requests_total", 1);
+                        counter!("ddos_events_detected_total", 1);
                         drop(tcp_stream);
                     }
                     DdosCheckResult::GlobalLimitExceeded => {
                         warn!(client_addr = %client_addr, "Connection blocked - global limit exceeded");
                         counter!("l7_proxy_blocked_global_limit", 1);
-                        update_metric!(state, blocked_requests, fetch_add, 1);
-                        update_metric!(state, ddos_events_detected, fetch_add, 1);
+                        counter!("blocked_requests_total", 1);
+                        counter!("ddos_events_detected_total", 1);
                         drop(tcp_stream);
                     }
                 }
@@ -541,7 +473,7 @@ async fn handle_tls_connection(
                 client_ip = %client_addr.ip(),
                 "Connection dropped - IP is in dynamic blocklist"
             );
-            update_metric!(state, blocked_requests, fetch_add, 1);
+            counter!("blocked_requests_total", 1);
             counter!("dynamic_blocks_total", 1);
             // Drop connection immediately
             return Ok(());
@@ -549,11 +481,8 @@ async fn handle_tls_connection(
     }
 
     // Increment active connections counter
-    update_metric!(state, active_connections, fetch_add, 1);
-    gauge!(
-        "active_connections",
-        read_metric!(state, active_connections) as f64
-    );
+    let count = state.active_connections.fetch_add(1, Ordering::Relaxed);
+    gauge!("active_connections", (count + 1) as f64);
 
     // Clone state for the service closure
     let state_for_service = state.clone();
@@ -563,15 +492,14 @@ async fn handle_tls_connection(
         // Perform TLS handshake
         let tls_stream = match acceptor.accept(tcp_stream).await {
             Ok(stream) => {
-                update_metric!(state, tls_handshakes_completed, fetch_add, 1);
                 counter!("tls_handshakes_completed", 1);
                 stream
             }
             Err(e) => {
-                update_metric!(state, tls_handshake_errors, fetch_add, 1);
                 counter!("tls_handshake_errors", 1);
                 error!(client_addr = %client_addr, error = %e, "TLS handshake failed");
-                update_metric!(state, active_connections, fetch_sub, 1);
+                let count = state.active_connections.fetch_sub(1, Ordering::Relaxed);
+                gauge!("active_connections", (count - 1) as f64);
                 return Err(e.into());
             }
         };
@@ -592,7 +520,7 @@ async fn handle_tls_connection(
             .await
         {
             warn!(client_addr = %client_addr, error = %e, "HTTP connection error");
-            update_metric!(state, http_errors, fetch_add, 1);
+            counter!("http_errors_total", 1);
         }
     } else {
         // Plain HTTP mode (no TLS)
@@ -611,16 +539,13 @@ async fn handle_tls_connection(
             .await
         {
             warn!(client_addr = %client_addr, error = %e, "HTTP connection error");
-            update_metric!(state, http_errors, fetch_add, 1);
+            counter!("http_errors_total", 1);
         }
     }
 
     // Decrement active connections counter
-    update_metric!(state, active_connections, fetch_sub, 1);
-    gauge!(
-        "active_connections",
-        read_metric!(state, active_connections) as f64
-    );
+    let count = state.active_connections.fetch_sub(1, Ordering::Relaxed);
+    gauge!("active_connections", (count - 1) as f64);
 
     debug!(client_addr = %client_addr, "Connection closed");
     Ok(())
@@ -635,7 +560,6 @@ async fn handle_http_request(
     let start_time = std::time::Instant::now();
 
     // Increment HTTPS requests counter
-    update_metric!(state, https_requests_received, fetch_add, 1);
     counter!("https_requests_received", 1);
 
     let method = req.method().clone();
@@ -674,8 +598,8 @@ async fn handle_http_request(
             "Request blocked by WAF - suspicious content detected"
         );
         counter!("waf_requests_blocked", 1);
-        update_metric!(state, blocked_requests, fetch_add, 1);
-        update_metric!(state, waf_events_blocked, fetch_add, 1);
+        counter!("blocked_requests_total", 1);
+        counter!("waf_events_blocked_total", 1);
 
         // Create blocked response
         let response = Response::builder()
@@ -876,7 +800,6 @@ async fn proxy_to_backend(
     // Send request to backend
     match state.http_client.request(backend_request).await {
         Ok(response) => {
-            update_metric!(state, requests_proxied, fetch_add, 1);
             counter!("requests_proxied", 1);
 
             let status = response.status();
@@ -901,8 +824,7 @@ async fn proxy_to_backend(
             Ok(Response::from_parts(parts, Full::new(body_bytes)))
         }
         Err(e) => {
-            update_metric!(state, http_errors, fetch_add, 1);
-            counter!("http_errors", 1);
+            counter!("http_errors_total", 1);
 
             error!(
                 client_addr = %client_addr,
@@ -1024,50 +946,8 @@ async fn load_tls_config(tls_config: &mitigation_node::config::TlsConfig) -> Res
     Ok(config)
 }
 
-/// Initialize metrics descriptions
-fn initialize_metrics() {
-    describe_counter!(
-        "https_requests_received",
-        "Total number of HTTPS requests received"
-    );
-    describe_counter!(
-        "requests_proxied",
-        "Total number of requests proxied to backend"
-    );
-    describe_counter!(
-        "tls_handshakes_completed",
-        "Total number of TLS handshakes completed"
-    );
-    describe_counter!(
-        "tls_handshake_errors",
-        "Total number of TLS handshake errors"
-    );
-    describe_counter!("http_errors", "Total number of HTTP processing errors");
-    describe_counter!(
-        "waf_requests_blocked",
-        "Total number of requests blocked by WAF"
-    );
-    describe_counter!(
-        "l7_proxy_blocked_rate_limit",
-        "Connections blocked by rate limiting at L7"
-    );
-    describe_counter!(
-        "l7_proxy_blocked_connection_limit",
-        "Connections blocked by connection limits at L7"
-    );
-    describe_counter!(
-        "l7_proxy_blocked_blacklist",
-        "Connections blocked by IP blacklist at L7"
-    );
-    describe_counter!(
-        "l7_proxy_blocked_global_limit",
-        "Connections blocked by global limits at L7"
-    );
-    describe_gauge!("active_connections", "Current number of active connections");
-}
-
 /// Start Prometheus metrics server
-async fn start_metrics_server(listen_addr: SocketAddr, metrics: ProxyMetrics) -> Result<()> {
+async fn start_metrics_server(listen_addr: SocketAddr) -> Result<()> {
     info!(
         metrics_addr = %listen_addr,
         "Starting Prometheus metrics server"
@@ -1082,28 +962,12 @@ async fn start_metrics_server(listen_addr: SocketAddr, metrics: ProxyMetrics) ->
 
     info!(
         metrics_addr = %listen_addr,
-        "Prometheus metrics server started"
+        "Prometheus metrics server started - metrics are updated in real-time"
     );
 
-    // Update metrics periodically
-    let mut interval = tokio::time::interval(Duration::from_secs(5));
-    loop {
-        interval.tick().await;
-
-        // Update gauge metrics
-        gauge!(
-            "active_connections",
-            metrics.active_connections.load(Ordering::Relaxed) as f64
-        );
-        gauge!(
-            "https_requests_received",
-            metrics.https_requests_received.load(Ordering::Relaxed) as f64
-        );
-        gauge!(
-            "tls_handshakes_completed",
-            metrics.tls_handshakes_completed.load(Ordering::Relaxed) as f64
-        );
-    }
+    // Keep the server running indefinitely
+    futures::future::pending::<()>().await;
+    Ok(())
 }
 
 /// Run in basic TCP proxy mode (Phase 1)
