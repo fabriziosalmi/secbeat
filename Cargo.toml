@@ -1,9 +1,10 @@
 [workspace]
 members = [
     "mitigation-node",
-    "orchestrator-node"
-, "secbeat-common", "secbeat-ebpf"]
-exclude = ["wasm-rules/*", "mitigation-node/fuzz"]
+    "orchestrator-node",
+    "secbeat-common"
+]
+exclude = ["wasm-rules/*", "mitigation-node/fuzz", "secbeat-ebpf"]
 resolver = "2"
 
 [workspace.dependencies]
