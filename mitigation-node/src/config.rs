@@ -6,6 +6,8 @@ use std::time::Duration;
 use tokio::sync::RwLock;
 use tracing::info;
 
+use crate::secret::Secret;
+
 /// Main configuration for the mitigation node - unified platform config
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MitigationConfig {
@@ -182,8 +184,8 @@ pub struct ConnectionLimitsConfig {
 pub struct SynProxyConfig {
     /// Enable SYN proxy mode
     pub enabled: bool,
-    /// Secret key for SYN cookie generation
-    pub cookie_secret: String,
+    /// Secret key for SYN cookie generation (MUST be set via SYN_COOKIE_SECRET env var in production)
+    pub cookie_secret: Secret<String>,
     /// Listening port for raw socket
     pub listen_port: u16,
     /// Maximum time to wait for ACK after SYN-ACK (milliseconds)
@@ -786,7 +788,7 @@ impl Default for MitigationConfig {
                 },
                 syn_proxy: SynProxyConfig {
                     enabled: true,
-                    cookie_secret: "dev-cookie-secret-not-for-production-use-only".to_string(),
+                    cookie_secret: Secret::new("dev-cookie-secret-not-for-production-use-only".to_string()),
                     listen_port: 8443,
                     handshake_timeout_ms: 5000,
                     max_pending_handshakes: 5000,
@@ -1105,7 +1107,7 @@ impl ConfigManager {
 
         // Security overrides
         if let Ok(syn_cookie_secret) = std::env::var("SYN_COOKIE_SECRET") {
-            config.ddos.syn_proxy.cookie_secret = syn_cookie_secret;
+            config.ddos.syn_proxy.cookie_secret = Secret::new(syn_cookie_secret);
         }
 
         info!("Applied environment variable overrides");

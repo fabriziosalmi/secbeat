@@ -9,6 +9,7 @@ pub mod distributed;
 pub mod events;
 pub mod management;
 pub mod orchestrator;
+pub mod secret;
 pub mod syn_proxy;
 pub mod tcp_proxy;
 pub mod waf;
@@ -23,6 +24,7 @@ pub use ddos::DdosProtection;
 pub use distributed::{GCounter, NodeId, PNCounter, StateManager, StateSyncConfig};
 pub use events::EventSystem;
 pub use management::{ManagementState, ShutdownSignal};
+pub use secret::Secret;
 pub use waf::{WafEngine, WafResult};
 pub use wasm::{Action as WasmAction, RequestContext, WasmConfig, WasmEngine};
 

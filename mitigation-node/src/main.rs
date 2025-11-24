@@ -117,10 +117,22 @@ async fn main() -> Result<()> {
         .with_line_number(true)
         .init();
 
-    info!(
-        "Starting SecBeat Mitigation Node v{} - Production-Grade Security Platform",
-        env!("CARGO_PKG_VERSION")
-    );
+    let version = env!("CARGO_PKG_VERSION");
+    let version_parts: Vec<&str> = version.split('.').collect();
+    let is_stable = version_parts.get(0).map(|&v| v != "0").unwrap_or(false);
+    
+    if is_stable {
+        info!(
+            "Starting SecBeat Mitigation Node v{} - Production-Grade Security Platform",
+            version
+        );
+    } else {
+        warn!(
+            "Starting SecBeat Mitigation Node v{} - BETA/EXPERIMENTAL - Not for production use",
+            version
+        );
+        warn!("This is pre-1.0 software. Expect breaking changes and potential stability issues.");
+    }
 
     // Determine config file path - support unified config system
     let config_name = std::env::var("SECBEAT_CONFIG").unwrap_or_else(|_| {
