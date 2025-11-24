@@ -60,7 +60,9 @@ impl WasmEngine {
         // Enable fuel metering for CPU limits
         engine_config.consume_fuel(true);
         
-        // Disable WASI (we use custom ABI)
+        // Disable WASI and advanced features (we use custom ABI)
+        // Note: Must disable relaxed-simd before disabling simd
+        engine_config.wasm_relaxed_simd(false);
         engine_config.wasm_simd(false);
         engine_config.wasm_bulk_memory(true);
         engine_config.wasm_reference_types(false);
