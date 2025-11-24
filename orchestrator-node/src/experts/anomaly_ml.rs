@@ -26,6 +26,7 @@ use uuid::Uuid;
 
 use super::behavioral::BlockCommand;
 use super::features::{RequestMetadata, TrafficFeatures};
+use super::ml_async::AsyncMlEngine;
 
 /// Operating mode of the anomaly expert
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -91,9 +92,6 @@ pub struct AnomalyScore {
     pub timestamp: DateTime<Utc>,
 }
 
-/// Type alias for Random Forest classifier to reduce type complexity
-type RFModel = RandomForestClassifier<f64, i32, DenseMatrix<f64>, Vec<i32>>;
-
 /// ML-based Anomaly Detection Expert
 pub struct AnomalyExpert {
     /// Configuration
@@ -113,8 +111,8 @@ pub struct AnomalyExpert {
     #[allow(dead_code)]
     request_buffer: Arc<RwLock<HashMap<String, VecDeque<RequestMetadata>>>>,
     
-    /// Trained Random Forest model
-    model: Arc<RwLock<Option<RFModel>>>,
+    /// Async ML inference engine (NON-BLOCKING)
+    ml_engine: AsyncMlEngine,
     
     /// Last training timestamp
     last_training: Arc<RwLock<DateTime<Utc>>>,
@@ -148,13 +146,18 @@ impl AnomalyExpert {
             config.training_duration_secs
         );
         
+        // Create async ML engine with queue size 1000 and 4 worker threads
+        let ml_engine = AsyncMlEngine::new(1000, 4);
+        
+        info!("✓ Async ML inference engine created (queue: 1000, workers: 4)");
+        
         Self {
             config,
             mode: Arc::new(RwLock::new(OperatingMode::Training)),
             training_start: now,
             feature_buffer: Arc::new(RwLock::new(HashMap::new())),
             request_buffer: Arc::new(RwLock::new(HashMap::new())),
-            model: Arc::new(RwLock::new(None)),
+            ml_engine,
             last_training: Arc::new(RwLock::new(now)),
             nats_client,
             stats: Arc::new(RwLock::new(AnomalyStats::default())),
@@ -250,35 +253,13 @@ impl AnomalyExpert {
         Some(result)
     }
 
-    /// Calculate anomaly score for given features
+    /// Calculate anomaly score for given features (NON-BLOCKING)
     async fn calculate_anomaly_score(&self, features: &TrafficFeatures) -> f64 {
-        let model_guard = self.model.read().await;
-        
-        match &*model_guard {
-            Some(model) => {
-                // Use trained model for prediction
-                let feature_vec = features.to_vector();
-                let x = DenseMatrix::from_2d_vec(&vec![feature_vec]);
-                
-                match model.predict(&x) {
-                    Ok(predictions) => {
-                        // Random Forest returns class probabilities
-                        // We interpret class 1 (anomaly) probability as score
-                        let anomaly_class = predictions.first().copied().unwrap_or(0);
-                        if anomaly_class == 1 {
-                            1.0 // Classified as anomaly
-                        } else {
-                            0.0 // Classified as normal
-                        }
-                    }
-                    Err(e) => {
-                        warn!("Model prediction failed: {}", e);
-                        0.0
-                    }
-                }
-            }
-            None => {
-                // No model yet - use heuristics
+        // Use async ML engine - this will NOT block the request thread
+        match self.ml_engine.predict_async(features).await {
+            Ok(score) => score,
+            Err(e) => {
+                warn!("Async ML prediction failed: {}, falling back to heuristics", e);
                 self.heuristic_score(features)
             }
         }
@@ -356,18 +337,26 @@ impl AnomalyExpert {
         // is via Random Forest with synthetic outliers
         let y: Vec<i32> = vec![0; features_data.len()];
 
-        // Train Random Forest
-        let model = RandomForestClassifier::fit(
-            &x,
-            &y,
-            smartcore::ensemble::random_forest_classifier::RandomForestClassifierParameters::default()
-                .with_n_trees(self.config.n_trees)
-                .with_max_depth(self.config.max_depth)
-                .with_criterion(SplitCriterion::Gini),
-        ).context("Failed to train Random Forest model")?;
+        // Train Random Forest in a blocking task (CPU-intensive)
+        let n_trees = self.config.n_trees;
+        let max_depth = self.config.max_depth;
+        
+        let model = tokio::task::spawn_blocking(move || {
+            RandomForestClassifier::fit(
+                &x,
+                &y,
+                smartcore::ensemble::random_forest_classifier::RandomForestClassifierParameters::default()
+                    .with_n_trees(n_trees)
+                    .with_max_depth(max_depth)
+                    .with_criterion(SplitCriterion::Gini),
+            )
+        })
+        .await
+        .context("Training task panicked")?
+        .context("Failed to train Random Forest model")?;
 
-        // Update model
-        *self.model.write().await = Some(model);
+        // Update async ML engine with new model
+        self.ml_engine.update_model(model).await;
         *self.last_training.write().await = Utc::now();
 
         // Update stats
@@ -376,7 +365,7 @@ impl AnomalyExpert {
         stats.last_retrain = Some(Utc::now());
         stats.training_samples = features_data.len() as u64;
 
-        info!("✓ Model trained successfully");
+        info!("✓ Model trained successfully and updated in async engine");
         Ok(())
     }
 
