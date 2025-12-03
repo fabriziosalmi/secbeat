@@ -447,6 +447,20 @@ See [API Reference](https://fabriziosalmi.github.io/secbeat/reference/api/) for 
 - **Memory**: 4GB RAM minimum, 8GB recommended
 - **Privileges**: Root or CAP_NET_RAW capability for SYN proxy mode
 
+## Support Policy
+
+| Version | Status | Support Level |
+|---------|--------|---------------|
+| 0.9.x   | Active | Bug fixes, security patches, new features |
+| < 0.9   | EOL    | No support, upgrade recommended |
+
+**Maintenance Schedule:**
+- Security vulnerabilities: Best-effort response within 48 hours
+- Bug fixes: Addressed in next minor release
+- Feature requests: Evaluated for roadmap inclusion
+
+**This project is NOT recommended for production use.** For production DDoS mitigation, consider Cloudflare, AWS Shield, Fastly, or Akamai. Use SecBeat for learning, research, or non-critical environments.
+
 ## Contributing
 
 This is an early-stage project. Contributions are welcome, but be aware of the current development status.

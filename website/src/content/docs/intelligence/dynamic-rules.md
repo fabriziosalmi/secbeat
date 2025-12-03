@@ -5,7 +5,7 @@ description: Machine Learning-generated WASM rules for adaptive security
 
 ## Overview
 
-Dynamic Rules transform Machine Learning (ML) anomaly detection into executable WebAssembly (WASM) security policies, enabling **behavior-based blocking** instead of just Internet Protocol (IP)-based blocking.
+Dynamic Rules transform Machine Learning (ML) anomaly detection into executable WebAssembly (WASM) security policies, enabling **behavior-based blocking** rather than relying solely on Internet Protocol (IP)-based blocking.
 
 ## The Problem with Static Rules
 
@@ -107,7 +107,7 @@ Orchestrator generates JSON rule:
   "field": "URI",
   "pattern": "*../*",
   "action": "Block",
-  "ttl_seconds": 3600
+  "ttl_seconds": 3600  // 3600 seconds = 1 hour Time To Live
 }
 ```
 

@@ -2,12 +2,12 @@
 
 ## Supported Versions
 
-SecBeat is in early development (v0.1.x as of November 2025). Security updates are provided on a best-effort basis.
+SecBeat is in active development (v0.9.x as of December 2025). Security updates are provided on a best-effort basis.
 
 | Version | Supported          | Status      |
 | ------- | ------------------ | ----------- |
-| 0.1.x   | :white_check_mark: | Development |
-| < 0.1   | :x:                | Deprecated  |
+| 0.9.x   | :white_check_mark: | Development |
+| < 0.9   | :x:                | Deprecated  |
 
 **Note**: This project is not recommended for production use. No formal security SLA is provided.
 

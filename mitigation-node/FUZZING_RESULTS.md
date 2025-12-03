@@ -1,6 +1,6 @@
 # SYN Proxy Fuzzing Results
 
-**Date**: November 24, 2025  
+**Date**: 2025-11-24  
 **Fuzzer**: cargo-fuzz (LibFuzzer) v0.13.1  
 **Target**: SYN cookie generation and validation logic  
 **Duration**: 60 seconds per target (2 minutes total)  
@@ -180,8 +180,8 @@ The SYN cookie implementation has demonstrated:
 cargo fuzz run fuzz_syn_cookie_generation -- -max_total_time=300
 cargo fuzz run fuzz_syn_cookie_validation -- -max_total_time=300
 
-# Weekly long-duration fuzzing
-cargo fuzz run fuzz_syn_cookie_generation -- -max_total_time=86400  # 24 hours
+# Weekly long-duration fuzzing (86400 seconds = 24 hours)
+cargo fuzz run fuzz_syn_cookie_generation -- -max_total_time=86400
 cargo fuzz run fuzz_syn_cookie_validation -- -max_total_time=86400
 ```
 

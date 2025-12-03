@@ -2,6 +2,18 @@
 
 Thank you for your interest in contributing to SecBeat! This document provides guidelines and instructions for contributing to the project.
 
+## Table of Contents
+
+- [Development Environment Setup](#development-environment-setup)
+- [Development Workflow](#development-workflow)
+- [Code Standards](#code-standards)
+- [Pull Request Process](#pull-request-process)
+- [Architecture Guidelines](#architecture-guidelines)
+- [Testing Strategy](#testing-strategy)
+- [Debugging](#debugging)
+- [Common Issues](#common-issues)
+- [Getting Help](#getting-help)
+
 ## Development Environment Setup
 
 ### Prerequisites

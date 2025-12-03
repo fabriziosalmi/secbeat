@@ -93,7 +93,7 @@ cidrs = ["10.0.0.0/8"]
 
 # Auto-blacklist threshold
 auto_blacklist_threshold = 10000
-auto_blacklist_duration_seconds = 3600
+auto_blacklist_duration_seconds = 3600  # 3600 seconds = 1 hour
 ```
 
 ## WAF Configuration

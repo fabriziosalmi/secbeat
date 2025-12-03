@@ -90,10 +90,10 @@ Create a `.env` file for customization:
 SECBEAT_CONFIG=config.dev
 RUST_LOG=info
 
-# Security
-SYN_COOKIE_SECRET=your-secret-here
-MANAGEMENT_API_KEY=your-api-key-here
-ORCHESTRATOR_API_KEY=your-orchestrator-key-here
+# Security (generate with: openssl rand -hex 32)
+SYN_COOKIE_SECRET=GENERATE_WITH_openssl_rand_hex_32
+MANAGEMENT_API_KEY=GENERATE_WITH_openssl_rand_hex_32
+ORCHESTRATOR_API_KEY=GENERATE_WITH_openssl_rand_hex_32
 
 # TLS
 SECBEAT_AUTO_GENERATE_CERTS=true

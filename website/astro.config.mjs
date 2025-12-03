@@ -20,7 +20,7 @@ export default defineConfig({
         {
           icon: 'github',
           label: 'GitHub',
-          href: 'https://github.com/yourusername/secbeat'
+          href: 'https://github.com/fabriziosalmi/secbeat'
         }
       ],
       customCss: [

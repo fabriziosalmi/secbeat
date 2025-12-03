@@ -53,7 +53,7 @@ curl http://localhost:9999/api/v1/status
 {
   "status": "running",
   "mode": "l7",
-  "uptime_seconds": 86400,
+  "uptime_seconds": 86400,  // 86400 seconds = 24 hours
   "connections": {
     "active": 1247,
     "total": 524288
@@ -126,7 +126,7 @@ curl -X POST http://localhost:9999/api/v1/blacklist \
   -d '{
     "ip": "192.0.2.100",
     "reason": "repeated attacks",
-    "duration_seconds": 3600
+    "duration_seconds": 3600  // 3600 seconds = 1 hour
   }'
 ```
 

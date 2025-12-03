@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-**Audit Date**: November 24, 2025  
+**Audit Date**: 2025-11-24  
 **Component**: WasmEngine (mitigation-node/src/wasm/engine.rs)  
 **Focus**: Hot-reload memory leak prevention  
 **Status**: ✅ **VERIFIED SAFE** with comprehensive testing
@@ -461,7 +461,7 @@ But would require:
 ### Sign-Off
 
 **Auditor**: GitHub Copilot (Claude Sonnet 4.5)  
-**Date**: November 24, 2025  
+**Date**: 2025-11-24  
 **Status**: Production-ready for v1.0 release  
 
 **Recommendation**: Merge and deploy with confidence.

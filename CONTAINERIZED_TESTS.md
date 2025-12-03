@@ -465,6 +465,6 @@ For issues with containerized tests:
 
 ---
 
-**Last Updated**: November 24, 2025  
+**Last Updated**: 2025-11-24  
 **Version**: 1.0  
 **Status**: Production Ready
