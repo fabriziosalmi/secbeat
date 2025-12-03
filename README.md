@@ -6,12 +6,12 @@
 [![Rust](https://img.shields.io/badge/rust-1.78+-93450a.svg?style=flat-square)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Status](https://img.shields.io/badge/status-BETA-yellow?style=flat-square)](https://github.com/fabriziosalmi/secbeat/releases)
-[![Latest Release](https://img.shields.io/github/v/tag/fabriziosalmi/secbeat?style=flat-square&label=version)](https://github.com/fabriziosalmi/secbeat/releases/tag/v0.9.4)
+[![Latest Release](https://img.shields.io/github/v/tag/fabriziosalmi/secbeat?style=flat-square&label=version)](https://github.com/fabriziosalmi/secbeat/releases/tag/v0.9.5)
 [![Tests](https://github.com/fabriziosalmi/secbeat/workflows/Test%20Suite/badge.svg)](https://github.com/fabriziosalmi/secbeat/actions/workflows/test.yml)
 
 > 🌐 **[View Full Documentation →](https://fabriziosalmi.github.io/secbeat)**
 
-> ⚠️ **BETA SOFTWARE (v0.9.4)** - This is pre-1.0 software under active development. Not recommended for production use. Expect breaking changes and potential stability issues.
+> ⚠️ **BETA SOFTWARE (v0.9.5)** - This is pre-1.0 software under active development. Not recommended for production use. Expect breaking changes and potential stability issues.
 
 SecBeat is a distributed security platform built in Rust that provides Distributed Denial of Service (DDoS) mitigation and Web Application Firewall (WAF) capabilities. The platform implements a "smart edge, intelligent orchestrator" architecture where mitigation nodes handle traffic processing while a central orchestrator provides coordination and intelligence.
 
@@ -64,16 +64,36 @@ curl -k https://localhost:8443/
 - **Resource Manager**: Linear regression for Central Processing Unit (CPU) usage prediction
 
 ### Experimental Features (Linux Only)
-- **eBPF/XDP**: Extended Berkeley Packet Filter (eBPF) and eXpress Data Path (XDP) for kernel-level packet processing
+- **eBPF/XDP**: Extended Berkeley Packet Filter (eBPF) and eXpress Data Path (XDP) for kernel-level packet processing ✅
   - IP blocklist with HashMap (10,000 entry capacity)
   - PerCpuArray statistics (lock-free counters)
+  - SYN cookie generation and XDP_TX response
   - <1µs latency, 10M+ packets/second throughput
-- **SYN Proxy**: SYN cookie implementation for flood mitigation
   - **Requirements**: Linux 5.15+, `CAP_NET_ADMIN`, `CAP_BPF`
-  - **Status**: Functional in LXC, not supported in Docker-in-Docker
-- **WASM Runtime**: WebAssembly (WASM)-based WAF rules (Wasmtime) - basic implementation
+  - **Build**: Requires `cargo +nightly build-ebpf` (separate from main workspace)
+- **SYN Proxy**: SYN cookie implementation for flood mitigation (729 lines) ✅
+  - Stateless SYN cookie generation and validation
+  - Raw packet reception via pnet
+  - TCP handshake tracking with automatic cleanup
+  - **Requirements**: Linux, `CAP_NET_RAW`
+  - **Status**: Functional prototype, production deployment requires kernel integration
+- **WASM Runtime**: WebAssembly (WASM)-based WAF rules (Wasmtime 29.x) ✅
+  - Hot-reloadable security rules
+  - Data-driven JSON configuration
+  - 3 example modules: bad-bot, test-runner, universal-waf
+  - Fuel-limited execution for safety
 
-## Recent Improvements (v0.9.4)
+## Recent Improvements (v0.9.5)
+
+### Security Updates
+- **Wasmtime 29.x**: Updated from v26 to fix CVE-2025-64345 and CVE-2025-53901
+- **Dependency Updates**: mdast-util-to-hast security patch
+
+### Documentation
+- **eBPF/XDP Status**: Updated to reflect full implementation (232 lines)
+- **SYN Proxy Status**: Updated to reflect functional prototype (729 lines)  
+- **WASM Runtime**: Documented 3 example modules and hot-reload capability
+- **Fixed GitHub links**: Corrected website social links
 
 ### Performance Enhancements
 - **10x Faster Config Reads**: Replaced `RwLock` with `ArcSwap` for lock-free DDoS config access (50ns → 5ns)
@@ -232,9 +252,9 @@ See [Configuration Reference](https://fabriziosalmi.github.io/secbeat/reference/
 ### ⚠️ Experimental
 - [x] Random Forest anomaly detection (functional, needs tuning)
 - [x] Behavioral analysis engine (sliding window detection)
-- [x] WASM rule execution (basic, documented in issues)
-- [ ] eBPF/XDP packet filtering (Linux only, requires CAP_NET_ADMIN + CAP_BPF)
-- [ ] SYN proxy with cookie validation (prototype, needs testing)
+- [x] WASM rule execution (533 lines, 3 example modules)
+- [x] eBPF/XDP packet filtering (232 lines, Linux only, requires CAP_NET_ADMIN + CAP_BPF)
+- [x] SYN proxy with cookie validation (729 lines, functional prototype)
 - [ ] CRDT-based state synchronization (partial implementation)
 - [ ] Orchestrator ML features (minor test issues documented)
 
@@ -256,7 +276,7 @@ See [Configuration Reference](https://fabriziosalmi.github.io/secbeat/reference/
 
 ## Testing
 
-### Test Suite Status (v0.9.4)
+### Test Suite Status (v0.9.5)
 
 **Overall**: 50/55 tests passing (91% success rate on Linux)
 
@@ -498,7 +518,7 @@ Built with:
 
 ## Project Status
 
-**Current Version:** 0.9.4 (Beta)
+**Current Version:** 0.9.5 (Beta)
 
 **Progress**: 7/10 critical security improvements complete
 - ✅ Hyper 1.0 + Rustls 0.23 upgrade

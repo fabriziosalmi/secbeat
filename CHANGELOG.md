@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.5] - 2025-01-27
+
+### Security
+- Updated wasmtime from v26 to v29 (fixes CVE-2025-64345, CVE-2025-53901)
+- Merged mdast-util-to-hast security update (PR #6)
+
+### Changed
+- Corrected README feature status: eBPF/XDP (232 lines), SYN Proxy (729 lines), WASM (533 lines) now shown as implemented
+- Updated documentation to reflect actual implementation state
+- Standardized version numbers across all documentation files
+
+### Fixed
+- Fixed broken GitHub links in website (replaced placeholder with actual username)
+- Fixed magic number documentation (added 86400=24h, 3600=1h explanations)
+- Removed condescending language ("just", "simply") from documentation
+- Standardized date formats to ISO 8601
+
 ## [0.9.2] - 2025-11-24
 
 ### Added
