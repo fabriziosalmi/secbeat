@@ -149,7 +149,8 @@ Pin XDP processing to specific CPU cores:
 
 ```bash
 # Pin to CPUs 0-3 (isolate from other processes)
-sudo taskset -c 0-3 ./mitigation-node --mode xdp --interface eth0
+# Mode is set via config file [platform].mode = "syn"
+sudo taskset -c 0-3 ./mitigation-node
 
 # Verify affinity
 ps -eLo pid,tid,psr,comm | grep mitigation

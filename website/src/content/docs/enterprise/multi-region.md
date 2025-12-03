@@ -169,7 +169,7 @@ spec:
     spec:
       containers:
       - name: mitigation
-        image: secbeat/mitigation:v0.9.2
+        image: secbeat/mitigation:v0.9.5
         env:
         - name: REGION
           value: "us-east"

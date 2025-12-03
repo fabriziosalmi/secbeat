@@ -1,10 +1,10 @@
 ---
 title: SecBeat
-description: DDoS mitigation at kernel speed. eBPF + WASM + Rust.
+description: DDoS mitigation platform with eBPF, WASM, and Rust. Beta software.
 template: splash
 hero:
-  title: Defense at Kernel Speed
-  tagline: The first DDoS mitigation platform leveraging eBPF for raw power and WASM for infinite flexibility. Built in Rust.
+  title: DDoS Mitigation Platform
+  tagline: A Rust-based security platform combining eBPF/XDP kernel filtering, WASM hot-reload rules, and L7 WAF protection. Currently in beta (v0.9.5).
   actions:
     - text: Get Started
       link: /quickstart/
@@ -17,64 +17,94 @@ hero:
 
 import { Card, CardGrid } from '@astrojs/starlight/components';
 
-## Kernel-First Architecture
+:::caution[Beta Software]
+SecBeat is pre-1.0 software under active development. Not recommended for production use without thorough testing.
+:::
+
+## Architecture
 
 <CardGrid>
-  <Card title="eBPF Kernel Mode" icon="shield">
-    XDP programs running at the lowest level. Drop attacks before they touch the network stack.
+  <Card title="eBPF/XDP (Linux)" icon="shield">
+    Kernel-level packet filtering using XDP. Implemented and functional on Linux 5.15+.
 
-    - **Sub-20µs** packet processing
-    - **1%** CPU usage
-    - **10M+ PPS** capacity
+    - IP blocklist with O(1) lookup
+    - SYN cookie generation
+    - Per-CPU statistics
+    - **Requires**: `CAP_NET_ADMIN`, `CAP_BPF`
   </Card>
 
-  <Card title="WASM Hot Reload" icon="rocket">
-    Update detection rules without restarting. WASM modules loaded dynamically.
+  <Card title="WASM Rules Engine" icon="rocket">
+    Hot-reloadable WAF rules using Wasmtime 29. No restart required.
 
-    - Dynamic rule updates
-    - Zero downtime
+    - 3 example modules included
+    - Fuel-limited execution (100K instructions)
+    - JSON-based request context
     - Sandboxed execution
   </Card>
 
-  <Card title="Rust Safety" icon="approve-check">
-    Memory safe by design. Zero-cost abstractions with borrow checker guarantees.
+  <Card title="L7 WAF" icon="approve-check">
+    Production-ready HTTP/HTTPS reverse proxy with 100+ attack patterns.
 
-    - No memory leaks
-    - Thread safety
-    - Zero-cost abstractions
+    - SQL injection (~30 rules)
+    - XSS detection (~35 rules)
+    - Path traversal (~21 rules)
+    - TLS 1.2/1.3 (Rustls 0.23)
   </Card>
 
-  <Card title="Global Sync (CRDTs)" icon="external">
-    Distributed mitigation decisions. Real-time sync via NATS.
+  <Card title="Distributed (Beta)" icon="external">
+    NATS-based messaging for multi-node deployments.
 
-    - Multi-region deployment
-    - Eventually consistent
-    - Conflict-free replication
+    - Real-time event sync
+    - Fleet management
+    - CRDT state sync (partial)
   </Card>
 </CardGrid>
 
-## Quick Example
+## Quick Start
+
+```bash
+# Clone and build
+git clone https://github.com/fabriziosalmi/secbeat.git
+cd secbeat && cargo build --release --workspace
+
+# Start with Docker Compose
+docker-compose up -d
+
+# Test the proxy
+curl -k https://localhost:8443/
+```
+
+## Configuration Example
 
 ```toml
-[mitigation]
-interface = "eth0"
-mode = "xdp"
-threshold_pps = 1_000_000
+[platform]
+mode = "l7"
+environment = "development"
 
-[wasm]
-rules_dir = "./rules"
-hot_reload = true
+[network]
+public_port = 8443
+backend_port = 8080
+
+[waf]
+enabled = true
+block_sql_injection = true
+block_xss = true
+
+[metrics]
+enabled = true
+bind_address = "0.0.0.0:9191"
 ```
 
-```rust
-#[no_mangle]
-pub extern "C" fn check_packet() {
-  if is_syn_flood() {
-    emit_verdict(XDP_DROP);
-  }
-}
-```
+## Current Status
 
-## Don't Trust Our Words
+| Feature | Status | Notes |
+|---------|--------|-------|
+| L7 HTTP/HTTPS Proxy | ✅ Stable | Hyper 1.x, Rustls 0.23 |
+| WAF Engine | ✅ Stable | 100+ patterns, latency histograms |
+| eBPF/XDP | ✅ Implemented | Linux only, 232 lines |
+| WASM Runtime | ✅ Implemented | Wasmtime 29, 3 modules |
+| SYN Proxy | ⚠️ Prototype | 729 lines, functional |
+| CRDT Sync | ⚠️ Partial | Basic implementation |
+| Orchestrator | ⚠️ Beta | Hardcoded config |
 
-Trust the borrow checker. SecBeat is built in Rust, leveraging the language's memory safety guarantees and zero-cost abstractions to deliver maximum performance without sacrificing reliability.
+Built with Rust for memory safety and performance.

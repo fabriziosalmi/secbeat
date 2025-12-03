@@ -324,7 +324,7 @@ docker-compose logs -f mitigation-node
 # Test the deployment
 curl -k https://localhost:8443/health
 # Expected output:
-# {"status":"healthy","version":"0.9.2"}
+# {"status":"healthy","version":"0.9.5"}
 ```
 
 ### Native Linux (Production)

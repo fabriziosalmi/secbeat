@@ -335,10 +335,10 @@ buffer_size = 32768      # Smaller buffers
 
 ```bash
 # Enable debug logging
-RUST_LOG=debug cargo run --release
+RUST_LOG=debug SECBEAT_CONFIG=config.dev ./mitigation-node
 
 # Trace specific modules
-RUST_LOG=mitigation_node::syn_proxy=trace cargo run
+RUST_LOG=mitigation_node::syn_proxy=trace ./mitigation-node
 ```
 
 ## Next Steps

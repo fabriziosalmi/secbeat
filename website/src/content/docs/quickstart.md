@@ -56,8 +56,9 @@ sudo setcap cap_net_raw,cap_net_admin+ep /usr/local/bin/mitigation-node
 |------|---------|-------------|
 | `config.dev.toml` | Development | Local testing |
 | `config.prod.toml` | Production | Live deployment |
-| `config.l7.toml` | L7 mode with TLS | Full features |
-| `config.l7-notls.toml` | L7 mode without TLS | Testing |
+| `config.l7.toml` | L7 mode with WAF | Full features |
+| `config.tcp.toml` | TCP proxy mode | Minimal overhead |
+| `config.docker.toml` | Docker deployment | Container environments |
 
 ## Operation Modes
 

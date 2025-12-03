@@ -5,14 +5,14 @@ description: Complete configuration options for SecBeat
 
 ## Configuration File Format
 
-SecBeat uses TOML format for configuration. By default, it looks for `config.toml` in the current directory.
+SecBeat uses TOML format for configuration. Configuration is specified via environment variables.
 
 ```bash
-# Specify custom config
-./mitigation-node --config /path/to/config.toml
-
-# Use environment variable
+# Specify config file (without .toml extension)
 SECBEAT_CONFIG=config.prod ./mitigation-node
+
+# Or use absolute path to directory containing config
+SECBEAT_CONFIG=/etc/secbeat/config.prod ./mitigation-node
 ```
 
 ## Platform Settings

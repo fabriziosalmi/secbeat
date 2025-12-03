@@ -163,7 +163,7 @@ Packets are evaluated **before** socket buffer allocation, saving thousands of C
 ```bash
 sudo setcap cap_net_admin,cap_bpf=eip ./mitigation-node
 # OR run with sudo (not recommended for production)
-sudo ./mitigation-node --mode xdp
+sudo ./mitigation-node
 ```
 
 ### Stats Show Zero Despite Traffic
