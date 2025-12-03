@@ -7,7 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.9.5] - 2025-01-27
+## [0.9.6] - 2025-12-03
+
+### Changed
+- **CLI Reference**: Completely rewritten - SecBeat uses environment variables only, no CLI flags
+- **Documentation**: Comprehensive sync with codebase - removed all inaccurate references
+- **Index page**: Accurate feature status, removed inflated performance claims
+
+### Fixed
+- Fixed incorrect CLI flag references (--config, --mode, --interface do not exist)
+- Fixed config file references (removed non-existent config.l7-notls.toml)
+- Fixed debug mode commands in installation docs
+- Fixed all version references to v0.9.6
+
+## [0.9.5] - 2025-12-03
 
 ### Security
 - Updated wasmtime from v26 to v29 (fixes CVE-2025-64345, CVE-2025-53901)

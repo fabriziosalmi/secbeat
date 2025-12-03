@@ -6,12 +6,12 @@
 [![Rust](https://img.shields.io/badge/rust-1.78+-93450a.svg?style=flat-square)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Status](https://img.shields.io/badge/status-BETA-yellow?style=flat-square)](https://github.com/fabriziosalmi/secbeat/releases)
-[![Latest Release](https://img.shields.io/github/v/tag/fabriziosalmi/secbeat?style=flat-square&label=version)](https://github.com/fabriziosalmi/secbeat/releases/tag/v0.9.5)
+[![Latest Release](https://img.shields.io/github/v/tag/fabriziosalmi/secbeat?style=flat-square&label=version)](https://github.com/fabriziosalmi/secbeat/releases/tag/v0.9.6)
 [![Tests](https://github.com/fabriziosalmi/secbeat/workflows/Test%20Suite/badge.svg)](https://github.com/fabriziosalmi/secbeat/actions/workflows/test.yml)
 
 > 🌐 **[View Full Documentation →](https://fabriziosalmi.github.io/secbeat)**
 
-> ⚠️ **BETA SOFTWARE (v0.9.5)** - This is pre-1.0 software under active development. Not recommended for production use. Expect breaking changes and potential stability issues.
+> ⚠️ **BETA SOFTWARE (v0.9.6)** - This is pre-1.0 software under active development. Not recommended for production use. Expect breaking changes and potential stability issues.
 
 SecBeat is a distributed security platform built in Rust that provides Distributed Denial of Service (DDoS) mitigation and Web Application Firewall (WAF) capabilities. The platform implements a "smart edge, intelligent orchestrator" architecture where mitigation nodes handle traffic processing while a central orchestrator provides coordination and intelligence.
 
@@ -518,7 +518,7 @@ Built with:
 
 ## Project Status
 
-**Current Version:** 0.9.5 (Beta)
+**Current Version:** 0.9.6 (Beta)
 
 **Progress**: 7/10 critical security improvements complete
 - ✅ Hyper 1.0 + Rustls 0.23 upgrade
