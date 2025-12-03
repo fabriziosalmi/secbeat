@@ -34,7 +34,8 @@ http-body-util = { workspace = true }
 arc-swap = { workspace = true }
 
 # WASM Runtime for hot-reloadable WAF rules
-wasmtime = "26.0"
+# Updated to fix RUSTSEC-2025-0118 (CVE-2025-64345) and RUSTSEC-2025-0046 (CVE-2025-53901)
+wasmtime = "29"
 
 # Workspace dependencies
 regex = { workspace = true }
